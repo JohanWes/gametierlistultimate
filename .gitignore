@@ -1,0 +1,31 @@
+# Secrets / env
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+build/
+dist/
+
+# Test / coverage artifacts
+coverage/
+playwright-report/
+test-results/
+.playwright/
+
+# Vercel
+.vercel/
+
+# Logs / misc
+*.log
+npm-debug.log*
+.DS_Store
+
+# Internal planning / spec — kept local, not published
+docs/
+GameMVP.txt
