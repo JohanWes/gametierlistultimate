@@ -53,11 +53,11 @@ export const REVEAL_MIN_ROUNDS = 12;
 /**
  * Confidence at which the run switches from the multi-item "building" phase to
  * the 1-on-1 "fine-tuning" phase. Keep multi-item rounds (groups + bucket /
- * podium / bracket / gauntlet / vibe / replay specials) firing through ~90% so
- * the climb to high confidence stays fast; beyond this, only tier-boundary pairs
- * sharpen the final placements.
+ * podium / gauntlet / vibe / replay specials) firing through ~95% so the climb
+ * to high confidence stays fast; beyond this, only fine-tuning 1-on-1s (boundary
+ * pairs + the bracket tournament, which is just three 1v1s) sharpen placements.
  */
-export const LATE_PHASE_CONFIDENCE = 90;
+export const LATE_PHASE_CONFIDENCE = 95;
 
 const REPLAY_EVERY = 6;
 const GAUNTLET_EVERY = 8;
@@ -177,10 +177,10 @@ function injectedRound(
     if (podium) return podium;
   }
 
-  // Bracket: a four-game knockout (two semis + a final), a dramatic beat like the gauntlet.
-  // Fires throughout the early (multi-item) phase on its cadence; the late phase is reserved
-  // for fine-tuning.
-  if (phase !== 'late' && round % BRACKET_EVERY === 0 && last !== 'bracket') {
+  // Bracket: a four-game knockout (two semis + a final) — i.e. three 1v1s in one round. It earns
+  // a place in *both* phases: a dramatic beat during the build, and a compact tournament during
+  // fine-tuning (where it folds three boundary-style duels into a single satisfying round).
+  if (round % BRACKET_EVERY === 0 && last !== 'bracket') {
     const bracket = buildBracket(state);
     if (bracket) return bracket;
   }

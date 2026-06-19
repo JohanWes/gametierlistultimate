@@ -180,11 +180,16 @@ describe('multi-game special injections', () => {
     expect(round.kind).not.toBe('bucket');
   });
 
-  it('skips multi-game injections in the late phase', () => {
+  it('skips the heavy multi-game injections in the late phase but keeps the bracket tournament', () => {
+    // Bucket/podium/vibe/gauntlet/replay stay gated to the build phase; the bracket is allowed
+    // in late phase too because it's just three 1v1s folded into one round — fine-tuning-shaped.
     expect(selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 4), { phase: 'late' })!.kind).not.toBe(
       'bucket',
     );
-    expect(selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 9), { phase: 'late' })!.kind).not.toBe(
+    expect(selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 5), { phase: 'late' })!.kind).not.toBe(
+      'vibe',
+    );
+    expect(selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 9), { phase: 'late' })!.kind).toBe(
       'bracket',
     );
   });

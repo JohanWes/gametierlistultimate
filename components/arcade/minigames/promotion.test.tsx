@@ -5,9 +5,10 @@ import { fireEvent, renderWithProviders, screen, waitFor } from '@/test/helpers/
 
 import { Promotion } from './Promotion';
 
-// matchup order is [lower, upper] with anchorId = upper.
+// matchup order is [lower, upper] with anchorId = upper. Presented as a plain VS — the tier
+// seam the engine used to pick the pair is intentionally NOT revealed to the player.
 describe('Promotion', () => {
-  it('promotes whichever side is picked', async () => {
+  it('crowns whichever side is picked', async () => {
     const [lower, upper] = makeGames(2);
     const onComplete = vi.fn();
     renderWithProviders(
@@ -19,7 +20,9 @@ describe('Promotion', () => {
       />,
     );
 
-    expect(screen.getByRole('heading', { name: /deserve a-tier/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /which one wins\?/i })).toBeInTheDocument();
+    // No tier is leaked into the UI.
+    expect(screen.queryByText(/a-tier|deserve/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Game 1$/i }));
 
     await waitFor(() =>
@@ -29,7 +32,7 @@ describe('Promotion', () => {
     );
   });
 
-  it('promotes the upper game on touch', async () => {
+  it('crowns the upper game on touch', async () => {
     const [lower, upper] = makeGames(2);
     const onComplete = vi.fn();
     renderWithProviders(

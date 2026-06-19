@@ -5,14 +5,15 @@ import { useComplete } from '../shared';
 import { VersusBoard } from './VersusBoard';
 
 /**
- * Minigame 9 — a boundary game faces the tier above it. Whichever the player picks earns the
- * higher placement. Emits a pairwise outcome.
+ * Minigame 9 — a boundary pair presented as a plain head-to-head. The engine still picks these
+ * two because they sit across a tier seam (so the verdict is high-signal), but nothing about the
+ * tier or a "promotion" is revealed to the player — it reads as a simple VS, same as a duel.
+ * Emits a pairwise outcome.
  */
-export function Promotion({ games, anchorId, boundary, onComplete }: MinigameProps) {
+export function Promotion({ games, anchorId, onComplete }: MinigameProps) {
   const complete = useComplete(onComplete);
   if (games.length < 2) return null;
 
-  // matchup order is [lower, upper] with anchorId = upper.
   const upper = games.find((g) => g.igdbId === anchorId) ?? games[1];
   const lower = games.find((g) => g.igdbId !== upper.igdbId) ?? games[0];
 
@@ -20,9 +21,7 @@ export function Promotion({ games, anchorId, boundary, onComplete }: MinigamePro
     <VersusBoard
       left={lower}
       right={upper}
-      eyebrow="Promotion battle"
-      prompt={boundary ? `Does it deserve ${boundary}-tier?` : 'Earn the higher tier'}
-      seamBadge={boundary ? `${boundary}?` : undefined}
+      prompt="Which one wins?"
       onPick={(winner, loser) =>
         complete([{ type: 'pairwise', winnerId: winner.igdbId, loserId: loser.igdbId }])
       }
