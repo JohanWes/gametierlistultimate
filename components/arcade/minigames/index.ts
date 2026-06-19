@@ -2,12 +2,15 @@ import type { ComponentType } from 'react';
 
 import type { MinigameKind } from '@/lib/ranking/arcade';
 
+import { Bracket } from './Bracket';
+import { BucketSort } from './BucketSort';
 import { Champion } from './Champion';
 import { Duel } from './Duel';
 import { Gauntlet } from './Gauntlet';
 import { HigherLower } from './HigherLower';
 import { KeepTwo } from './KeepTwo';
 import { Lineup } from './Lineup';
+import { Podium } from './Podium';
 import { Promotion } from './Promotion';
 import { ReplayTest } from './ReplayTest';
 import { Rivalry } from './Rivalry';
@@ -28,4 +31,7 @@ export const MINIGAMES: Record<MinigameKind, ComponentType<MinigameProps>> = {
   gauntlet: Gauntlet,
   replay: ReplayTest,
   vibe: VibeMeter,
+  bucket: BucketSort,
+  bracket: Bracket,
+  podium: Podium,
 };

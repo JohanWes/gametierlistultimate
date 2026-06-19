@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildBracket,
+  buildBucketRound,
   buildGauntlet,
+  buildPodium,
   buildVibeRound,
   canReveal,
   derivePhase,
@@ -44,8 +47,9 @@ describe('selectRound — phase matching', () => {
 
   it('middle phase yields a two-card pair minigame', () => {
     let state = createRankingState([1, 2, 3, 4, 5, 6], { seed: 3 });
-    // 14 rounds — clear of the replay (every 6) and gauntlet (every 8) injection schedule.
-    for (let i = 0; i < 7; i += 1) {
+    // 22 rounds — clear of every special-round cadence (bucket 4, vibe 5, replay 6, podium 7,
+    // gauntlet 8, bracket 9) so the engine's own pair matchup surfaces.
+    for (let i = 0; i < 11; i += 1) {
       state = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 6 });
       state = applyOutcome(state, { type: 'pairwise', winnerId: 2, loserId: 5 });
     }
@@ -140,6 +144,72 @@ describe('selectRound — special injections', () => {
     const state = stateAtRound([1, 2, 3, 4, 5, 6], 5);
     const round = selectRound(state, { phase: 'early', recentKinds: ['vibe'] })!;
     expect(round.kind).not.toBe('vibe');
+  });
+});
+
+describe('multi-game special injections', () => {
+  it('injects a bucket-sort round on schedule with 6 games', () => {
+    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 4), { phase: 'early' })!;
+    expect(round.kind).toBe('bucket');
+    expect(round.gameIds).toHaveLength(6);
+  });
+
+  it('injects a podium round on schedule', () => {
+    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 7), { phase: 'middle' })!;
+    expect(round.kind).toBe('podium');
+    expect(round.gameIds).toHaveLength(6);
+  });
+
+  it('injects a bracket round on schedule in the middle phase', () => {
+    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 9), { phase: 'middle' })!;
+    expect(round.kind).toBe('bracket');
+    expect(round.gameIds).toHaveLength(4);
+    expect(round.anchorId).toBe(round.gameIds[0]);
+  });
+
+  it('skips the bucket injection when it would repeat the last kind', () => {
+    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 4), {
+      phase: 'early',
+      recentKinds: ['bucket'],
+    })!;
+    expect(round.kind).not.toBe('bucket');
+  });
+
+  it('skips multi-game injections in the late phase', () => {
+    expect(selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 4), { phase: 'late' })!.kind).not.toBe(
+      'bucket',
+    );
+    expect(selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 9), { phase: 'late' })!.kind).not.toBe(
+      'bracket',
+    );
+  });
+});
+
+describe('buildBucketRound / buildPodium / buildBracket', () => {
+  it('bucket and podium pull six games, bracket pulls four', () => {
+    const state = createRankingState([1, 2, 3, 4, 5, 6], { seed: 2 });
+    expect(buildBucketRound(state)!.gameIds).toHaveLength(6);
+    expect(buildPodium(state)!.gameIds).toHaveLength(6);
+    expect(buildBracket(state)!.gameIds).toHaveLength(4);
+  });
+
+  it('returns null when the pool is too small', () => {
+    const small = createRankingState([1, 2, 3], { seed: 1 });
+    expect(buildBucketRound(small)).toBeNull();
+    expect(buildPodium(small)).toBeNull();
+    expect(buildBracket(small)).toBeNull();
+  });
+
+  it('seeds the least-sampled games into the bucket pool', () => {
+    let state = createRankingState([1, 2, 3, 4, 5, 6, 7, 8], { seed: 2 });
+    // Heavily sample games 1 and 2 so they fall outside the six least-sampled.
+    for (let i = 0; i < 8; i += 1) {
+      state = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 2 });
+    }
+    const bucket = buildBucketRound(state)!;
+    expect(bucket.gameIds).toHaveLength(6);
+    expect(bucket.gameIds).not.toContain(1);
+    expect(bucket.gameIds).not.toContain(2);
   });
 });
 

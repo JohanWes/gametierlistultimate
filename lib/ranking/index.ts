@@ -65,6 +65,7 @@ export type RankingOutcome =
       weight?: number;
     }
   | { type: 'vibe'; gameId: number; score: number; weight?: number }
+  | { type: 'bucket'; buckets: number[][]; weight?: number }
   | { type: 'skip'; gameIds?: number[] };
 
 export type TierMap = Record<Tier, number[]>;
@@ -184,28 +185,32 @@ export function applyOutcome(state: RankingState, outcome: RankingOutcome): Rank
       markParticipants(next, [outcome.winnerId, outcome.loserId], beforeRound + 1);
       break;
     case 'lineup':
-      applyLineup(next, outcome.orderedIds, outcome.weight ?? 0.42);
+      applyLineup(next, outcome.orderedIds, outcome.weight ?? 0.55);
       markParticipants(next, outcome.orderedIds, beforeRound + 1);
       break;
     case 'pick-k-of-n':
       for (const winner of outcome.pickedIds) {
         for (const loser of outcome.rejectedIds) {
-          applyPair(next, winner, loser, 1, outcome.weight ?? 0.52);
+          applyPair(next, winner, loser, 1, outcome.weight ?? 0.68);
         }
       }
       markParticipants(next, [...outcome.pickedIds, ...outcome.rejectedIds], beforeRound + 1);
       break;
     case 'champion':
       for (const loser of outcome.opponentIds) {
-        applyPair(next, outcome.winnerId, loser, 1, outcome.weight ?? 0.62);
+        applyPair(next, outcome.winnerId, loser, 1, outcome.weight ?? 0.8);
       }
       markParticipants(next, [outcome.winnerId, ...outcome.opponentIds], beforeRound + 1);
       break;
     case 'sacrifice':
       for (const winner of outcome.opponentIds) {
-        applyPair(next, winner, outcome.loserId, 1, outcome.weight ?? 0.62);
+        applyPair(next, winner, outcome.loserId, 1, outcome.weight ?? 0.8);
       }
       markParticipants(next, [outcome.loserId, ...outcome.opponentIds], beforeRound + 1);
+      break;
+    case 'bucket':
+      applyBucket(next, outcome.buckets, outcome.weight ?? 0.9);
+      markParticipants(next, outcome.buckets.flat(), beforeRound + 1);
       break;
     case 'about-equal':
       applyPair(next, outcome.gameIds[0], outcome.gameIds[1], 0.5, outcome.weight ?? 0.35);
@@ -216,7 +221,7 @@ export function applyOutcome(state: RankingState, outcome: RankingOutcome): Rank
       markParticipants(next, [outcome.gameId], beforeRound + 1);
       break;
     case 'vibe':
-      applyVibe(next, outcome.gameId, outcome.score, outcome.weight ?? 0.55);
+      applyVibe(next, outcome.gameId, outcome.score, outcome.weight ?? 0.6);
       markParticipants(next, [outcome.gameId], beforeRound + 1);
       break;
     case 'skip':
@@ -238,7 +243,7 @@ export function computeConfidence(state: RankingState): ConfidenceResult {
       0,
       1,
     );
-    const coverageScore = clamp(game.comparisons / 8, 0, 1);
+    const coverageScore = clamp(game.comparisons / 6, 0, 1);
     perGame[String(game.gameId)] = Math.round((uncertaintyScore * 0.65 + coverageScore * 0.35) * 100);
   }
 
@@ -305,12 +310,12 @@ export function assignTier(state: RankingState, gameId: number, tier: Tier): Ran
 
 /** Public tier lookup for a raw rating (mirrors the internal thresholds). */
 export function tierForRating(rating: number): Tier {
-  if (rating >= 1640) return 'S';
+  if (rating >= 1615) return 'S';
   if (rating >= 1565) return 'A';
   if (rating >= 1505) return 'B';
   if (rating >= 1445) return 'C';
   if (rating >= 1375) return 'D';
-  if (rating >= 1300) return 'E';
+  if (rating >= 1325) return 'E';
   return 'F';
 }
 
@@ -340,6 +345,33 @@ function applyLineup(state: RankingState, orderedIds: number[], weight: number):
   }
 }
 
+/**
+ * Apply a bucket-sort verdict — the player drops several games into ordered buckets (best → worst).
+ * High-signal, low-cost: a single round emits every cross-bucket implication at once (every game in a
+ * higher bucket beats every game in a lower one) at full weight, which is the fastest way to spread
+ * ratings toward the extremes. Same-bucket pairs are nudged together as a soft `about-equal` so they
+ * gain coverage without a forced order. Empty buckets are ignored; bucket order conveys the ranking.
+ */
+function applyBucket(state: RankingState, buckets: number[][], weight: number): void {
+  for (let hi = 0; hi < buckets.length; hi += 1) {
+    // Cross-bucket: every higher-bucket game beats every lower-bucket game.
+    for (let lo = hi + 1; lo < buckets.length; lo += 1) {
+      for (const winner of buckets[hi]) {
+        for (const loser of buckets[lo]) {
+          applyPair(state, winner, loser, 1, weight);
+        }
+      }
+    }
+    // Within-bucket: a soft draw so tied games still accrue coverage.
+    const bucket = buckets[hi];
+    for (let i = 0; i < bucket.length; i += 1) {
+      for (let j = i + 1; j < bucket.length; j += 1) {
+        applyPair(state, bucket[i], bucket[j], 0.5, weight * 0.33);
+      }
+    }
+  }
+}
+
 function applyPair(
   state: RankingState,
   aId: number,
@@ -354,13 +386,13 @@ function applyPair(
 
   const weight = clamp(rawWeight, 0.05, 2);
   const expectedA = expectedScore(a.rating, b.rating);
-  const uncertaintyFactor = clamp((a.uncertainty + b.uncertainty) / (INITIAL_UNCERTAINTY * 2), 0.35, 1.25);
-  const delta = 36 * weight * uncertaintyFactor * (scoreA - expectedA);
+  const uncertaintyFactor = clamp((a.uncertainty + b.uncertainty) / (INITIAL_UNCERTAINTY * 2), 0.35, 1.5);
+  const delta = 52 * weight * uncertaintyFactor * (scoreA - expectedA);
 
   a.rating += delta;
   b.rating -= delta;
 
-  const reduction = 1 - clamp(0.025 + 0.04 * weight, 0.015, 0.12);
+  const reduction = 1 - clamp(0.035 + 0.05 * weight, 0.02, 0.15);
   a.uncertainty = Math.max(MIN_UNCERTAINTY, a.uncertainty * reduction);
   b.uncertainty = Math.max(MIN_UNCERTAINTY, b.uncertainty * reduction);
 
@@ -388,7 +420,7 @@ function applyReplay(
 
   const expected = expectedScore(game.rating, BASE_RATING);
   const targetScore = expectedScore(targetByAnswer[answer], BASE_RATING);
-  const delta = 22 * clamp(weight, 0.05, 0.75) * (targetScore - expected);
+  const delta = 30 * clamp(weight, 0.05, 0.75) * (targetScore - expected);
   game.rating += delta;
   game.uncertainty = Math.max(MIN_UNCERTAINTY, game.uncertainty * 0.975);
   game.comparisons += weight;
@@ -412,7 +444,7 @@ function applyVibe(state: RankingState, gameId: number, score: number, weight: n
   const targetRating = TIER_BANDS.F + t * (TIER_BANDS.S - TIER_BANDS.F);
   const expected = expectedScore(game.rating, BASE_RATING);
   const targetScore = expectedScore(targetRating, BASE_RATING);
-  const delta = 22 * clamp(weight, 0.05, 0.75) * (targetScore - expected);
+  const delta = 30 * clamp(weight, 0.05, 0.75) * (targetScore - expected);
   game.rating += delta;
   game.uncertainty = Math.max(MIN_UNCERTAINTY, game.uncertainty * 0.975);
   game.comparisons += weight;

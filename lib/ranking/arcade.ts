@@ -25,7 +25,10 @@ export type MinigameKind =
   | 'promotion'
   | 'gauntlet'
   | 'replay'
-  | 'vibe';
+  | 'vibe'
+  | 'bucket'
+  | 'bracket'
+  | 'podium';
 
 export interface ArcadeRound {
   kind: MinigameKind;
@@ -52,6 +55,18 @@ const GAUNTLET_EVERY = 8;
 const VIBE_EVERY = 5;
 const VIBE_POOL_SIZE = 4;
 const LINEUP_COOLDOWN = 3;
+
+/**
+ * Multi-game special rounds. Their cadences are staggered against the existing specials (5 / 6 / 8) and
+ * they are checked *after* them, so the frequent bucket round (every 4) lands on round 4 and other gaps
+ * without ever shadowing a replay / gauntlet / vibe slot. These pull the run toward the extremes fast.
+ */
+const BUCKET_EVERY = 4;
+const BUCKET_POOL_SIZE = 6;
+const PODIUM_EVERY = 7;
+const PODIUM_POOL_SIZE = 6;
+const BRACKET_EVERY = 9;
+const BRACKET_POOL_SIZE = 4;
 
 /** Five-card group minigames (all consume exactly 5 games). */
 const FIVE_GROUP: MinigameKind[] = ['champion', 'sacrifice', 'keep2kill3', 'lineup'];
@@ -137,6 +152,26 @@ function injectedRound(
     if (vibe) return vibe;
   }
 
+  // Bucket sort: the high-signal coverage workhorse. Drops ~6 games into ordered buckets, emitting
+  // every cross-bucket implication at once — the fastest way to spread ratings toward S/F. Frequent
+  // (every 4) and allowed outside the late phase.
+  if (phase !== 'late' && round % BUCKET_EVERY === 0 && last !== 'bucket') {
+    const bucket = buildBucketRound(state);
+    if (bucket) return bucket;
+  }
+
+  // Podium: pick and order a top three out of a larger group; the rest are losers.
+  if (phase !== 'late' && round % PODIUM_EVERY === 0 && last !== 'podium') {
+    const podium = buildPodium(state);
+    if (podium) return podium;
+  }
+
+  // Bracket: a four-game knockout (two semis + a final), a dramatic mid-phase beat like the gauntlet.
+  if (phase === 'middle' && round % BRACKET_EVERY === 0 && last !== 'bracket') {
+    const bracket = buildBracket(state);
+    if (bracket) return bracket;
+  }
+
   return null;
 }
 
@@ -211,6 +246,50 @@ export function buildVibeRound(state: RankingState): ArcadeRound | null {
     .map((g) => g.gameId);
 
   return { kind: 'vibe', gameIds: picked };
+}
+
+/**
+ * Build a bucket-sort round: gather the `BUCKET_POOL_SIZE` least-sampled games so one round of
+ * ordered-bucket verdicts both lifts coverage and spreads ratings hard. Null below the pool size.
+ */
+export function buildBucketRound(state: RankingState): ArcadeRound | null {
+  const picked = leastSampledIds(state, BUCKET_POOL_SIZE);
+  if (!picked) return null;
+  return { kind: 'bucket', gameIds: picked };
+}
+
+/**
+ * Build a podium round: ~`PODIUM_POOL_SIZE` least-sampled games from which the player picks and orders
+ * a top three. Null below the pool size.
+ */
+export function buildPodium(state: RankingState): ArcadeRound | null {
+  const picked = leastSampledIds(state, PODIUM_POOL_SIZE);
+  if (!picked) return null;
+  return { kind: 'podium', gameIds: picked };
+}
+
+/**
+ * Build a bracket round: four high-uncertainty games seeded for a two-semi-plus-final knockout. The
+ * anchor is the top seed (most-sampled of the four) so the component can frame the bracket. Null
+ * below four games.
+ */
+export function buildBracket(state: RankingState): ArcadeRound | null {
+  const picked = leastSampledIds(state, BRACKET_POOL_SIZE);
+  if (!picked) return null;
+  return { kind: 'bracket', gameIds: picked, anchorId: picked[0] };
+}
+
+/** Pick the `n` least-sampled (then most-uncertain) game ids, or null if the pool is smaller than `n`. */
+function leastSampledIds(state: RankingState, n: number): number[] | null {
+  const games = Object.values(state.games);
+  if (games.length < n) return null;
+  return [...games]
+    .sort(
+      (a, b) =>
+        a.comparisons - b.comparisons || b.uncertainty - a.uncertainty || a.gameId - b.gameId,
+    )
+    .slice(0, n)
+    .map((g) => g.gameId);
 }
 
 function lowestComparisonGame(state: RankingState): number | null {

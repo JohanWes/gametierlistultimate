@@ -39,6 +39,33 @@ describe('ranking score updates', () => {
     expect(state.games[2].rating).toBeLessThan(state.games[1].rating);
   });
 
+  it('bucket sort ranks higher buckets above lower ones in a single round', () => {
+    const state = createRankingState([1, 2, 3, 4, 5, 6], { seed: 8 });
+
+    const next = applyOutcome(state, {
+      type: 'bucket',
+      buckets: [
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ],
+    });
+
+    // One bucket round costs exactly one round, regardless of how many pairs it implies.
+    expect(next.round).toBe(state.round + 1);
+
+    // Every higher-bucket game outranks every lower-bucket game.
+    expect(next.games[1].rating).toBeGreaterThan(next.games[3].rating);
+    expect(next.games[3].rating).toBeGreaterThan(next.games[5].rating);
+    expect(next.games[2].rating).toBeGreaterThan(next.games[6].rating);
+
+    // Same-bucket games stay close relative to the cross-bucket spread, but still gain coverage.
+    const withinTop = Math.abs(next.games[1].rating - next.games[2].rating);
+    const acrossBuckets = Math.abs(next.games[1].rating - next.games[5].rating);
+    expect(withinTop).toBeLessThan(acrossBuckets);
+    expect(next.games[1].comparisons).toBeGreaterThan(0);
+  });
+
   it('about-equal pulls separated ratings closer together', () => {
     let state = createRankingState([1, 2], { seed: 3 });
     for (let i = 0; i < 6; i += 1) {
