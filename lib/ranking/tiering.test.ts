@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyOutcome, computeTiers, createRankingState } from './index';
+import { applyOutcome, assignTier, computeTiers, createRankingState, tierForRating } from './index';
 
 describe('ranking tiering', () => {
   it('maps clear score separation into ordered tiers and permits empty tiers', () => {
@@ -47,6 +47,29 @@ describe('ranking tiering', () => {
     const tiers = computeTiers(state);
     const flat = [...tiers.S, ...tiers.A, ...tiers.B, ...tiers.C, ...tiers.D, ...tiers.E, ...tiers.F];
     expect(flat.indexOf(1)).toBeLessThan(flat.indexOf(2));
+  });
+
+  it('assignTier places a game in the chosen tier and round-trips through computeTiers', () => {
+    const state = createRankingState([1, 2, 3, 4], { seed: 7 });
+
+    // Spread the four games across distinct tiers via manual placement.
+    let moved = assignTier(state, 1, 'S');
+    moved = assignTier(moved, 2, 'C');
+    moved = assignTier(moved, 3, 'F');
+    moved = assignTier(moved, 4, 'A');
+
+    expect(tierForRating(moved.games[1].rating)).toBe('S');
+
+    const tiers = computeTiers(moved);
+    expect(tiers.S).toContain(1);
+    expect(tiers.A).toContain(4);
+    expect(tiers.C).toContain(2);
+    expect(tiers.F).toContain(3);
+  });
+
+  it('assignTier leaves the state untouched for an unknown game', () => {
+    const state = createRankingState([1, 2], { seed: 9 });
+    expect(assignTier(state, 999, 'S')).toBe(state);
   });
 });
 

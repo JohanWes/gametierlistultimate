@@ -38,9 +38,9 @@ describe('store', () => {
     it('clamps at the ends and supports setStep', () => {
       useStore.getState().goBack();
       expect(useStore.getState().ui.step).toBe('welcome'); // can't go before the first
-      useStore.getState().setStep('share');
+      useStore.getState().setStep('reveal');
       useStore.getState().goNext();
-      expect(useStore.getState().ui.step).toBe('share'); // can't go past the last
+      expect(useStore.getState().ui.step).toBe('reveal'); // can't go past the last
     });
   });
 

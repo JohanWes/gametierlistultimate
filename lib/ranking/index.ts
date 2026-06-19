@@ -267,6 +267,48 @@ export function nextMatchup(state: RankingState, phase: RankingPhase): Matchup |
   return { type, gameIds: pair, anchorId: pair[0] };
 }
 
+/**
+ * A representative rating squarely inside each tier's threshold band. Used by `assignTier` so a
+ * manual placement round-trips through `computeTiers` (the engine stays the single source of truth).
+ */
+export const TIER_BANDS: Record<Tier, number> = {
+  S: 1700,
+  A: 1600,
+  B: 1535,
+  C: 1475,
+  D: 1410,
+  E: 1337,
+  F: 1250,
+};
+
+/**
+ * Manually place a game in a tier. Sets its rating to the tier's representative band and marks it as
+ * confident (low uncertainty, comparison credit) so a later recompute keeps the user's choice. Returns
+ * a new state; unknown gameIds are returned unchanged.
+ */
+export function assignTier(state: RankingState, gameId: number, tier: Tier): RankingState {
+  const game = state.games[String(gameId)];
+  if (!game) return state;
+
+  const next = cloneState(state);
+  const target = next.games[String(gameId)];
+  target.rating = TIER_BANDS[tier];
+  target.uncertainty = MIN_UNCERTAINTY;
+  target.comparisons = Math.max(target.comparisons, 8);
+  return next;
+}
+
+/** Public tier lookup for a raw rating (mirrors the internal thresholds). */
+export function tierForRating(rating: number): Tier {
+  if (rating >= 1640) return 'S';
+  if (rating >= 1565) return 'A';
+  if (rating >= 1505) return 'B';
+  if (rating >= 1445) return 'C';
+  if (rating >= 1375) return 'D';
+  if (rating >= 1300) return 'E';
+  return 'F';
+}
+
 export function computeTiers(state: RankingState): TierMap {
   const tiers = emptyTiers();
   const ranked = gameList(state).sort(compareRanked);
@@ -462,16 +504,6 @@ function computePriorOffset(prior: GamePrior): number {
 
 function expectedScore(aRating: number, bRating: number): number {
   return 1 / (1 + 10 ** ((bRating - aRating) / 400));
-}
-
-function tierForRating(rating: number): Tier {
-  if (rating >= 1640) return 'S';
-  if (rating >= 1565) return 'A';
-  if (rating >= 1505) return 'B';
-  if (rating >= 1445) return 'C';
-  if (rating >= 1375) return 'D';
-  if (rating >= 1300) return 'E';
-  return 'F';
 }
 
 function emptyTiers(): TierMap {

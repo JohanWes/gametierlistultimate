@@ -6,8 +6,8 @@ import { type Step, useStore } from '@/lib/store';
 
 import { ArcadeStep } from './arcade/ArcadeStep';
 import { OnboardingStep } from './steps/OnboardingStep';
-import { CorrectionStep, RevealStep, ShareStep } from './steps/OtherSteps';
 import { PoolStep } from './steps/PoolStep';
+import { ResultStep } from './steps/result/ResultStep';
 import { WelcomeStep } from './steps/WelcomeStep';
 import { AppShell } from './ui/AppShell';
 
@@ -16,9 +16,7 @@ const SCREENS: Record<Step, () => React.JSX.Element> = {
   onboarding: OnboardingStep,
   pool: PoolStep,
   arcade: ArcadeStep,
-  reveal: RevealStep,
-  correction: CorrectionStep,
-  share: ShareStep,
+  reveal: ResultStep,
 };
 
 /** Renders the current step inside the AppShell with animated transitions between steps. */

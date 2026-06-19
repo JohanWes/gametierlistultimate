@@ -7,25 +7,13 @@ import { debounce } from '@/lib/utils';
 
 /* ------------------------------------------------------------------ flow machine */
 
-export type Step =
-  | 'welcome'
-  | 'onboarding'
-  | 'pool'
-  | 'arcade'
-  | 'reveal'
-  | 'correction'
-  | 'share';
+export type Step = 'welcome' | 'onboarding' | 'pool' | 'arcade' | 'reveal';
 
-/** Linear order of the flow. `goNext`/`goBack` walk this array. */
-export const STEP_ORDER: Step[] = [
-  'welcome',
-  'onboarding',
-  'pool',
-  'arcade',
-  'reveal',
-  'correction',
-  'share',
-];
+/**
+ * Linear order of the flow. `goNext`/`goBack` walk this array. `reveal` is terminal: it hosts the
+ * animated reveal, the editable tier list (manual correction), and the share action on one screen.
+ */
+export const STEP_ORDER: Step[] = ['welcome', 'onboarding', 'pool', 'arcade', 'reveal'];
 
 /* ------------------------------------------------------------------ slice shapes */
 

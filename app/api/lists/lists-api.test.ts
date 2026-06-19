@@ -50,7 +50,7 @@ describe('POST /api/lists', () => {
     const { shareId, url } = await res.json();
 
     expect(shareId).toMatch(/^[\w-]{6,}$/);
-    expect(url).toContain(`/list/${shareId}`);
+    expect(url).toContain(`/s/${shareId}`);
   });
 
   it('rejects an invalid body', async () => {

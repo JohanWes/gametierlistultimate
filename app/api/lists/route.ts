@@ -15,6 +15,6 @@ export async function POST(req: NextRequest) {
   const games = Array.isArray(body.games) ? body.games : [];
   const { shareId } = await createList({ tiers: body.tiers as never, games });
 
-  const url = `${req.nextUrl.origin}/list/${shareId}`;
+  const url = `${req.nextUrl.origin}/s/${shareId}`;
   return NextResponse.json({ shareId, url }, { status: 201 });
 }
