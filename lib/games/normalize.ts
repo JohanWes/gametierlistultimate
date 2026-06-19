@@ -33,12 +33,16 @@ function buildGame(partial: Omit<Game, 'hasCover'>): Game {
 }
 
 /**
- * Normalize a MongoDB games document. The current dataset stores: `id` (IGDB id), `name`,
+ * Normalize a MongoDB games document. The legacy dataset stores: `id` (IGDB id), `name`,
  * `year`, `platform` (single string), `genre` (single string), `rating` (0–100), `cover`
  * (already a full URL), `synopsis`. `popularity` and `category` are absent → null.
+ *
+ * IGDB-sourced docs upserted by `upsertGames` use the IGDB field name `summary` instead of
+ * `synopsis`; we read `synopsis` first and fall back to `summary` so both shapes round-trip.
  */
 export function normalizeMongoDoc(doc: Record<string, unknown>): Game {
   const cover = typeof doc.cover === 'string' && doc.cover.trim() !== '' ? doc.cover : null;
+  const summaryRaw = doc.synopsis ?? doc.summary;
   return buildGame({
     igdbId: Number(doc.id),
     title: String(doc.name ?? ''),
@@ -48,7 +52,7 @@ export function normalizeMongoDoc(doc: Record<string, unknown>): Game {
     releaseYear: toNumberOrNull(doc.year),
     popularity: toNumberOrNull(doc.popularity),
     rating: toNumberOrNull(doc.rating),
-    summary: typeof doc.synopsis === 'string' ? doc.synopsis : null,
+    summary: typeof summaryRaw === 'string' ? summaryRaw : null,
     category: toNumberOrNull(doc.category),
   });
 }

@@ -43,6 +43,25 @@ describe('normalizeMongoDoc', () => {
     expect(game.genres).toEqual(['RPG', 'Adventure']);
     expect(game.platforms).toEqual(['PC', 'PS4']);
   });
+
+  it('falls back to the `summary` field when `synopsis` is absent (IGDB-upserted docs)', () => {
+    const { synopsis: _omit, ...docWithoutSynopsis } = doc;
+    void _omit;
+    const game = normalizeMongoDoc({ ...docWithoutSynopsis, summary: 'From IGDB upsert.' });
+    expect(game.summary).toBe('From IGDB upsert.');
+  });
+
+  it('prefers `synopsis` over `summary` when both are present (legacy docs win)', () => {
+    const game = normalizeMongoDoc({ ...doc, summary: 'should be ignored' });
+    expect(game.summary).toBe('A story-driven open world RPG.');
+  });
+
+  it('returns null summary when neither field is present', () => {
+    const { synopsis: _omit, ...docWithoutSynopsis } = doc;
+    void _omit;
+    const game = normalizeMongoDoc(docWithoutSynopsis);
+    expect(game.summary).toBeNull();
+  });
 });
 
 describe('normalizeIgdb', () => {

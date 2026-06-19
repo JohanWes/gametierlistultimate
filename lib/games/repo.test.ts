@@ -326,6 +326,31 @@ describe('upsertGames', () => {
     expect(found).toHaveLength(1);
     expect(found[0].title).toBe('New From IGDB');
   });
+
+  it('round-trips a non-null summary through getByIds (regression: summary vs synopsis)', async () => {
+    // upsertGames writes the field name `summary` (IGDB convention), but the legacy dataset
+    // and the original normalizeMongoDoc reader used `synopsis`. The reader must tolerate
+    // both, or IGDB-sourced games lose their summary on hydration.
+    await upsertGames([
+      {
+        igdbId: 200,
+        title: 'Fae Farm',
+        coverUrl: 'https://img/fae.jpg',
+        genres: ['Simulator'],
+        platforms: ['PC'],
+        releaseYear: 2023,
+        popularity: 5,
+        rating: 80,
+        summary: 'A cozy magical farm life sim.',
+        hasCover: true,
+        category: 0,
+      },
+    ]);
+
+    const found = await getByIds([200]);
+    expect(found).toHaveLength(1);
+    expect(found[0].summary).toBe('A cozy magical farm life sim.');
+  });
 });
 
 describe('getByNames', () => {
