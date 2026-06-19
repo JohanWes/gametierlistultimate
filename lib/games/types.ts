@@ -44,4 +44,10 @@ export interface SuggestionContext {
   seedIds?: number[];
   /** Games explicitly passed in this pool-building session. */
   rejectIds?: number[];
+  /**
+   * When true and the pool is cold (no seedIds), return the curated starter shelf first so the
+   * user's accepts can anchor onto the pre-seeded persona co-occurrence clusters. Ignored once
+   * seedIds are present — personalization takes over. See `lib/games/starter-set.ts`.
+   */
+  preset?: boolean;
 }

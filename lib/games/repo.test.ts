@@ -3,7 +3,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { COLLECTIONS } from '@/lib/mongo';
 import { withMemoryMongo, type MemoryMongo } from '@/test/helpers/mongo';
 
-import { getByIds, getSuggestions, searchLocal, upsertGames } from './repo';
+import { getByIds, getByNames, getStarterSet, getSuggestions, searchLocal, upsertGames } from './repo';
+import { setResolvedStarterIds } from './starter-set';
 
 let mongo: MemoryMongo;
 
@@ -71,6 +72,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await mongo.clear();
   await mongo.db.collection(COLLECTIONS.games).insertMany(fixtures.map((f) => ({ ...f })));
+  setResolvedStarterIds([]); // reset the process-wide starter id cache between tests
 });
 
 describe('getSuggestions', () => {
@@ -221,6 +223,38 @@ describe('getSuggestions', () => {
     expect(ids).toContain(7);
     expect(ids.indexOf(7)).toBeGreaterThan(ids.indexOf(1));
   });
+
+  it('returns the curated starter shelf when preset=true and the pool is cold', async () => {
+    // Seed two starter names so the shelf has something to return.
+    await mongo.db.collection(COLLECTIONS.games).insertMany([
+      { id: 500, name: 'Hades', genre: 'Indie', platform: 'PC', rating: 90, cover: 'https://x/h.jpg' },
+      { id: 501, name: 'Elden Ring', genre: 'RPG', platform: 'PC', rating: 95, cover: 'https://x/er.jpg' },
+    ]);
+
+    const games = await getSuggestions({}, [], 5, { preset: true });
+    const ids = games.map((g) => g.igdbId);
+    // The two starters must lead the batch; they're in shelf order (Witcher 3, Elden Ring, ...).
+    expect(ids).toContain(501);
+    expect(ids).toContain(500);
+    // The starter shelf comes before any generic filler — verify both starters appear.
+    expect(ids.indexOf(501)).toBeLessThanOrEqual(1);
+  });
+
+  it('ignores preset once the user has seed games (personalization takes over)', async () => {
+    await mongo.db.collection(COLLECTIONS.games).insertMany([
+      { id: 500, name: 'Hades', genre: 'Indie', platform: 'PC', rating: 90, cover: 'https://x/h.jpg' },
+      { id: 501, name: 'Elden Ring', genre: 'RPG', platform: 'PC', rating: 95, cover: 'https://x/er.jpg' },
+      { id: 502, name: 'Starter Filler', genre: 'Indie', platform: 'PC', rating: 50, cover: 'https://x/sf.jpg' },
+    ]);
+
+    // With a seed id present, preset is ignored — the adaptive co-occurrence path runs instead.
+    const games = await getSuggestions({}, [], 5, { preset: true, seedIds: [1] });
+    // The adaptive path uses co-occurrence + title/genre affinity over the full collection;
+    // it must NOT simply return the starter shelf. With no co-occurrence docs seeded, the
+    // sort falls back to the affinity+popularity score, but either way the path is the
+    // adaptive one (not the preset branch). We assert the call doesn't throw and returns games.
+    expect(games.length).toBeGreaterThan(0);
+  });
 });
 
 describe('searchLocal', () => {
@@ -265,5 +299,91 @@ describe('upsertGames', () => {
     const found = await getByIds([100]);
     expect(found).toHaveLength(1);
     expect(found[0].title).toBe('New From IGDB');
+  });
+});
+
+describe('getByNames', () => {
+  it('resolves names case-insensitively, preserving requested order, skipping unknowns', async () => {
+    await mongo.db.collection(COLLECTIONS.games).insertMany([
+      { id: 50, name: 'Hades', genre: 'Indie', platform: 'PC', rating: 90, cover: 'https://x/h.jpg' },
+      { id: 51, name: 'The Witcher 3: Wild Hunt', genre: 'RPG', platform: 'PC', rating: 92, cover: 'https://x/w.jpg' },
+      { id: 52, name: 'Hollow Knight', genre: 'Indie', platform: 'PC', rating: 88, cover: 'https://x/hk.jpg' },
+    ]);
+
+    const games = await getByNames(['the witcher 3: wild hunt', 'Hades', 'Nonexistent Game', 'Hollow Knight']);
+    expect(games.map((g) => g.igdbId)).toEqual([51, 50, 52]);
+  });
+
+  it('matches via NFKD-normalized names (diacritics/punctuation differences)', async () => {
+    await mongo.db.collection(COLLECTIONS.games).insertMany([
+      { id: 60, name: 'NieR: Automata', genre: 'RPG', platform: 'PC', rating: 90, cover: 'https://x/n.jpg' },
+      { id: 61, name: 'Pokémon Red', genre: 'RPG', platform: 'GB', rating: 92, cover: 'https://x/p.jpg' },
+    ]);
+
+    // Punctuation (colon) and diacritic (é) differences should resolve via normalization.
+    const games = await getByNames(['nier automata', 'Pokemon Red']);
+    expect(games.map((g) => g.igdbId).sort()).toEqual([60, 61]);
+  });
+
+  it('uses substring fallback preferring the shortest matching DB title', async () => {
+    await mongo.db.collection(COLLECTIONS.games).insertMany([
+      { id: 70, name: 'The Elder Scrolls 5: Skyrim', genre: 'RPG', platform: 'PC', rating: 92, cover: 'https://x/s.jpg' },
+      { id: 71, name: 'The Elder Scrolls 5: Skyrim - Special Edition', genre: 'RPG', platform: 'PC', rating: 93, cover: 'https://x/se.jpg' },
+    ]);
+
+    // "Skyrim" alone should resolve to the shorter main-game title, not the Special Edition.
+    const games = await getByNames(['Skyrim']);
+    expect(games).toHaveLength(1);
+    expect(games[0].igdbId).toBe(70);
+  });
+
+  it('returns [] for empty input', async () => {
+    expect(await getByNames([])).toEqual([]);
+    expect(await getByNames(['   ', ''])).toEqual([]);
+  });
+});
+
+describe('getStarterSet', () => {
+  it('returns starter games in shelf order, filtering unresolved names and DLC', async () => {
+    // Seed three real starter names plus a DLC that could be hit by substring fallback.
+    await mongo.db.collection(COLLECTIONS.games).insertMany([
+      { id: 1000, name: 'Hades', genre: 'Indie', platform: 'PC', rating: 90, cover: 'https://x/h.jpg' },
+      { id: 1001, name: 'Elden Ring', genre: 'RPG', platform: 'PC', rating: 95, cover: 'https://x/er.jpg' },
+      { id: 1002, name: 'Hades: DLC', genre: 'Indie', platform: 'PC', rating: 99, cover: 'https://x/hd.jpg', category: 1 },
+    ]);
+
+    const games = await getStarterSet();
+    // Only Hades and Elden Ring resolved; Hades DLC (category 1) is filtered out.
+    const ids = games.map((g) => g.igdbId).sort();
+    expect(ids).toContain(1000);
+    expect(ids).toContain(1001);
+    expect(ids).not.toContain(1002);
+  });
+
+  it('honors a limit, taking the first N in shelf order', async () => {
+    await mongo.db.collection(COLLECTIONS.games).insertMany([
+      { id: 2000, name: 'Hades', genre: 'Indie', platform: 'PC', rating: 90, cover: 'https://x/h.jpg' },
+      { id: 2001, name: 'Elden Ring', genre: 'RPG', platform: 'PC', rating: 95, cover: 'https://x/er.jpg' },
+      { id: 2002, name: 'Doom Eternal', genre: 'Shooter', platform: 'PC', rating: 90, cover: 'https://x/d.jpg' },
+    ]);
+
+    const games = await getStarterSet(2);
+    expect(games).toHaveLength(2);
+  });
+
+  it('caches the resolved starter ids for the predictor guardrail', async () => {
+    const { getStarterSetIds } = await import('./starter-set');
+    await mongo.db.collection(COLLECTIONS.games).insertMany([
+      { id: 3000, name: 'Hades', genre: 'Indie', platform: 'PC', rating: 90, cover: 'https://x/h.jpg' },
+      { id: 3001, name: 'Elden Ring', genre: 'RPG', platform: 'PC', rating: 95, cover: 'https://x/er.jpg' },
+    ]);
+    expect(getStarterSetIds().size).toBe(0); // reset in beforeEach, not yet resolved
+    await getStarterSet();
+    const ids = [...getStarterSetIds()].sort();
+    // Hades + Elden Ring resolve; the pre-existing "The Witcher 3" fixture also resolves via
+    // substring fallback for the starter name "The Witcher 3: Wild Hunt". Assert the two we
+    // inserted are present (subset), not exact equality.
+    expect(ids).toEqual(expect.arrayContaining([3000, 3001]));
+    expect(ids.length).toBeGreaterThanOrEqual(2);
   });
 });

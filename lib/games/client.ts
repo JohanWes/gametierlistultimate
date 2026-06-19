@@ -15,6 +15,11 @@ export interface SuggestionQuery {
   seedIds?: number[];
   /** Passed games that should softly down-rank nearby suggestions for this session. */
   rejectIds?: number[];
+  /**
+   * When true and seedIds is empty, request the curated starter shelf first. Used by the
+   * pool step to kick off branching from the pre-seeded persona clusters.
+   */
+  preset?: boolean;
   limit?: number;
 }
 
@@ -33,6 +38,7 @@ export async function fetchSuggestions(
   if (query.exclude?.length) params.set('exclude', query.exclude.join(','));
   if (query.seedIds?.length) params.set('seedIds', query.seedIds.join(','));
   if (query.rejectIds?.length) params.set('rejectIds', query.rejectIds.join(','));
+  if (query.preset) params.set('preset', 'true');
   if (query.limit) params.set('limit', String(query.limit));
 
   const res = await fetchImpl(`/api/games/suggestions?${params.toString()}`, {

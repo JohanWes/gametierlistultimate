@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { resetStarterGuardrail } from '@/lib/sessions-repo';
+import { setResolvedStarterIds } from '@/lib/games/starter-set';
 import { COLLECTIONS } from '@/lib/mongo';
 import { SESSION_COOKIE } from '@/lib/session';
 import { withMemoryMongo, type MemoryMongo } from '@/test/helpers/mongo';
@@ -31,6 +33,7 @@ afterAll(async () => {
 });
 beforeEach(async () => {
   await mongo.clear();
+  resetStarterGuardrail();
 });
 
 describe('POST /api/session', () => {
@@ -134,6 +137,41 @@ describe('PUT + GET /api/session', () => {
     expect(
       await mongo.db.collection(COLLECTIONS.gameCooccurrence).countDocuments(),
     ).toBe(3);
+  });
+
+  it('excludes starter-set ids from pool-pattern aggregates (predictor guardrail)', async () => {
+    // Pre-populate the starter id cache: ids 1 and 2 are "starter" games, id 3 is not.
+    // This simulates the suggestions API having resolved the starter shelf.
+    setResolvedStarterIds([1, 2]);
+
+    const created = await POST(makeReq('POST'));
+    const { sessionId } = await created.json();
+
+    // Save a pool containing both starter (1,2) and non-starter (3,4,5) ids.
+    await PUT(makeReq('PUT', { cookie: sessionId, body: { pool: [1, 2, 3, 4, 5] } }));
+
+    // Only the non-starter ids (3,4,5) should be recorded in gamePoolStats.
+    const stats = await mongo.db
+      .collection(COLLECTIONS.gamePoolStats)
+      .find({}, { projection: { _id: 0, gameId: 1 } })
+      .sort({ gameId: 1 })
+      .toArray();
+    expect(stats.map((s) => s.gameId)).toEqual([3, 4, 5]);
+
+    // Only the non-starter pair (3:4, 3:5, 4:5) should be recorded in gameCooccurrence.
+    const coocKeys = await mongo.db
+      .collection(COLLECTIONS.gameCooccurrence)
+      .find({}, { projection: { _id: 0, pairKey: 1 } })
+      .sort({ pairKey: 1 })
+      .toArray();
+    expect(coocKeys.map((c) => c.pairKey).sort()).toEqual(['3:4', '3:5', '4:5']);
+
+    // No starter id should appear in any co-occurrence edge.
+    for (const key of coocKeys.map((c) => c.pairKey)) {
+      const [a, b] = key.split(':').map(Number);
+      expect([a, b]).not.toContain(1);
+      expect([a, b]).not.toContain(2);
+    }
   });
 
   it('returns null session when no cookie is present', async () => {

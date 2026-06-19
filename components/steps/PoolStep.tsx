@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchSuggestions } from '@/lib/games/client';
 import type { Game } from '@/lib/games/types';
+import { STARTER_GAME_NAMES } from '@/lib/games/starter-set';
 import { useStore } from '@/lib/store';
 
 import { Button } from '../ui/Button';
@@ -17,6 +18,15 @@ import { StepScaffold } from './StepScaffold';
 const VISIBLE_SLOTS = 5;
 const REFILL_AT = 2;
 const SPOTLIGHT_EVERY = 3;
+/**
+ * Curated starter shelf handoff. The first few batches pull the preset shelf so the user's
+ * accepts can branch into the pre-seeded persona co-occurrence clusters. We stop asking for the
+ * preset once the shelf is drained (36 games / 5 per batch ≈ 8 batches) OR the user has accepted
+ * 3 games — at that point personalization has enough signal to take over. The server also
+ * ignores `preset` once `seedIds` is non-empty, so this is a defense-in-depth toggle.
+ */
+const PRESET_BATCH_LIMIT = Math.ceil(STARTER_GAME_NAMES.length / VISIBLE_SLOTS);
+const PRESET_ACCEPT_HANDOFF = 3;
 
 export interface PoolStepProps {
   fetchImpl?: typeof fetch;
@@ -58,6 +68,16 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
   const exhaustedRef = useRef(false);
   const initRef = useRef(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Preset-shelf handoff: count how many preset batches we've fetched and how many games the
+  // user has accepted. Stop requesting preset once either threshold is reached.
+  const presetBatchesRef = useRef(0);
+  const acceptsRef = useRef(0);
+
+  /** True while the curated starter shelf should still be requested. */
+  const shouldUsePreset = useCallback(
+    () => presetBatchesRef.current < PRESET_BATCH_LIMIT && acceptsRef.current < PRESET_ACCEPT_HANDOFF,
+    [],
+  );
 
   // Keep refs in step with state.
   useEffect(() => {
@@ -132,8 +152,9 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
     setLoading(true);
 
     try {
+      const preset = shouldUsePreset();
       const games = await fetchSuggestions(
-        { prefs, exclude: buildExclude(), ...buildSuggestionContext(), limit: VISIBLE_SLOTS },
+        { prefs, exclude: buildExclude(), ...buildSuggestionContext(), preset, limit: VISIBLE_SLOTS },
         fetchImpl ?? fetch,
       );
 
@@ -144,6 +165,8 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
         setExhausted(true);
         return;
       }
+
+      if (preset) presetBatchesRef.current += 1;
 
       fetchCountRef.current += 1;
       let spotlightGameId: number | null = null;
@@ -170,7 +193,7 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, [prefs, fetchImpl, buildExclude, buildSuggestionContext, filterFreshGames, fillEmptySlots]);
+  }, [prefs, fetchImpl, buildExclude, buildSuggestionContext, filterFreshGames, fillEmptySlots, shouldUsePreset]);
 
   // Bootstrap: load the first batch straight into the five slots, then top up the backlog.
   useEffect(() => {
@@ -183,11 +206,13 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
       setLoading(true);
 
       try {
+        const preset = shouldUsePreset();
         const games = await fetchSuggestions(
           {
             prefs,
             exclude: [...decidedRef.current],
             ...buildSuggestionContext(),
+            preset,
             limit: VISIBLE_SLOTS,
           },
           fetchImpl ?? fetch,
@@ -202,6 +227,8 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
           fetchingRef.current = false;
           return;
         }
+
+        if (preset) presetBatchesRef.current += 1;
 
         fetchCountRef.current = 1;
         let spotlightGameId: number | null = null;
@@ -247,6 +274,7 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
 
     decidedRef.current.add(id);
     if (action === 'reject') rejectedRef.current.add(id);
+    if (action === 'include') acceptsRef.current += 1;
 
     // Pop one from the backlog (mutate ref + batch state) so ensureBacklog below
     // reads the latest count and refills proactively.

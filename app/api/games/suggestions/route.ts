@@ -13,7 +13,7 @@ function parseIds(value: string | null): number[] {
     .filter((n) => Number.isFinite(n));
 }
 
-/** GET /api/games/suggestions?genres=&platforms=&exclude=&seedIds=&rejectIds=&limit= */
+/** GET /api/games/suggestions?genres=&platforms=&exclude=&seedIds=&rejectIds=&preset=&limit= */
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const prefs: Preferences = {
@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
   const context: SuggestionContext = {
     seedIds: parseIds(searchParams.get('seedIds')),
     rejectIds: parseIds(searchParams.get('rejectIds')),
+    preset: searchParams.get('preset') === 'true',
   };
   const limitRaw = Number(searchParams.get('limit'));
   const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 30;

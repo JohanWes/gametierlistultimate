@@ -2,7 +2,8 @@ import type { Collection, Document } from 'mongodb';
 
 import { COLLECTIONS, getDb } from '../mongo';
 import { getCooccurrenceScores } from '../pool-patterns-repo';
-import { DLC_CATEGORIES, normalizeMongoDoc } from './normalize';
+import { DLC_CATEGORIES, isDlc, normalizeMongoDoc } from './normalize';
+import { setResolvedStarterIds, STARTER_GAME_NAMES } from './starter-set';
 import type { Game, Preferences, SuggestionContext } from './types';
 
 async function gamesCollection(): Promise<Collection<Document>> {
@@ -248,6 +249,31 @@ export async function getSuggestions(
   const projection = undefined;
   const fetchLimit = suggestionFetchLimit(limit);
 
+  // Curated starter shelf: when preset is requested and the pool is cold (no seeds), serve the
+  // hand-picked iconic games first so the user's accepts can branch into the pre-seeded persona
+  // co-occurrence clusters. Once the user has any seeds, personalization takes over and preset
+  // is ignored. If the shelf comes back short (some names didn't resolve in this DB), top up
+  // with the generic cold-start path below.
+  if (context.preset && !hasAdaptiveContext) {
+    const starters = await getStarterSet(limit);
+    if (starters.length >= limit) {
+      return dedupeSuggestions(starters, limit);
+    }
+    if (starters.length > 0) {
+      const have = new Set(starters.map((g) => g.igdbId));
+      const fillerExclude = [...exclude, ...have];
+      const fillerAnd: Document[] = [NOT_DLC_FILTER, { cover: { $type: 'string', $ne: '' } }];
+      if (fillerExclude.length) fillerAnd.push({ id: { $nin: fillerExclude } });
+      const filler = await coll
+        .find({ $and: fillerAnd }, { projection })
+        .sort(sort)
+        .limit(suggestionFetchLimit(limit - starters.length))
+        .toArray();
+      return dedupeSuggestions([...starters, ...filler.map(normalizeMongoDoc)], limit);
+    }
+    // No starters resolved — fall through to the normal cold-start path.
+  }
+
   if (hasAdaptiveContext) {
     const [candidateDocs, seedGames, rejectedGames, coScores] = await Promise.all([
       coll.find({ $and: and }, { projection }).toArray(),
@@ -330,6 +356,96 @@ export async function getByIds(ids: number[]): Promise<Game[]> {
   const docs = await coll.find({ id: { $in: valid } }).toArray();
   const byId = new Map(docs.map((d) => [Number(d.id), normalizeMongoDoc(d)]));
   return valid.map((id) => byId.get(id)).filter((g): g is Game => !!g);
+}
+
+/**
+ * Resolve a set of display names to `Game` records, preserving the requested order. Matches
+ * first by exact (case-insensitive) name, then by NFKD-normalized name (handles diacritics,
+ * punctuation, and `&`/`and` differences), then by a substring fallback that prefers the
+ * shortest matching DB name (more specific). Unresolved names are skipped silently — the
+ * caller gets back only the games that exist in the collection, in the same relative order.
+ *
+ * Modeled on the fuzzy matcher in `scripts/seed-pool-patterns.ts` so the curated starter
+ * shelf (`STARTER_GAME_NAMES`) resolves identically to how the persona seeding does.
+ */
+export async function getByNames(names: string[]): Promise<Game[]> {
+  const cleaned = [...new Set(names.map((n) => (typeof n === 'string' ? n.trim() : '')).filter(Boolean))];
+  if (cleaned.length === 0) return [];
+
+  const coll = await gamesCollection();
+  const docs = await coll.find({}).toArray();
+  const all = docs.map(normalizeMongoDoc);
+
+  const byExact = new Map<string, Game>();
+  const byNormalized = new Map<string, Game>();
+  for (const g of all) {
+    const lower = g.title.toLowerCase();
+    if (!byExact.has(lower)) byExact.set(lower, g);
+    const norm = titleKey(g.title);
+    if (!byNormalized.has(norm)) byNormalized.set(norm, g);
+  }
+
+  const resolved = new Map<string, Game>();
+  const stillMissing: string[] = [];
+
+  // Pass 1: exact + normalized.
+  for (const name of cleaned) {
+    if (resolved.has(name)) continue;
+    const exact = byExact.get(name.toLowerCase());
+    if (exact) {
+      resolved.set(name, exact);
+      continue;
+    }
+    const norm = titleKey(name);
+    const normMatch = byNormalized.get(norm);
+    if (normMatch) resolved.set(name, normMatch);
+    else stillMissing.push(name);
+  }
+
+  // Pass 2: substring fallback for the unresolved — prefer the shortest matching DB title.
+  // Guard against short common-word false positives by requiring the normalized query to be
+  // at least 4 chars (all curated starter names are ≥ 5 chars, so this never blocks them
+  // while preventing 1-3 char queries from matching unrelated games).
+  const MIN_SUBSTR_LEN = 4;
+  for (const name of stillMissing) {
+    const norm = titleKey(name);
+    if (norm.length < MIN_SUBSTR_LEN) continue;
+    let best: Game | null = null;
+    let bestLen = Infinity;
+    for (const g of all) {
+      const gNorm = titleKey(g.title);
+      if (gNorm === norm) {
+        best = g;
+        break;
+      }
+      if (gNorm.length >= MIN_SUBSTR_LEN && (gNorm.includes(norm) || norm.includes(gNorm))) {
+        if (g.title.length < bestLen) {
+          best = g;
+          bestLen = g.title.length;
+        }
+      }
+    }
+    if (best) resolved.set(name, best);
+  }
+
+  return cleaned.map((name) => resolved.get(name)).filter((g): g is Game => !!g);
+}
+
+/**
+ * Resolve the curated starter shelf (`STARTER_GAME_NAMES`) to full `Game` records in shelf
+ * order. Used by `getSuggestions` when `context.preset === true` and the pool is cold
+ * (no seed ids). Unresolved names are skipped, so a missing game shortens the shelf without
+ * crashing. Side effect: caches the resolved IGDB ids via `setResolvedStarterIds` so the
+ * predictor guardrail in `lib/sessions-repo.ts` can exclude them from co-occurrence writes.
+ *
+ * DLC/expansions are filtered out defensively — the curated list is hand-picked main games,
+ * but a fuzzy substring match could theoretically pull in an edition variant.
+ */
+export async function getStarterSet(limit?: number): Promise<Game[]> {
+  const resolved = await getByNames([...STARTER_GAME_NAMES]);
+  const filtered = resolved.filter((g) => !isDlc(g));
+  setResolvedStarterIds(filtered.map((g) => g.igdbId));
+  return typeof limit === 'number' && limit > 0 ? filtered.slice(0, limit) : filtered;
 }
 
 /**
