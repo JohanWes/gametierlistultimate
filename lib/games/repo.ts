@@ -252,10 +252,14 @@ export async function getSuggestions(
   // Curated starter shelf: when preset is requested and the pool is cold (no seeds), serve the
   // hand-picked iconic games first so the user's accepts can branch into the pre-seeded persona
   // co-occurrence clusters. Once the user has any seeds, personalization takes over and preset
-  // is ignored. If the shelf comes back short (some names didn't resolve in this DB), top up
-  // with the generic cold-start path below.
+  // is ignored. The `exclude` list is honored so the backlog prefetch (which excludes the
+  // already-visible ids) gets the *next* starter games rather than the same batch again.
   if (context.preset && !hasAdaptiveContext) {
-    const starters = await getStarterSet(limit);
+    const excludeSet = new Set(exclude);
+    // Resolve the full shelf once, then filter out excluded ids. This is a single full-collection
+    // scan (cached ids in starter-set.ts), and the shelf is only ~36 games, so slicing is cheap.
+    const allStarters = await getStarterSet();
+    const starters = allStarters.filter((g) => !excludeSet.has(g.igdbId)).slice(0, limit);
     if (starters.length >= limit) {
       return dedupeSuggestions(starters, limit);
     }

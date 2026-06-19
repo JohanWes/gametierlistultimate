@@ -255,6 +255,32 @@ describe('getSuggestions', () => {
     // adaptive one (not the preset branch). We assert the call doesn't throw and returns games.
     expect(games.length).toBeGreaterThan(0);
   });
+
+  it('honors exclude in the preset branch so the backlog prefetch gets the next starters', async () => {
+    // Seed five starter names so the shelf has a full batch + leftovers.
+    await mongo.db.collection(COLLECTIONS.games).insertMany([
+      { id: 500, name: 'Hades', genre: 'Indie', platform: 'PC', rating: 90, cover: 'https://x/h.jpg' },
+      { id: 501, name: 'Elden Ring', genre: 'RPG', platform: 'PC', rating: 95, cover: 'https://x/er.jpg' },
+      { id: 502, name: 'The Witcher 3: Wild Hunt', genre: 'RPG', platform: 'PC', rating: 92, cover: 'https://x/w.jpg' },
+      { id: 503, name: 'The Last of Us', genre: 'Adventure', platform: 'PS3', rating: 95, cover: 'https://x/tlou.jpg' },
+      { id: 504, name: 'Doom Eternal', genre: 'Shooter', platform: 'PC', rating: 90, cover: 'https://x/d.jpg' },
+      { id: 505, name: 'Animal Crossing: New Horizons', genre: 'Simulator', platform: 'Switch', rating: 90, cover: 'https://x/ac.jpg' },
+      { id: 506, name: 'Resident Evil 2', genre: 'Horror', platform: 'PC', rating: 91, cover: 'https://x/re.jpg' },
+      { id: 507, name: 'The Binding of Isaac: Rebirth', genre: 'Indie', platform: 'PC', rating: 86, cover: 'https://x/isaac.jpg' },
+    ]);
+
+    // First batch: no exclude — returns the first 5 resolved starters.
+    const first = await getSuggestions({}, [], 5, { preset: true });
+    const firstIds = first.map((g) => g.igdbId);
+    expect(firstIds).toHaveLength(5);
+
+    // Second batch (backlog prefetch): exclude the first 5 — must NOT return the same 5.
+    const second = await getSuggestions({}, firstIds, 5, { preset: true });
+    const secondIds = second.map((g) => g.igdbId);
+    expect(secondIds).toHaveLength(5);
+    // No overlap between the two batches — the exclude param was honored.
+    expect(secondIds.filter((id) => firstIds.includes(id))).toEqual([]);
+  });
 });
 
 describe('searchLocal', () => {
