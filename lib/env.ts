@@ -18,7 +18,7 @@ const REQUIRED_VARS = ['MONGODB_URI', 'IGDB_CLIENT_ID', 'IGDB_CLIENT_SECRET'] as
  * Read and validate the environment. Throws if any required variable is missing or empty.
  * Accepts an optional source map for testability (defaults to `process.env`).
  */
-export function getEnv(source: NodeJS.ProcessEnv = process.env): Env {
+export function getEnv(source: Record<string, string | undefined> = process.env): Env {
   const missing: string[] = [];
 
   for (const key of REQUIRED_VARS) {
