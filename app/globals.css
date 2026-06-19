@@ -3,33 +3,77 @@
 @tailwind utilities;
 
 /*
- * Placeholder dark theme tokens (refined in Phase 3). Values are space-separated RGB
- * channels so Tailwind's `<alpha-value>` modifier works (e.g. `bg-surface/50`).
+ * Arcade Premium design tokens (Phase 3). Neutrals are a deep charcoal with a faint violet
+ * tint so the violet accent and the S–F tier spectrum read as the brand. Values are
+ * space-separated RGB channels so Tailwind's `<alpha-value>` modifier works (e.g. `bg-surface/50`).
  */
 :root {
-  --color-bg: 10 10 14;
-  --color-surface: 20 20 28;
-  --color-surface-elevated: 30 30 42;
-  --color-fg: 240 240 245;
-  --color-muted: 150 150 165;
-  --color-accent: 124 92 255;
+  --color-bg: 12 11 18;
+  --color-surface: 22 20 32;
+  --color-surface-elevated: 32 29 46;
+  --color-border: 48 44 68;
+  --color-fg: 244 243 250;
+  --color-muted: 158 153 178;
+  --color-accent: 141 107 255;
+  --color-ring: 167 139 255;
 
-  --tier-s: 255 123 114;
-  --tier-a: 255 166 87;
-  --tier-b: 255 213 102;
-  --tier-c: 168 230 120;
-  --tier-d: 120 200 230;
-  --tier-e: 150 150 200;
-  --tier-f: 130 130 145;
+  /* Tier accent palette (S–F) — the classic spectrum, the product's signature. */
+  --tier-s: 255 99 110;
+  --tier-a: 255 162 76;
+  --tier-b: 255 213 92;
+  --tier-c: 130 224 122;
+  --tier-d: 96 196 235;
+  --tier-e: 168 142 246;
+  --tier-f: 134 132 150;
+
+  /* Font families are injected by next/font in app/layout.tsx. */
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
 html,
 body {
   background-color: rgb(var(--color-bg));
   color: rgb(var(--color-fg));
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Always-visible, tactile focus ring for any keyboard or programmatic focus. */
+:focus-visible {
+  outline: 2px solid rgb(var(--color-ring));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Subtle dark scrollbars so horizontal tier rows don't break the premium feel. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--color-border)) transparent;
+}
+*::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--color-border));
+  border-radius: 9999px;
+}
+
+/* Respect users who prefer less motion — primitives gate Framer Motion on this too. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
