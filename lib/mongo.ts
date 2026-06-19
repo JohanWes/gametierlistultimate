@@ -36,6 +36,8 @@ export const COLLECTIONS = {
   sessions: 'sessions',
   lists: 'lists',
   gameStats: 'gameStats',
+  gamePoolStats: 'gamePoolStats',
+  gameCooccurrence: 'gameCooccurrence',
 } as const;
 
 function resolveUri(): string {

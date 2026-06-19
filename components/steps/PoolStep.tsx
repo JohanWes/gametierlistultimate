@@ -10,7 +10,7 @@ import { useStore } from '@/lib/store';
 import { Button } from '../ui/Button';
 import { GameCard } from '../ui/GameCard';
 import { ManualSearch } from './ManualSearch';
-import { PoolCard } from './PoolCard';
+import { PoolCard, type PoolDecision } from './PoolCard';
 import { MIN_POOL, RosterMeter } from './RosterMeter';
 import { StepScaffold } from './StepScaffold';
 
@@ -50,6 +50,7 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
   const decidedRef = useRef<Set<number>>(
     new Set(useStore.getState().pool.map((e) => e.game.igdbId)),
   );
+  const rejectedRef = useRef<Set<number>>(new Set());
   const slotsRef = useRef<(SlotEntry | null)[]>(slots);
   const backlogRef = useRef<SlotEntry[]>([]);
   const fetchCountRef = useRef(0);
@@ -59,8 +60,12 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep refs in step with state.
-  useEffect(() => { slotsRef.current = slots; }, [slots]);
-  useEffect(() => { backlogRef.current = backlog; }, [backlog]);
+  useEffect(() => {
+    slotsRef.current = slots;
+  }, [slots]);
+  useEffect(() => {
+    backlogRef.current = backlog;
+  }, [backlog]);
 
   /** Every id we're holding (decided, visible, or queued) — the canonical exclude set. */
   const buildExclude = useCallback((): number[] => {
@@ -69,6 +74,27 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
     for (const b of backlogRef.current) ids.add(b.game.igdbId);
     return [...ids];
   }, []);
+
+  const buildSuggestionContext = useCallback(
+    () => ({
+      seedIds: useStore.getState().pool.map((e) => e.game.igdbId),
+      rejectIds: [...rejectedRef.current],
+    }),
+    [],
+  );
+
+  const filterFreshGames = useCallback(
+    (games: Game[]): Game[] => {
+      const held = new Set(buildExclude());
+      const seen = new Set<number>();
+      return games.filter((game) => {
+        if (held.has(game.igdbId) || seen.has(game.igdbId)) return false;
+        seen.add(game.igdbId);
+        return true;
+      });
+    },
+    [buildExclude],
+  );
 
   /** Move entries from the backlog into any null slots. Idempotent. */
   const fillEmptySlots = useCallback(() => {
@@ -88,6 +114,7 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
     if (!changed) return;
 
     backlogRef.current = queue;
+    slotsRef.current = nextSlots;
     setBacklog(queue);
     setSlots(nextSlots);
   }, []);
@@ -106,11 +133,13 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
 
     try {
       const games = await fetchSuggestions(
-        { prefs, exclude: buildExclude(), limit: VISIBLE_SLOTS },
+        { prefs, exclude: buildExclude(), ...buildSuggestionContext(), limit: VISIBLE_SLOTS },
         fetchImpl ?? fetch,
       );
 
-      if (games.length === 0) {
+      const freshGames = filterFreshGames(games);
+
+      if (freshGames.length === 0) {
         exhaustedRef.current = true;
         setExhausted(true);
         return;
@@ -119,12 +148,12 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
       fetchCountRef.current += 1;
       let spotlightGameId: number | null = null;
       if (fetchCountRef.current % SPOTLIGHT_EVERY === 0) {
-        spotlightGameId = games.reduce(
-          (best, g) => ((g.rating ?? 0) > (best.rating ?? 0) ? g : best),
+        spotlightGameId = freshGames.reduce((best, g) =>
+          (g.rating ?? 0) > (best.rating ?? 0) ? g : best,
         ).igdbId;
       }
 
-      const entries: SlotEntry[] = games.map((g) => ({
+      const entries: SlotEntry[] = freshGames.map((g) => ({
         game: g,
         spotlight: g.igdbId === spotlightGameId,
       }));
@@ -141,7 +170,7 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, [prefs, fetchImpl, buildExclude, fillEmptySlots]);
+  }, [prefs, fetchImpl, buildExclude, buildSuggestionContext, filterFreshGames, fillEmptySlots]);
 
   // Bootstrap: load the first batch straight into the five slots, then top up the backlog.
   useEffect(() => {
@@ -155,11 +184,18 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
 
       try {
         const games = await fetchSuggestions(
-          { prefs, exclude: [...decidedRef.current], limit: VISIBLE_SLOTS },
+          {
+            prefs,
+            exclude: [...decidedRef.current],
+            ...buildSuggestionContext(),
+            limit: VISIBLE_SLOTS,
+          },
           fetchImpl ?? fetch,
         );
 
-        if (games.length === 0) {
+        const freshGames = filterFreshGames(games);
+
+        if (freshGames.length === 0) {
           exhaustedRef.current = true;
           setExhausted(true);
           setLoading(false);
@@ -170,12 +206,12 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
         fetchCountRef.current = 1;
         let spotlightGameId: number | null = null;
         if (fetchCountRef.current % SPOTLIGHT_EVERY === 0) {
-          spotlightGameId = games.reduce(
-            (best, g) => ((g.rating ?? 0) > (best.rating ?? 0) ? g : best),
+          spotlightGameId = freshGames.reduce((best, g) =>
+            (g.rating ?? 0) > (best.rating ?? 0) ? g : best,
           ).igdbId;
         }
 
-        const entries: (SlotEntry | null)[] = games.slice(0, VISIBLE_SLOTS).map((g) => ({
+        const entries: (SlotEntry | null)[] = freshGames.slice(0, VISIBLE_SLOTS).map((g) => ({
           game: g,
           spotlight: g.igdbId === spotlightGameId,
         }));
@@ -204,32 +240,23 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleDecide = (id: number) => {
+  const handleDecide = (id: number, action: PoolDecision) => {
+    if (decidedRef.current.has(id)) return;
+    const idx = slotsRef.current.findIndex((s) => s?.game.igdbId === id);
+    if (idx === -1) return;
+
     decidedRef.current.add(id);
+    if (action === 'reject') rejectedRef.current.add(id);
 
     // Pop one from the backlog (mutate ref + batch state) so ensureBacklog below
     // reads the latest count and refills proactively.
-    if (backlogRef.current.length > 0) {
-      const [replacement, ...rest] = backlogRef.current;
-      backlogRef.current = rest;
-      setBacklog(rest);
-
-      setSlots((prev) => {
-        const idx = prev.findIndex((s) => s?.game.igdbId === id);
-        if (idx === -1) return prev;
-        const next = [...prev];
-        next[idx] = replacement ?? null;
-        return next;
-      });
-    } else {
-      setSlots((prev) => {
-        const idx = prev.findIndex((s) => s?.game.igdbId === id);
-        if (idx === -1) return prev;
-        const next = [...prev];
-        next[idx] = null;
-        return next;
-      });
-    }
+    const [replacement, ...rest] = backlogRef.current;
+    const nextSlots = [...slotsRef.current];
+    nextSlots[idx] = replacement ?? null;
+    slotsRef.current = nextSlots;
+    backlogRef.current = rest;
+    setBacklog(rest);
+    setSlots(nextSlots);
 
     void ensureBacklog();
   };
@@ -281,8 +308,8 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
                 That&rsquo;s our whole shelf for now
               </p>
               <p className="max-w-sm text-sm text-muted">
-                You&rsquo;ve reviewed every suggestion that fits. Use search above to add any game by
-                name, then enter the arcade.
+                You&rsquo;ve reviewed every suggestion that fits. Use search above to add any game
+                by name, then enter the arcade.
               </p>
             </div>
           ) : (
@@ -295,7 +322,7 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
                         key={entry.game.igdbId}
                         game={entry.game}
                         spotlight={entry.spotlight}
-                        onDecide={() => handleDecide(entry.game.igdbId)}
+                        onDecide={(action) => handleDecide(entry.game.igdbId, action)}
                       />
                     ) : (
                       <motion.div
@@ -311,9 +338,7 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
                             <div className="h-9 w-full" />
                           </>
                         ) : (
-                          <p className="py-8 text-center text-xs text-muted">
-                            No more suggestions
-                          </p>
+                          <p className="py-8 text-center text-xs text-muted">No more suggestions</p>
                         )}
                       </motion.div>
                     )}

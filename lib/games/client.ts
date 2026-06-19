@@ -11,6 +11,10 @@ export interface SuggestionQuery {
   prefs?: Preferences;
   /** IGDB ids to keep out of the results (already decided/added). */
   exclude?: number[];
+  /** Confirmed played games that should steer follow-up suggestions. */
+  seedIds?: number[];
+  /** Passed games that should softly down-rank nearby suggestions for this session. */
+  rejectIds?: number[];
   limit?: number;
 }
 
@@ -27,6 +31,8 @@ export async function fetchSuggestions(
   if (query.prefs?.genres?.length) params.set('genres', query.prefs.genres.join(','));
   if (query.prefs?.platforms?.length) params.set('platforms', query.prefs.platforms.join(','));
   if (query.exclude?.length) params.set('exclude', query.exclude.join(','));
+  if (query.seedIds?.length) params.set('seedIds', query.seedIds.join(','));
+  if (query.rejectIds?.length) params.set('rejectIds', query.rejectIds.join(','));
   if (query.limit) params.set('limit', String(query.limit));
 
   const res = await fetchImpl(`/api/games/suggestions?${params.toString()}`, {

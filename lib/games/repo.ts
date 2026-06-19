@@ -1,8 +1,9 @@
 import type { Collection, Document } from 'mongodb';
 
 import { COLLECTIONS, getDb } from '../mongo';
+import { getCooccurrenceScores } from '../pool-patterns-repo';
 import { DLC_CATEGORIES, normalizeMongoDoc } from './normalize';
-import type { Game, Preferences } from './types';
+import type { Game, Preferences, SuggestionContext } from './types';
 
 async function gamesCollection(): Promise<Collection<Document>> {
   const db = await getDb();
@@ -31,6 +32,19 @@ export async function ensureGameIndexes(): Promise<void> {
 const NOT_DLC_FILTER = {
   $or: [{ category: { $exists: false } }, { category: { $nin: [...DLC_CATEGORIES] } }],
 };
+
+const SUGGESTION_FETCH_MULTIPLIER = 4;
+const SUGGESTION_FETCH_FLOOR = 20;
+
+const NON_MAIN_TITLE_PATTERNS = [
+  /\b(?:dlc|downloadable content|expansion|add-?on|season pass|map pack)\b/i,
+  /\b(?:the frozen wilds|eye of the north|heart of thorns|path of fire|burial at sea)\b/i,
+  /(?:^|[:\-])\s*.*\bepisode\s+(?:one|two|three|four|five|six|seven|eight|nine|ten|[ivx]+|\d+)\b/i,
+];
+
+const EDITION_SUFFIX_PATTERN =
+  /\s*(?:[:\-]\s*)?(?:royal|complete|collector'?s|definitive|deluxe|ultimate|game of the year|goty)\s+edition$/i;
+const REMASTERED_SUFFIX_PATTERN = /\s*(?:[:\-]\s*)?remastered$/i;
 
 function caseInsensitiveRegex(query: string): RegExp {
   // Escape regex metacharacters in the user-supplied query.
@@ -71,6 +85,134 @@ function genreRegexes(genres: string[]): RegExp[] {
   return [...terms].map(caseInsensitiveRegex);
 }
 
+function normalizedIds(ids: number[] | undefined): number[] {
+  return [...new Set((ids ?? []).filter((id) => Number.isFinite(id)))];
+}
+
+function suggestionFetchLimit(limit: number): number {
+  return Math.max(
+    limit,
+    Math.min(200, Math.max(SUGGESTION_FETCH_FLOOR, limit * SUGGESTION_FETCH_MULTIPLIER)),
+  );
+}
+
+function titleKey(title: string): string {
+  return title
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function baseTitleKey(title: string): string {
+  return titleKey(title.replace(EDITION_SUFFIX_PATTERN, '').replace(REMASTERED_SUFFIX_PATTERN, ''));
+}
+
+function isLikelyNonMainTitle(game: Game, baseKeys: Set<string>): boolean {
+  if (game.category != null && DLC_CATEGORIES.has(game.category)) return true;
+  if (NON_MAIN_TITLE_PATTERNS.some((pattern) => pattern.test(game.title))) return true;
+
+  const ownKey = titleKey(game.title);
+  const baseKey = baseTitleKey(game.title);
+  return baseKey !== ownKey && baseKeys.has(baseKey);
+}
+
+function dedupeSuggestions(games: Game[], limit: number): Game[] {
+  const baseKeys = new Set(games.map((game) => titleKey(game.title)));
+  const seenIds = new Set<number>();
+  const seenTitles = new Set<string>();
+  const deduped: Game[] = [];
+
+  for (const game of games) {
+    if (seenIds.has(game.igdbId)) continue;
+    if (isLikelyNonMainTitle(game, baseKeys)) continue;
+
+    const key = titleKey(game.title);
+    if (seenTitles.has(key)) continue;
+
+    seenIds.add(game.igdbId);
+    seenTitles.add(key);
+    deduped.push(game);
+    if (deduped.length >= limit) break;
+  }
+
+  return deduped;
+}
+
+function preferenceScore(game: Game, prefs: Preferences): number {
+  let score = 0;
+  if (prefs.genres?.length) {
+    const regexes = genreRegexes(prefs.genres);
+    if (game.genres.some((genre) => regexes.some((re) => re.test(genre)))) score += 16;
+  }
+  if (prefs.platforms?.length) {
+    const platforms = prefs.platforms.map(caseInsensitiveRegex);
+    if (game.platforms.some((platform) => platforms.some((re) => re.test(platform)))) score += 8;
+  }
+  return score;
+}
+
+const TITLE_STOPWORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'edition',
+  'game',
+  'of',
+  'remastered',
+  'remake',
+  'the',
+]);
+
+function titleTokens(title: string): string[] {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(' ')
+    .filter((token) => token.length > 2 && !TITLE_STOPWORDS.has(token) && !/^\d+$/.test(token));
+}
+
+function titleAffinity(game: Game, seeds: Game[]): number {
+  const tokens = new Set(titleTokens(game.title));
+  if (tokens.size === 0) return 0;
+
+  let best = 0;
+  for (const seed of seeds) {
+    const seedTokens = titleTokens(seed.title);
+    const shared = seedTokens.filter((token) => tokens.has(token)).length;
+    if (shared >= 2) best = Math.max(best, 48);
+    else if (shared === 1) best = Math.max(best, 22);
+  }
+  return best;
+}
+
+function genreAffinity(game: Game, seeds: Game[]): number {
+  const genres = new Set(game.genres.map((g) => g.toLowerCase()));
+  if (genres.size === 0) return 0;
+
+  let shared = 0;
+  for (const seed of seeds) {
+    for (const genre of seed.genres) {
+      if (genres.has(genre.toLowerCase())) shared += 1;
+    }
+  }
+  return Math.min(shared * 5, 20);
+}
+
+function popularityScore(game: Game): number {
+  const rating = game.rating ?? 0;
+  const popularity = game.popularity ?? 0;
+  return rating / 10 + Math.log10(popularity + 1) * 4;
+}
+
+function nearRejectedPenalty(game: Game, rejected: Game[]): number {
+  if (rejected.length === 0) return 0;
+  return Math.min(titleAffinity(game, rejected) * 0.5 + genreAffinity(game, rejected) * 0.35, 24);
+}
+
 /**
  * Candidate games for the ranking pool, biased by onboarding preferences. Prioritizes games
  * with cover art and high rating, honors genre/platform preferences, excludes DLC and any
@@ -80,6 +222,7 @@ export async function getSuggestions(
   prefs: Preferences = {},
   exclude: number[] = [],
   limit = 30,
+  context: SuggestionContext = {},
 ): Promise<Game[]> {
   const coll = await gamesCollection();
 
@@ -98,28 +241,61 @@ export async function getSuggestions(
     prefOr.push({ platform: { $in: prefs.platforms.map(caseInsensitiveRegex) } });
   }
 
-  // When preferences are given, fetch a preference-matching batch first, then top up with
-  // generally-strong games so the pool is never empty even for narrow tastes.
+  const seedIds = normalizedIds(context.seedIds);
+  const rejectIds = normalizedIds(context.rejectIds);
+  const hasAdaptiveContext = seedIds.length > 0 || rejectIds.length > 0;
   const sort: Document = { rating: -1 };
   const projection = undefined;
+  const fetchLimit = suggestionFetchLimit(limit);
+
+  if (hasAdaptiveContext) {
+    const [candidateDocs, seedGames, rejectedGames, coScores] = await Promise.all([
+      coll.find({ $and: and }, { projection }).toArray(),
+      getByIds(seedIds),
+      getByIds(rejectIds),
+      getCooccurrenceScores(seedIds),
+    ]);
+
+    const candidates = candidateDocs.map(normalizeMongoDoc);
+    const scored = candidates
+      .map((game) => {
+        const coScore = Math.log2((coScores.get(game.igdbId) ?? 0) + 1) * 90;
+        const score =
+          coScore +
+          titleAffinity(game, seedGames) +
+          genreAffinity(game, seedGames) +
+          preferenceScore(game, prefs) +
+          popularityScore(game) -
+          nearRejectedPenalty(game, rejectedGames);
+        return { game, score };
+      })
+      .sort((a, b) => b.score - a.score || (b.game.rating ?? 0) - (a.game.rating ?? 0))
+      .map((entry) => entry.game);
+
+    return dedupeSuggestions(scored, limit);
+  }
+
+  // When preferences are given, fetch a preference-matching batch first, then top up with
+  // generally-strong games so the pool is never empty even for narrow tastes.
 
   if (prefOr.length === 0) {
     const docs = await coll
       .find({ $and: and }, { projection })
       .sort(sort)
-      .limit(limit)
+      .limit(fetchLimit)
       .toArray();
-    return docs.map(normalizeMongoDoc);
+    return dedupeSuggestions(docs.map(normalizeMongoDoc), limit);
   }
 
   const preferred = await coll
     .find({ $and: [...and, { $or: prefOr }] }, { projection })
     .sort(sort)
-    .limit(limit)
+    .limit(fetchLimit)
     .toArray();
 
   if (preferred.length >= limit) {
-    return preferred.slice(0, limit).map(normalizeMongoDoc);
+    const dedupedPreferred = dedupeSuggestions(preferred.map(normalizeMongoDoc), limit);
+    if (dedupedPreferred.length >= limit) return dedupedPreferred;
   }
 
   const have = new Set(preferred.map((d) => d.id));
@@ -127,10 +303,10 @@ export async function getSuggestions(
   const filler = await coll
     .find({ $and: [...and.slice(0, 2), { id: { $nin: fillerExclude } }] }, { projection })
     .sort(sort)
-    .limit(limit - preferred.length)
+    .limit(fetchLimit)
     .toArray();
 
-  return [...preferred, ...filler].slice(0, limit).map(normalizeMongoDoc);
+  return dedupeSuggestions([...preferred, ...filler].map(normalizeMongoDoc), limit);
 }
 
 /** Case-insensitive partial-title search over the local collection. */

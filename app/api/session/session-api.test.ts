@@ -75,6 +75,43 @@ describe('PUT + GET /api/session', () => {
     expect(session.pool).toEqual([1, 2, 3]);
   });
 
+  it('updates anonymous pool-pattern aggregates from saved pool changes', async () => {
+    const created = await POST(makeReq('POST'));
+    const { sessionId } = await created.json();
+
+    await PUT(makeReq('PUT', { cookie: sessionId, body: { pool: [1, 2, 3] } }));
+
+    const stats = await mongo.db
+      .collection(COLLECTIONS.gamePoolStats)
+      .find({}, { projection: { _id: 0, gameId: 1, includedCount: 1 } })
+      .sort({ gameId: 1 })
+      .toArray();
+    expect(stats).toEqual([
+      { gameId: 1, includedCount: 1 },
+      { gameId: 2, includedCount: 1 },
+      { gameId: 3, includedCount: 1 },
+    ]);
+
+    expect(
+      await mongo.db.collection(COLLECTIONS.gameCooccurrence).findOne({ pairKey: '1:2' }),
+    ).toMatchObject({ gameA: 1, gameB: 2, count: 1 });
+    expect(
+      await mongo.db.collection(COLLECTIONS.gameCooccurrence).findOne({ pairKey: '1:3' }),
+    ).toMatchObject({ gameA: 1, gameB: 3, count: 1 });
+
+    await PUT(makeReq('PUT', { cookie: sessionId, body: { pool: [1, 3] } }));
+
+    expect(
+      await mongo.db.collection(COLLECTIONS.gamePoolStats).findOne({ gameId: 2 }),
+    ).toMatchObject({ includedCount: 0 });
+    expect(
+      await mongo.db.collection(COLLECTIONS.gameCooccurrence).findOne({ pairKey: '1:2' }),
+    ).toMatchObject({ count: 0 });
+    expect(
+      await mongo.db.collection(COLLECTIONS.gameCooccurrence).findOne({ pairKey: '1:3' }),
+    ).toMatchObject({ count: 1 });
+  });
+
   it('returns null session when no cookie is present', async () => {
     const res = await GET(makeReq('GET'));
     expect(await res.json()).toEqual({ session: null });

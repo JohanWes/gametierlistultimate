@@ -37,3 +37,11 @@ export interface Preferences {
   /** Preferred platforms. */
   platforms?: string[];
 }
+
+/** Session-local context used to make pool suggestions adapt after each decision. */
+export interface SuggestionContext {
+  /** Games the player has already confirmed as played. */
+  seedIds?: number[];
+  /** Games explicitly passed in this pool-building session. */
+  rejectIds?: number[];
+}

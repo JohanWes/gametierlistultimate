@@ -1,13 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resetStore } from '@/lib/store';
-import { makeGames } from '@/test/helpers/games';
+import { makeGame, makeGames } from '@/test/helpers/games';
 import { fireEvent, renderWithProviders, screen, waitFor } from '@/test/helpers/render';
 
 import { PoolStep } from './PoolStep';
 
 function excludeParam(url: string): string | null {
   return new URL(url, 'http://localhost').searchParams.get('exclude');
+}
+
+function listParam(url: string, name: string): string[] {
+  return (new URL(url, 'http://localhost').searchParams.get(name) ?? '').split(',').filter(Boolean);
 }
 
 describe('PoolStep batches', () => {
@@ -35,13 +39,18 @@ describe('PoolStep batches', () => {
 
     // The backlog prefetch fires immediately, excluding the visible five.
     await waitFor(() => expect(calls).toHaveLength(2));
-    expect(excludeParam(calls[1])?.split(',').sort()).toEqual(
-      ['1000', '1001', '1002', '1003', '1004'],
-    );
+    expect(excludeParam(calls[1])?.split(',').sort()).toEqual([
+      '1000',
+      '1001',
+      '1002',
+      '1003',
+      '1004',
+    ]);
 
-    // Decide cards repeatedly — the backlog feeds replacements so five stay on screen.
-    const passBtn = () => screen.getAllByRole('button', { name: /pass/i })[0];
-    for (let i = 0; i < 6; i += 1) fireEvent.click(passBtn());
+    // Decide distinct cards — the backlog feeds replacements so five stay on screen.
+    for (const button of screen.getAllByRole('button', { name: /pass/i }).slice(0, 4)) {
+      fireEvent.click(button);
+    }
 
     // Wait for the backlog refill to fire.
     await waitFor(() => expect(calls.length).toBeGreaterThanOrEqual(3));
@@ -55,7 +64,7 @@ describe('PoolStep batches', () => {
       { timeout: 2500 },
     );
 
-    // After six decisions the exclude must have grown well past the initial five.
+    // After several decisions the exclude must have grown well past the initial five.
     // It contains every seen id (decided + visible slots + backlog), with zero duplicates.
     const latestExclude = excludeParam(calls[calls.length - 1]);
     expect(latestExclude).not.toBeNull();
@@ -109,5 +118,84 @@ describe('PoolStep batches', () => {
 
     fireEvent.click(retry);
     expect(await screen.findAllByRole('button', { name: /played it/i })).toHaveLength(5);
+  });
+
+  it('sends selected games as seeds and passed games as soft rejects for future batches', async () => {
+    const calls: string[] = [];
+    const fetchImpl = vi.fn(async (url: string) => {
+      calls.push(url);
+      const excluded = listParam(url, 'exclude');
+      const start = 1000 + excluded.length;
+      return { ok: true, status: 200, json: async () => ({ games: makeGames(5, start) }) };
+    }) as unknown as typeof fetch;
+
+    renderWithProviders(<PoolStep fetchImpl={fetchImpl} />);
+
+    await screen.findAllByRole('button', { name: /played it/i });
+    await waitFor(() => expect(calls).toHaveLength(2));
+
+    fireEvent.click(screen.getAllByRole('button', { name: /played it/i })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /pass/i })[1]);
+    fireEvent.click(screen.getAllByRole('button', { name: /skip/i })[2]);
+    fireEvent.click(screen.getAllByRole('button', { name: /skip/i })[3]);
+
+    await waitFor(() => {
+      expect(calls.some((url) => listParam(url, 'seedIds').includes('1000'))).toBe(true);
+      expect(calls.some((url) => listParam(url, 'rejectIds').includes('1001'))).toBe(true);
+    });
+  });
+
+  it('ignores duplicate games returned by a later batch', async () => {
+    let call = 0;
+    const fetchImpl = vi.fn(async () => {
+      call += 1;
+      const games =
+        call === 1
+          ? makeGames(5, 1)
+          : [
+              makeGame({ igdbId: 1, title: 'Game 1' }),
+              makeGame({ igdbId: 2, title: 'Game 2' }),
+              makeGame({ igdbId: 6, title: 'Game 6' }),
+              makeGame({ igdbId: 6, title: 'Game 6' }),
+              makeGame({ igdbId: 7, title: 'Game 7' }),
+            ];
+      return { ok: true, status: 200, json: async () => ({ games }) };
+    }) as unknown as typeof fetch;
+
+    renderWithProviders(<PoolStep fetchImpl={fetchImpl} />);
+
+    await screen.findAllByRole('button', { name: /pass/i });
+    await waitFor(() => expect(call).toBe(2));
+
+    for (let i = 0; i < 4; i += 1) {
+      fireEvent.click(screen.getAllByRole('button', { name: /pass/i })[0]);
+    }
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Game 6')).toHaveLength(2);
+    });
+  });
+
+  it('ignores repeated decisions for the same card', async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      const excluded = listParam(url, 'exclude');
+      const start = excluded.length === 0 ? 1 : 6;
+      return { ok: true, status: 200, json: async () => ({ games: makeGames(5, start) }) };
+    }) as unknown as typeof fetch;
+
+    renderWithProviders(<PoolStep fetchImpl={fetchImpl} />);
+
+    await screen.findAllByRole('button', { name: /pass/i });
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+
+    const firstPass = screen.getAllByRole('button', { name: /pass/i })[0];
+    fireEvent.click(firstPass);
+    fireEvent.click(firstPass);
+    fireEvent.click(firstPass);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Game 6')).toHaveLength(2);
+    });
+    expect(screen.queryByText('Game 7')).not.toBeInTheDocument();
   });
 });

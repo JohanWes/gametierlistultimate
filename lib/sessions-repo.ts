@@ -1,4 +1,5 @@
 import { COLLECTIONS, getDb } from './mongo';
+import { updatePoolPatternAggregates } from './pool-patterns-repo';
 
 /** Mutable, autosaved in-progress state for an anonymous session. */
 export interface SessionState {
@@ -38,6 +39,7 @@ export async function getSession(sessionId: string): Promise<SessionDoc | null> 
 /** Autosave partial state for a session, creating it if necessary. */
 export async function saveSession(sessionId: string, state: SessionState): Promise<void> {
   const coll = await sessionsCollection();
+  const previous = state.pool !== undefined ? await getSession(sessionId) : null;
   const now = new Date();
   const set: Record<string, unknown> = { updatedAt: now };
   if (state.prefs !== undefined) set.prefs = state.prefs;
@@ -49,4 +51,8 @@ export async function saveSession(sessionId: string, state: SessionState): Promi
     { $set: set, $setOnInsert: { sessionId, createdAt: now } },
     { upsert: true },
   );
+
+  if (state.pool !== undefined) {
+    await updatePoolPatternAggregates(previous?.pool ?? [], state.pool);
+  }
 }
