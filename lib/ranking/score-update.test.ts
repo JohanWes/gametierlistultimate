@@ -1,0 +1,77 @@
+import { describe, expect, it } from 'vitest';
+
+import { applyOutcome, createRankingState, parseRankingState, serializeRankingState } from './index';
+
+describe('ranking score updates', () => {
+  it('moves pairwise winner up, loser down, and reduces uncertainty', () => {
+    const state = createRankingState([1, 2], { seed: 7 });
+
+    const next = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 2 });
+
+    expect(next).not.toBe(state);
+    expect(next.games[1].rating).toBeGreaterThan(state.games[1].rating);
+    expect(next.games[2].rating).toBeLessThan(state.games[2].rating);
+    expect(next.games[1].uncertainty).toBeLessThan(state.games[1].uncertainty);
+    expect(next.games[2].comparisons).toBeGreaterThan(0);
+  });
+
+  it('applies lineup ordering as pairwise implications', () => {
+    const state = createRankingState([1, 2, 3, 4, 5], { seed: 1 });
+
+    const next = applyOutcome(state, { type: 'lineup', orderedIds: [1, 2, 3, 4, 5] });
+
+    expect(next.games[1].rating).toBeGreaterThan(next.games[3].rating);
+    expect(next.games[3].rating).toBeGreaterThan(next.games[5].rating);
+    expect(next.games[1].comparisons).toBeGreaterThan(next.games[3].comparisons - 1);
+  });
+
+  it('applies pick-k-of-n, champion, and sacrifice outcomes in the expected direction', () => {
+    let state = createRankingState([1, 2, 3, 4, 5], { seed: 2 });
+
+    state = applyOutcome(state, { type: 'pick-k-of-n', pickedIds: [1, 2], rejectedIds: [3, 4, 5] });
+    expect(state.games[1].rating).toBeGreaterThan(state.games[4].rating);
+    expect(state.games[2].rating).toBeGreaterThan(state.games[5].rating);
+
+    state = applyOutcome(state, { type: 'champion', winnerId: 3, opponentIds: [1, 2, 4, 5] });
+    expect(state.games[3].rating).toBeGreaterThan(1500);
+
+    state = applyOutcome(state, { type: 'sacrifice', loserId: 2, opponentIds: [1, 3, 4, 5] });
+    expect(state.games[2].rating).toBeLessThan(state.games[1].rating);
+  });
+
+  it('about-equal pulls separated ratings closer together', () => {
+    let state = createRankingState([1, 2], { seed: 3 });
+    for (let i = 0; i < 6; i += 1) {
+      state = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 2 });
+    }
+    const beforeGap = state.games[1].rating - state.games[2].rating;
+
+    const next = applyOutcome(state, { type: 'about-equal', gameIds: [1, 2] });
+
+    expect(next.games[1].rating - next.games[2].rating).toBeLessThan(beforeGap);
+  });
+
+  it('replay test is a low-weight signal compared with a duel', () => {
+    const base = createRankingState([1, 2], { seed: 4 });
+
+    const replay = applyOutcome(base, { type: 'replay', gameId: 1, answer: 'immediately' });
+    const duel = applyOutcome(base, { type: 'pairwise', winnerId: 1, loserId: 2 });
+
+    expect(replay.games[1].rating - base.games[1].rating).toBeGreaterThan(0);
+    expect(replay.games[1].rating - base.games[1].rating).toBeLessThan(
+      duel.games[1].rating - base.games[1].rating,
+    );
+  });
+
+  it('serializes and parses the persisted state shape', () => {
+    const state = applyOutcome(createRankingState([1, 2], { seed: 5 }), {
+      type: 'pairwise',
+      winnerId: 1,
+      loserId: 2,
+    });
+
+    expect(parseRankingState(serializeRankingState(state))).toEqual(state);
+    expect(parseRankingState({ version: 999 })).toBeNull();
+  });
+});
+

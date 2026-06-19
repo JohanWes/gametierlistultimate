@@ -5,37 +5,9 @@ import { useStore } from '@/lib/store';
 
 import { Button } from '../ui/Button';
 import { GameCard } from '../ui/GameCard';
-import { ProgressMeter } from '../ui/ProgressMeter';
 import { Row, TIER_ORDER } from '../ui/Row';
 import { SAMPLE_TIERS } from './sample';
 import { StepScaffold } from './StepScaffold';
-
-export function ArcadeStep() {
-  const [a, b] = SAMPLE_TIERS.S;
-  return (
-    <StepScaffold
-      eyebrow="Step 3 · The arcade"
-      title="Which one wins?"
-      description="Quick battles sharpen your hidden rankings. Play more to refine, or reveal whenever you’re ready. (Minigames land in a later phase.)"
-      nextLabel="Reveal my list →"
-    >
-      <ProgressMeter value={42} label="Confidence" className="mb-7" />
-      <div className="grid grid-cols-2 gap-4">
-        {[a, b].map((g) => (
-          <button
-            key={g.igdbId}
-            type="button"
-            onClick={() => playSound('success')}
-            className="flex flex-col items-center gap-3 rounded-card border border-border bg-surface p-5 shadow-soft transition-colors hover:border-teal/60 focus-visible:outline-none"
-          >
-            <GameCard game={g} />
-            <span className="text-sm font-medium text-fg">{g.title}</span>
-          </button>
-        ))}
-      </div>
-    </StepScaffold>
-  );
-}
 
 export function RevealStep() {
   return (
