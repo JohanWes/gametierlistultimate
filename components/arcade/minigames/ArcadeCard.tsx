@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { GameCard } from '../../ui/GameCard';
 import { tapProps } from '../shared';
 
-export type CardState = 'idle' | 'win' | 'lose' | 'dim';
+export type CardState = 'idle' | 'win' | 'lose' | 'dim' | 'equal';
 
 export interface ArcadeCardProps {
   game: Game;
@@ -53,6 +53,16 @@ export function ArcadeCard({
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-tile ring-2 ring-accent"
           style={{ boxShadow: '0 0 30px rgb(var(--color-accent) / 0.55)' }}
+          initial={reduce ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+        />
+      ) : null}
+
+      {state === 'equal' ? (
+        <motion.span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-tile ring-2 ring-teal/70"
+          style={{ boxShadow: '0 0 22px rgb(var(--color-teal) / 0.35)' }}
           initial={reduce ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
         />
