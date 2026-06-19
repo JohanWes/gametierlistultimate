@@ -4,14 +4,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
 import { type Step, useStore } from '@/lib/store';
 
-import {
-  ArcadeStep,
-  CorrectionStep,
-  OnboardingStep,
-  PoolStep,
-  RevealStep,
-  ShareStep,
-} from './steps/OtherSteps';
+import { OnboardingStep } from './steps/OnboardingStep';
+import { ArcadeStep, CorrectionStep, PoolStep, RevealStep, ShareStep } from './steps/OtherSteps';
 import { WelcomeStep } from './steps/WelcomeStep';
 import { AppShell } from './ui/AppShell';
 

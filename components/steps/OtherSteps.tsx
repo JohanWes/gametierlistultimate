@@ -4,67 +4,11 @@ import { playSound } from '@/lib/sound';
 import { useStore } from '@/lib/store';
 
 import { Button } from '../ui/Button';
-import { Chip } from '../ui/Chip';
 import { GameCard } from '../ui/GameCard';
 import { ProgressMeter } from '../ui/ProgressMeter';
 import { Row, TIER_ORDER } from '../ui/Row';
-import { Toggle } from '../ui/Toggle';
 import { SAMPLE_TIERS } from './sample';
 import { StepScaffold } from './StepScaffold';
-
-const GENRES = [
-  'RPG',
-  'Action',
-  'Adventure',
-  'Strategy',
-  'Shooter',
-  'Platformer',
-  'Horror',
-  'Puzzle',
-  'Simulation',
-  'Open world',
-  'Story-rich',
-  'Multiplayer',
-];
-
-const FLAGS = [
-  { key: 'older', label: 'Include older games', description: 'Classics from before 2010.' },
-  { key: 'indie', label: 'Lean indie', description: 'Favor smaller studios.' },
-  { key: 'hidden', label: 'Hidden gems', description: 'Surface lesser-known titles.' },
-  { key: 'chaos', label: 'Chaos mode', description: 'Wilder, more surprising matchups.' },
-];
-
-export function OnboardingStep() {
-  const genres = useStore((s) => s.prefs.genres);
-  const flags = useStore((s) => s.prefs.flags);
-  const toggleGenre = useStore((s) => s.toggleGenre);
-  const setFlag = useStore((s) => s.setFlag);
-
-  return (
-    <StepScaffold
-      eyebrow="Step 1 · Preferences"
-      title="What do you reach for?"
-      description="Pick a few genres and tune the vibe. We use these to suggest games worth ranking — nothing is locked in."
-    >
-      <div className="flex flex-wrap gap-2">
-        {GENRES.map((g) => (
-          <Chip key={g} label={g} selected={genres.includes(g)} onToggle={() => toggleGenre(g)} />
-        ))}
-      </div>
-      <div className="mt-6 grid gap-2.5 sm:grid-cols-2">
-        {FLAGS.map((f) => (
-          <Toggle
-            key={f.key}
-            label={f.label}
-            description={f.description}
-            checked={!!flags[f.key]}
-            onChange={(v) => setFlag(f.key, v)}
-          />
-        ))}
-      </div>
-    </StepScaffold>
-  );
-}
 
 export function PoolStep() {
   return (

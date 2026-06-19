@@ -8,8 +8,8 @@ describe('HomePage', () => {
   it('mounts and renders the welcome hero', () => {
     renderWithProviders(<HomePage />);
     expect(
-      screen.getByRole('heading', { name: /create your game tier list/i }),
+      screen.getByRole('heading', { name: /build your ultimate game tier list/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /start ranking/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /press start/i })).toBeInTheDocument();
   });
 });
