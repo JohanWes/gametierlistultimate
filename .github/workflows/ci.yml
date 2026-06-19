@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+# Dummy values so `next build` / lazy env validation never fails fast in CI. Real values
+# are only needed for live data; tests use in-memory Mongo + MSW. Override via repo secrets
+# if you want the build to talk to real services.
+env:
+  MONGODB_URI: ${{ secrets.MONGODB_URI || 'mongodb://localhost:27017/test' }}
+  IGDB_CLIENT_ID: ${{ secrets.IGDB_CLIENT_ID || 'ci-dummy-id' }}
+  IGDB_CLIENT_SECRET: ${{ secrets.IGDB_CLIENT_SECRET || 'ci-dummy-secret' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      - run: npm run test:e2e
