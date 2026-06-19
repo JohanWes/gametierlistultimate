@@ -23,7 +23,7 @@ describe('ReplayTest', () => {
     const onComplete = vi.fn();
     renderWithProviders(<ReplayTest games={[game]} onComplete={onComplete} />);
 
-    fireEvent.touchEnd(screen.getByRole('button', { name: /immediately/i }));
+    fireEvent.touchEnd(screen.getByRole('button', { name: /yes/i }));
 
     await waitFor(() =>
       expect(onComplete).toHaveBeenCalledWith([

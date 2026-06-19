@@ -12,13 +12,13 @@ import { ArcadeCard } from './ArcadeCard';
 type Answer = 'immediately' | 'maybe' | 'probably-not' | 'never';
 
 const ANSWERS: { answer: Answer; label: string; tone: string }[] = [
-  { answer: 'immediately', label: 'Immediately', tone: 'border-teal bg-teal/15 text-teal hover:bg-teal/25' },
+  { answer: 'immediately', label: 'Yes', tone: 'border-teal bg-teal/15 text-teal hover:bg-teal/25' },
   { answer: 'maybe', label: 'Maybe', tone: 'border-accent/60 bg-accent/12 text-accent hover:bg-accent/20' },
   { answer: 'probably-not', label: 'Probably not', tone: 'border-border bg-surface-elevated text-fg hover:border-coin/50' },
   { answer: 'never', label: 'Never', tone: 'border-coin/60 bg-coin/12 text-coin hover:bg-coin/22' },
 ];
 
-/** Minigame 10 — "Would you replay this today?" A single game, four verdicts. Supporting signal. */
+/** Minigame 10 — "Would you replay this?" A single game, four verdicts. Supporting signal. */
 export function ReplayTest({ games, onComplete }: MinigameProps) {
   const complete = useComplete(onComplete);
   const [chosen, setChosen] = useState<Answer | null>(null);
@@ -37,7 +37,7 @@ export function ReplayTest({ games, onComplete }: MinigameProps) {
       <header className="mb-6 text-center">
         <p className="mb-2 font-mono text-xs uppercase tracking-[0.28em] text-teal">Replay test</p>
         <h2 className="font-display text-3xl font-black uppercase tracking-[0.02em] text-fg sm:text-4xl">
-          Would you replay this today?
+          Would you replay this?
         </h2>
       </header>
 
