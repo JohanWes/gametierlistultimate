@@ -12,6 +12,7 @@ import { Promotion } from './Promotion';
 import { ReplayTest } from './ReplayTest';
 import { Rivalry } from './Rivalry';
 import { Sacrifice } from './Sacrifice';
+import { VibeMeter } from './VibeMeter';
 import type { MinigameProps } from '../types';
 
 /** Maps an arcade round's kind to the component that plays it. */
@@ -26,4 +27,5 @@ export const MINIGAMES: Record<MinigameKind, ComponentType<MinigameProps>> = {
   'higher-lower': HigherLower,
   gauntlet: Gauntlet,
   replay: ReplayTest,
+  vibe: VibeMeter,
 };

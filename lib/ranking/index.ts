@@ -64,6 +64,7 @@ export type RankingOutcome =
       answer: 'immediately' | 'maybe' | 'probably-not' | 'never';
       weight?: number;
     }
+  | { type: 'vibe'; gameId: number; score: number; weight?: number }
   | { type: 'skip'; gameIds?: number[] };
 
 export type TierMap = Record<Tier, number[]>;
@@ -212,6 +213,10 @@ export function applyOutcome(state: RankingState, outcome: RankingOutcome): Rank
       break;
     case 'replay':
       applyReplay(next, outcome.gameId, outcome.answer, outcome.weight ?? 0.35);
+      markParticipants(next, [outcome.gameId], beforeRound + 1);
+      break;
+    case 'vibe':
+      applyVibe(next, outcome.gameId, outcome.score, outcome.weight ?? 0.55);
       markParticipants(next, [outcome.gameId], beforeRound + 1);
       break;
     case 'skip':
@@ -383,6 +388,30 @@ function applyReplay(
 
   const expected = expectedScore(game.rating, BASE_RATING);
   const targetScore = expectedScore(targetByAnswer[answer], BASE_RATING);
+  const delta = 22 * clamp(weight, 0.05, 0.75) * (targetScore - expected);
+  game.rating += delta;
+  game.uncertainty = Math.max(MIN_UNCERTAINTY, game.uncertainty * 0.975);
+  game.comparisons += weight;
+}
+
+/**
+ * Apply a "vibe" verdict — the player drags a single game onto a continuous 0–100 feel-meter. Like
+ * `applyReplay` it is an absolute signal (a single game rated against the implicit `BASE_RATING`
+ * benchmark via the ELO expected-score transform), but the target is interpolated linearly from the
+ * 0–100 score across the F→S rating-band range (`TIER_BANDS.F`..`TIER_BANDS.S`), so the slider value
+ * itself is the signal rather than a snapped tier. The nudge is soft (K-factor 22, weight capped at
+ * 0.75) so it coexists with accumulated pairwise results rather than overwriting them. Default weight
+ * is a touch stronger than `replay` because a deliberate placement is more intentional than a replay
+ * verdict.
+ */
+function applyVibe(state: RankingState, gameId: number, score: number, weight: number): void {
+  const game = state.games[String(gameId)];
+  if (!game) return;
+
+  const t = clamp(score, 0, 100) / 100;
+  const targetRating = TIER_BANDS.F + t * (TIER_BANDS.S - TIER_BANDS.F);
+  const expected = expectedScore(game.rating, BASE_RATING);
+  const targetScore = expectedScore(targetRating, BASE_RATING);
   const delta = 22 * clamp(weight, 0.05, 0.75) * (targetScore - expected);
   game.rating += delta;
   game.uncertainty = Math.max(MIN_UNCERTAINTY, game.uncertainty * 0.975);

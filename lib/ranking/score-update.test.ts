@@ -63,6 +63,42 @@ describe('ranking score updates', () => {
     );
   });
 
+  it('vibe verdict moves a game toward the chosen score', () => {
+    const state = createRankingState([1], { seed: 6 });
+
+    const high = applyOutcome(state, { type: 'vibe', gameId: 1, score: 100 });
+    const low = applyOutcome(state, { type: 'vibe', gameId: 1, score: 0 });
+
+    expect(high.games[1].rating).toBeGreaterThan(state.games[1].rating);
+    expect(low.games[1].rating).toBeLessThan(state.games[1].rating);
+  });
+
+  it('vibe shrinks uncertainty and counts a comparison', () => {
+    const state = createRankingState([1], { seed: 6 });
+
+    const next = applyOutcome(state, { type: 'vibe', gameId: 1, score: 50 });
+
+    expect(next.games[1].uncertainty).toBeLessThan(state.games[1].uncertainty);
+    expect(next.games[1].comparisons).toBeGreaterThan(state.games[1].comparisons);
+  });
+
+  it('vibe is a no-op for an unknown game id', () => {
+    const state = createRankingState([1], { seed: 6 });
+
+    const next = applyOutcome(state, { type: 'vibe', gameId: 999, score: 100 });
+
+    expect(next.games[1].rating).toBe(state.games[1].rating);
+  });
+
+  it('vibe is deterministic for the same input', () => {
+    const state = createRankingState([1], { seed: 6 });
+
+    const a = applyOutcome(state, { type: 'vibe', gameId: 1, score: 75 });
+    const b = applyOutcome(state, { type: 'vibe', gameId: 1, score: 75 });
+
+    expect(a).toEqual(b);
+  });
+
   it('serializes and parses the persisted state shape', () => {
     const state = applyOutcome(createRankingState([1, 2], { seed: 5 }), {
       type: 'pairwise',

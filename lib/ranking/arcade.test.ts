@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildGauntlet,
+  buildVibeRound,
   canReveal,
   derivePhase,
   REVEAL_MIN_CONFIDENCE,
@@ -120,6 +121,45 @@ describe('selectRound — special injections', () => {
     expect(round.kind).toBe('gauntlet');
     expect(round.gameIds.length).toBeGreaterThanOrEqual(2);
     expect(round.anchorId).toBe(round.gameIds[0]);
+  });
+
+  it('injects a vibe-meter round on schedule with 4 games', () => {
+    const state = stateAtRound([1, 2, 3, 4, 5, 6], 5);
+    const round = selectRound(state, { phase: 'early' })!;
+    expect(round.kind).toBe('vibe');
+    expect(round.gameIds).toHaveLength(4);
+  });
+
+  it('skips the vibe injection in the late phase', () => {
+    const state = stateAtRound([1, 2, 3, 4, 5, 6], 5);
+    const round = selectRound(state, { phase: 'late' })!;
+    expect(round.kind).not.toBe('vibe');
+  });
+
+  it('skips the vibe injection when it would repeat the last kind', () => {
+    const state = stateAtRound([1, 2, 3, 4, 5, 6], 5);
+    const round = selectRound(state, { phase: 'early', recentKinds: ['vibe'] })!;
+    expect(round.kind).not.toBe('vibe');
+  });
+});
+
+describe('buildVibeRound', () => {
+  it('picks the 4 least-sampled games', () => {
+    let state = createRankingState([1, 2, 3, 4, 5, 6], { seed: 2 });
+    // Give games 1 and 2 lots of comparisons so they're excluded from the vibe pool.
+    for (let i = 0; i < 6; i += 1) {
+      state = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 2 });
+    }
+    const vibe = buildVibeRound(state)!;
+    expect(vibe.kind).toBe('vibe');
+    expect(vibe.gameIds).toHaveLength(4);
+    expect(vibe.gameIds).not.toContain(1);
+    expect(vibe.gameIds).not.toContain(2);
+  });
+
+  it('returns null when the pool has fewer than 4 games', () => {
+    const state = createRankingState([1, 2, 3], { seed: 1 });
+    expect(buildVibeRound(state)).toBeNull();
   });
 });
 

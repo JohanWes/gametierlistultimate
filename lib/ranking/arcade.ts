@@ -24,7 +24,8 @@ export type MinigameKind =
   | 'rivalry'
   | 'promotion'
   | 'gauntlet'
-  | 'replay';
+  | 'replay'
+  | 'vibe';
 
 export interface ArcadeRound {
   kind: MinigameKind;
@@ -48,6 +49,8 @@ export const REVEAL_MIN_ROUNDS = 12;
 
 const REPLAY_EVERY = 6;
 const GAUNTLET_EVERY = 8;
+const VIBE_EVERY = 5;
+const VIBE_POOL_SIZE = 4;
 const LINEUP_COOLDOWN = 3;
 
 /** Five-card group minigames (all consume exactly 5 games). */
@@ -125,6 +128,15 @@ function injectedRound(
     if (gauntlet) return gauntlet;
   }
 
+  // Vibe-meter: rate several under-sampled games at once on an S–F slider. A coverage booster in
+  // the early/middle phases; skipped in the late phase where boundary precision matters more than
+  // fresh absolute reads. Its 5-round cadence sits between replay (6) and gauntlet (8) so the
+  // scheduled specials rarely collide.
+  if (phase !== 'late' && round % VIBE_EVERY === 0 && last !== 'vibe') {
+    const vibe = buildVibeRound(state);
+    if (vibe) return vibe;
+  }
+
   return null;
 }
 
@@ -179,6 +191,26 @@ export function buildGauntlet(state: RankingState): ArcadeRound | null {
     gameIds: [challenger.gameId, ...opponents.map((g) => g.gameId)],
     anchorId: challenger.gameId,
   };
+}
+
+/**
+ * Build a vibe-meter round: gather the `VIBE_POOL_SIZE` least-sampled games so a single round of
+ * S–F slider verdicts lifts coverage where it's needed most. Falls back to null below the pool
+ * size so small lists don't get a stub round.
+ */
+export function buildVibeRound(state: RankingState): ArcadeRound | null {
+  const games = Object.values(state.games);
+  if (games.length < VIBE_POOL_SIZE) return null;
+
+  const picked = [...games]
+    .sort(
+      (a, b) =>
+        a.comparisons - b.comparisons || a.uncertainty - b.uncertainty || a.gameId - b.gameId,
+    )
+    .slice(0, VIBE_POOL_SIZE)
+    .map((g) => g.gameId);
+
+  return { kind: 'vibe', gameIds: picked };
 }
 
 function lowestComparisonGame(state: RankingState): number | null {
