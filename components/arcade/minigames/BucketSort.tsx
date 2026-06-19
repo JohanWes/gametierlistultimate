@@ -112,9 +112,12 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
         </p>
       </header>
 
-      {/* Buckets */}
+      {/* Buckets — rendered best (Top) on the right, worst (Bottom) on the left. The band *index*
+          stays 0 = Top = best so the emitted `buckets` array is still best-first (what the engine
+          scores); only the visual order is reversed via `renderOrder`. */}
       <div className="grid w-full max-w-3xl grid-cols-3 gap-3">
-        {BUCKETS.map((bucket, i) => {
+        {[...BUCKETS.keys()].reverse().map((i) => {
+          const bucket = BUCKETS[i];
           const contents = games.filter((g) => placement[g.igdbId] === i);
           return (
             <motion.div

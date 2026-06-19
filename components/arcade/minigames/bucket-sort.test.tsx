@@ -46,6 +46,16 @@ function stubRect(
 }
 
 describe('BucketSort', () => {
+  it('renders buckets best-on-the-right (Bottom → Middle → Top in DOM order)', () => {
+    renderWithProviders(<BucketSort games={makeGames(6)} onComplete={vi.fn()} />);
+
+    const bucketButtons = screen.getAllByRole('button', { name: /bucket$/i });
+    expect(bucketButtons).toHaveLength(3);
+    expect(bucketButtons[0]).toHaveAccessibleName('Bottom bucket');
+    expect(bucketButtons[1]).toHaveAccessibleName('Middle bucket');
+    expect(bucketButtons[2]).toHaveAccessibleName('Top bucket');
+  });
+
   it('sorts covers into ordered buckets and emits one bucket outcome', async () => {
     const games = makeGames(6);
     const onComplete = vi.fn();

@@ -50,6 +50,15 @@ export interface SelectOptions {
 export const REVEAL_MIN_CONFIDENCE = 45;
 export const REVEAL_MIN_ROUNDS = 12;
 
+/**
+ * Confidence at which the run switches from the multi-item "building" phase to
+ * the 1-on-1 "fine-tuning" phase. Keep multi-item rounds (groups + bucket /
+ * podium / bracket / gauntlet / vibe / replay specials) firing through ~90% so
+ * the climb to high confidence stays fast; beyond this, only tier-boundary pairs
+ * sharpen the final placements.
+ */
+export const LATE_PHASE_CONFIDENCE = 90;
+
 const REPLAY_EVERY = 6;
 const GAUNTLET_EVERY = 8;
 const VIBE_EVERY = 5;
@@ -71,19 +80,20 @@ const BRACKET_POOL_SIZE = 4;
 /** Five-card group minigames (all consume exactly 5 games). */
 const FIVE_GROUP: MinigameKind[] = ['champion', 'sacrifice', 'keep2kill3', 'lineup'];
 /** Two-card pair minigames by phase (all consume exactly 2 games). */
-const PAIR_MIDDLE: MinigameKind[] = ['duel', 'rivalry', 'higher-lower'];
+const PAIR_EARLY: MinigameKind[] = ['duel', 'rivalry', 'higher-lower'];
 const PAIR_LATE: MinigameKind[] = ['promotion', 'higher-lower', 'duel'];
 
 /* ------------------------------------------------------------------ phase + reveal */
 
 /**
  * Map engine confidence + progress onto a pacing phase. Forces `early` for the first few
- * rounds so every game gets some coverage before we trust tier boundaries.
+ * rounds so every game gets some coverage before we trust tier boundaries. The early phase
+ * is the whole "building" stretch — multi-item rounds plus a rare 2-card breather — and
+ * runs until confidence is high enough that only fine-tuning 1-on-1s remain useful.
  */
 export function derivePhase(state: RankingState, confidence?: number): RankingPhase {
   const c = confidence ?? computeConfidence(state).global;
-  if (state.round < 4 || c < 35) return 'early';
-  if (c < 65) return 'middle';
+  if (state.round < 4 || c < LATE_PHASE_CONFIDENCE) return 'early';
   return 'late';
 }
 
@@ -137,8 +147,9 @@ function injectedRound(
     if (target !== null) return { kind: 'replay', gameIds: [target], anchorId: target };
   }
 
-  // Gauntlet: a dramatic mid-phase climb against progressively stronger opponents.
-  if (phase === 'middle' && round % GAUNTLET_EVERY === 0 && last !== 'gauntlet') {
+  // Gauntlet: a dramatic climb against progressively stronger opponents. Fires throughout
+  // the early (multi-item) phase on its cadence; the late phase is reserved for fine-tuning.
+  if (phase !== 'late' && round % GAUNTLET_EVERY === 0 && last !== 'gauntlet') {
     const gauntlet = buildGauntlet(state);
     if (gauntlet) return gauntlet;
   }
@@ -166,8 +177,10 @@ function injectedRound(
     if (podium) return podium;
   }
 
-  // Bracket: a four-game knockout (two semis + a final), a dramatic mid-phase beat like the gauntlet.
-  if (phase === 'middle' && round % BRACKET_EVERY === 0 && last !== 'bracket') {
+  // Bracket: a four-game knockout (two semis + a final), a dramatic beat like the gauntlet.
+  // Fires throughout the early (multi-item) phase on its cadence; the late phase is reserved
+  // for fine-tuning.
+  if (phase !== 'late' && round % BRACKET_EVERY === 0 && last !== 'bracket') {
     const bracket = buildBracket(state);
     if (bracket) return bracket;
   }
@@ -186,7 +199,7 @@ function alternativeKind(
   phase: RankingPhase,
   recent: MinigameKind[],
 ): MinigameKind {
-  const pool = FIVE_GROUP.includes(kind) ? FIVE_GROUP : phase === 'late' ? PAIR_LATE : PAIR_MIDDLE;
+  const pool = FIVE_GROUP.includes(kind) ? FIVE_GROUP : phase === 'late' ? PAIR_LATE : PAIR_EARLY;
   const lineupOverused = recent.slice(0, LINEUP_COOLDOWN).includes('lineup');
   const candidates = pool.filter((k) => k !== kind);
 

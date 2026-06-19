@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyOutcome, createRankingState, nextMatchup } from './index';
+import { applyOutcome, createRankingState, nextMatchup, PAIR_BREAK_EVERY } from './index';
 
 describe('ranking selection', () => {
   it('early phase favors group matchups', () => {
@@ -12,18 +12,13 @@ describe('ranking selection', () => {
     expect(matchup?.gameIds).toHaveLength(5);
   });
 
-  it('middle phase favors close pairs', () => {
-    let state = createRankingState([1, 2, 3, 4], { seed: 22 });
-    for (let i = 0; i < 8; i += 1) {
-      state = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 4 });
-      state = applyOutcome(state, { type: 'pairwise', winnerId: 2, loserId: 3 });
-    }
+  it('early phase yields a two-card breather at the pair-break cadence', () => {
+    const state = { ...createRankingState([1, 2, 3, 4], { seed: 22 }), round: PAIR_BREAK_EVERY };
 
-    const matchup = nextMatchup(state, 'middle');
+    const matchup = nextMatchup(state, 'early');
 
     expect(matchup?.gameIds).toHaveLength(2);
     expect(['duel', 'rivalry', 'higher-lower']).toContain(matchup?.type);
-    expect(matchup?.gameIds).not.toEqual(expect.arrayContaining([1, 4]));
   });
 
   it('late phase targets tier boundary pairs', () => {

@@ -1,280 +1,288 @@
 'use client';
 
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useRef, useState } from 'react';
 
+import { zoneIndexAtPagePoint } from '@/components/steps/result/dnd';
 import type { Game } from '@/lib/games/types';
-import type { RankingOutcome } from '@/lib/ranking';
 import { playSound } from '@/lib/sound';
-import { clamp, cn } from '@/lib/utils';
+import type { RankingOutcome } from '@/lib/ranking';
+import { cn } from '@/lib/utils';
 
-import { tapProps, useComplete } from '../shared';
+import { Button } from '../../ui/Button';
+import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard, type CardState } from './ArcadeCard';
-
-type Placement = 'crushes' | 'above' | 'same' | 'below' | 'buried';
-
-const PLACEMENTS: {
-  placement: Placement;
-  label: string;
-  shortLabel: string;
-  helper: string;
-  y: number;
-}[] = [
-  { placement: 'crushes', label: 'Crushes it', shortLabel: '++', helper: 'Way above benchmark', y: 0 },
-  { placement: 'above', label: 'Above', shortLabel: '+', helper: 'Better than benchmark', y: 25 },
-  { placement: 'same', label: 'Same shelf', shortLabel: '=', helper: 'About equal', y: 50 },
-  { placement: 'below', label: 'Below', shortLabel: '-', helper: 'Worse than benchmark', y: 75 },
-  { placement: 'buried', label: 'Buried', shortLabel: '--', helper: 'Way below benchmark', y: 100 },
-];
-
-const STRONG_WEIGHT = 1.35;
+import { DraggableArcadeCard } from './DraggableArcadeCard';
 
 /**
- * Minigame 6 — "Stack gauge". Place the challenger on a calibrated rail relative to a locked
- * benchmark. The round still emits the existing pairwise/about-equal/skip outcomes, with stronger
- * weights at the rail extremes.
+ * The scale's bands, left (worst) → right (best). The band *index* is the ranking signal: a higher
+ * index means a better game. Three plain words replace the old `++/=/--` shorthand so the axis
+ * explains itself; the horizontal layout keeps the whole minigame on-screen with no scrolling.
+ */
+const BANDS = [
+  { key: 'bad', label: 'Bad', accent: 'coin' },
+  { key: 'mid', label: 'Mid', accent: 'accent' },
+  { key: 'great', label: 'Great', accent: 'teal' },
+] as const;
+
+const ACCENT_TEXT: Record<string, string> = {
+  teal: 'text-teal',
+  accent: 'text-accent',
+  coin: 'text-coin',
+};
+const ACCENT_BAR: Record<string, string> = {
+  teal: 'bg-teal',
+  accent: 'bg-accent',
+  coin: 'bg-coin',
+};
+
+const STRONG_WEIGHT = 1.35;
+/** Band gap at/above which a win is treated as a landslide (heavier ELO move). */
+const STRONG_GAP = 2;
+
+/**
+ * Pure placement → outcome mapping. The challenger/anchor identity only fixes the `about-equal`
+ * gameIds ordering (to stay consistent with the rest of the arcade); the *winner* is whoever lands
+ * in the better (higher-index) band. Same band = about-equal; ≥ `STRONG_GAP` bands apart = weighted.
+ * With three bands the only landslide is Bad vs Great.
+ */
+export function outcomeForBands(
+  anchor: Game,
+  challenger: Game,
+  anchorBand: number,
+  challengerBand: number,
+): RankingOutcome {
+  if (anchorBand === challengerBand) {
+    return { type: 'about-equal', gameIds: [challenger.igdbId, anchor.igdbId] };
+  }
+  const gap = Math.abs(anchorBand - challengerBand);
+  const challengerWins = challengerBand > anchorBand;
+  const winner = challengerWins ? challenger : anchor;
+  const loser = challengerWins ? anchor : challenger;
+  return {
+    type: 'pairwise',
+    winnerId: winner.igdbId,
+    loserId: loser.igdbId,
+    ...(gap >= STRONG_GAP ? { weight: STRONG_WEIGHT } : {}),
+  };
+}
+
+/**
+ * Minigame 6 — "The scale." A horizontal ruler with three plainly-worded bands (Bad → Mid → Great,
+ * worst on the left). The player physically drags both covers onto the band they belong in; two
+ * covers in the same band sit next to each other.
+ *
+ * The relative placement drives the outcome — same band = about-equal, otherwise the cover in the
+ * better band wins, and a landslide (Bad vs Great) carries a stronger weight. A live readout and
+ * per-cover win/lose/equal glow make "what means what" obvious before committing. Mouse + touch via
+ * Pointer Events; tap-to-place fallback keeps it usable without precision dragging or a keyboard.
  */
 export function HigherLower({ games, anchorId, onComplete }: MinigameProps) {
-  const reduce = useReducedMotion();
   const complete = useComplete(onComplete);
-  const railRef = useRef<HTMLDivElement>(null);
-  const draggingRef = useRef(false);
-  const [selected, setSelected] = useState<Placement | null>(null);
-  const [locked, setLocked] = useState(false);
+  const [bands, setBands] = useState<Record<number, number>>({});
+  const [picked, setPicked] = useState<number | null>(null);
+  const [pulsed, setPulsed] = useState<number | null>(null);
+  const zoneRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   if (games.length < 2) return null;
   const anchor = games.find((g) => g.igdbId === anchorId) ?? games[0];
   const challenger = games.find((g) => g.igdbId !== anchor.igdbId) ?? games[1];
+  const pair: [Game, Game] = [anchor, challenger];
 
-  const selectedStop = selected ? PLACEMENTS.find((p) => p.placement === selected) ?? null : null;
+  const placedCount = Object.keys(bands).length;
+  const allPlaced = placedCount === pair.length;
 
-  const placementFromY = (clientY: number): Placement => {
-    const rect = railRef.current?.getBoundingClientRect();
-    if (!rect || rect.height <= 0) return selected ?? 'same';
-    const position = clamp((clientY - rect.top) / rect.height, 0, 1);
-    const index = Math.round(position * (PLACEMENTS.length - 1));
-    return PLACEMENTS[index].placement;
+  const place = (gameId: number, band: number) => {
+    playSound('click');
+    setBands((prev) => ({ ...prev, [gameId]: band }));
+    setPicked(null);
+    setPulsed(band);
+    window.setTimeout(() => setPulsed((b) => (b === band ? null : b)), 360);
   };
 
-  const choose = (placement: Placement) => {
-    if (locked) return;
-    setSelected(placement);
+  const unplace = (gameId: number) => {
     playSound('blip');
+    setBands((prev) => {
+      const next = { ...prev };
+      delete next[gameId];
+      return next;
+    });
   };
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (locked) return;
-    e.preventDefault();
-    draggingRef.current = true;
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-    choose(placementFromY(e.clientY));
+  const handleDropAt = (gameId: number, point: { x: number; y: number }): boolean => {
+    const idx = zoneIndexAtPagePoint(point, zoneRefs.current);
+    if (idx < 0) return false;
+    place(gameId, idx);
+    return true;
   };
 
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!draggingRef.current || locked) return;
-    choose(placementFromY(e.clientY));
+  const tapCard = (gameId: number) => {
+    playSound('blip');
+    setPicked((cur) => (cur === gameId ? null : gameId));
   };
 
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!draggingRef.current) return;
-    draggingRef.current = false;
-    e.currentTarget.releasePointerCapture?.(e.pointerId);
+  const tapBand = (band: number) => {
+    if (picked === null) return;
+    place(picked, band);
   };
 
-  const outcomeFor = (placement: Placement): RankingOutcome => {
-    const ids: [number, number] = [challenger.igdbId, anchor.igdbId];
-    switch (placement) {
-      case 'crushes':
-        return {
-          type: 'pairwise',
-          winnerId: challenger.igdbId,
-          loserId: anchor.igdbId,
-          weight: STRONG_WEIGHT,
-        };
-      case 'above':
-        return { type: 'pairwise', winnerId: challenger.igdbId, loserId: anchor.igdbId };
-      case 'same':
-        return { type: 'about-equal', gameIds: ids };
-      case 'below':
-        return { type: 'pairwise', winnerId: anchor.igdbId, loserId: challenger.igdbId };
-      case 'buried':
-        return {
-          type: 'pairwise',
-          winnerId: anchor.igdbId,
-          loserId: challenger.igdbId,
-          weight: STRONG_WEIGHT,
-        };
-    }
-  };
-
-  const lockPlacement = () => {
-    if (!selected || locked) return;
-    setLocked(true);
-    playSound(selected === 'same' ? 'click' : 'success');
-    complete([outcomeFor(selected)]);
+  const lockIn = () => {
+    if (!allPlaced) return;
+    playSound('success');
+    complete([outcomeForBands(anchor, challenger, bands[anchor.igdbId], bands[challenger.igdbId])]);
   };
 
   const skip = () => {
-    if (locked) return;
-    setLocked(true);
     playSound('click');
     complete([{ type: 'skip', gameIds: [challenger.igdbId, anchor.igdbId] }]);
   };
 
-  const anchorState = cardStateFor('anchor', selected, locked);
-  const challengerState = cardStateFor('challenger', selected, locked);
+  const tray = pair.filter((g) => bands[g.igdbId] === undefined);
+  const readout = readoutFor(pair, bands);
+  const liveState = (g: Game): CardState => {
+    if (!allPlaced) return 'idle';
+    const outcome = outcomeForBands(anchor, challenger, bands[anchor.igdbId], bands[challenger.igdbId]);
+    if (outcome.type === 'about-equal') return 'equal';
+    if (outcome.type === 'pairwise') return outcome.winnerId === g.igdbId ? 'win' : 'lose';
+    return 'idle';
+  };
 
   return (
     <div className="flex flex-col items-center">
-      <header className="mb-6 text-center">
-        <p className="mb-2 font-mono text-xs uppercase tracking-[0.28em] text-teal">Stack gauge</p>
+      <header className="mb-5 text-center">
+        <p className="mb-2 font-mono text-xs uppercase tracking-[0.28em] text-teal">The scale</p>
         <h2 className="font-display text-3xl font-black uppercase tracking-[0.02em] text-fg sm:text-4xl">
-          Where does this land?
+          Where do these land?
         </h2>
+        <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted">
+          Drag both covers onto the scale — left is bad, right is great
+        </p>
       </header>
 
-      <div className="grid w-full max-w-3xl grid-cols-1 items-center gap-6 sm:grid-cols-[minmax(0,1fr)_11rem_minmax(0,1fr)] sm:gap-7">
-        <Benchmark game={anchor} state={anchorState} />
-
-        <div className="order-3 flex flex-col items-center sm:order-none">
-          <div
-            ref={railRef}
-            role="slider"
-            aria-label={`Place ${challenger.title} against ${anchor.title}`}
-            aria-orientation="vertical"
-            aria-valuemin={0}
-            aria-valuemax={PLACEMENTS.length - 1}
-            aria-valuenow={selectedStop ? PLACEMENTS.indexOf(selectedStop) : undefined}
-            aria-valuetext={selectedStop?.label ?? 'unplaced'}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            className={cn(
-              'relative h-56 w-24 touch-none select-none rounded-tile border border-border bg-panel shadow-cabinet',
-              locked ? 'cursor-default' : 'cursor-pointer',
-            )}
-          >
-            <span
-              aria-hidden
-              className="absolute bottom-4 left-1/2 top-4 w-[3px] -translate-x-1/2 rounded-full"
-              style={{
-                background:
-                  'linear-gradient(to bottom, rgb(var(--color-teal)), rgb(var(--color-accent)) 50%, rgb(var(--color-coin)))',
-              }}
-            />
-
-            {PLACEMENTS.map((stop) => {
-              const active = selected === stop.placement;
-              return (
-                <button
-                  key={stop.placement}
-                  type="button"
-                  disabled={locked}
-                  aria-label={stop.label}
-                  title={stop.helper}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  {...tapProps(() => choose(stop.placement))}
-                  className={cn(
-                    'absolute left-1/2 z-10 flex h-9 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-hardware border font-display text-xs font-black uppercase tracking-[0.08em] transition-colors duration-150 focus-visible:outline-none',
-                    active
-                      ? 'border-accent bg-accent text-bg shadow-soft'
-                      : 'border-border bg-bg text-muted hover:border-teal/70 hover:text-fg',
-                    locked && !active && 'opacity-35',
-                  )}
-                  style={{ top: `${stop.y}%` }}
-                >
-                  {stop.shortLabel}
-                </button>
-              );
-            })}
-
-            {selectedStop ? (
-              <motion.span
-                aria-hidden
-                className="pointer-events-none absolute right-[-0.65rem] z-20 h-4 w-4 -translate-y-1/2 rotate-45 border border-accent bg-accent"
-                initial={reduce ? false : { opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1, top: `${selectedStop.y}%` }}
-                transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 28 }}
-              />
-            ) : null}
-          </div>
-
-          <span className="mt-3 min-h-4 font-mono text-[0.65rem] uppercase tracking-[0.18em] text-muted">
-            {selectedStop?.helper ?? 'Tap or drag the gauge'}
-          </span>
+      {/* The scale: 3 drop zones in a row, with the ruler bar + labels directly beneath. */}
+      <div className="w-full max-w-2xl">
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
+          {BANDS.map((band, i) => {
+            const contents = pair.filter((g) => bands[g.igdbId] === i);
+            return (
+              <motion.div
+                key={band.key}
+                ref={(el) => {
+                  zoneRefs.current[i] = el;
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`${band.label} band`}
+                onClick={() => tapBand(i)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    tapBand(i);
+                  }
+                }}
+                animate={pulsed === i ? { scale: [1, 1.03, 1] } : { scale: 1 }}
+                transition={{ duration: 0.36 }}
+                className={cn(
+                  'flex min-h-[156px] flex-col items-center justify-center rounded-tile border p-2 transition-colors',
+                  contents.length > 0
+                    ? 'border-border/70 bg-surface/15'
+                    : 'border-dashed border-border/40',
+                  picked !== null && 'cursor-pointer border-solid border-teal/50 bg-surface/25',
+                )}
+              >
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {contents.map((g) => (
+                    <motion.button
+                      key={g.igdbId}
+                      type="button"
+                      layout
+                      aria-label={`Remove ${g.title} from ${band.label}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        unplace(g.igdbId);
+                      }}
+                      className="rounded-tile focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      <ArcadeCard game={g} size="sm" state={liveState(g)} />
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
 
-        <Challenger game={challenger} state={challengerState} selectedStop={selectedStop} />
+        {/* Ruler bar: 3 colored segments form one continuous scale, labels under each. */}
+        <div className="mt-2 grid grid-cols-3 gap-2.5 sm:gap-4">
+          {BANDS.map((band) => (
+            <div key={band.key} className="flex flex-col items-center">
+              <div className="flex w-full items-center">
+                <span aria-hidden className={cn('h-1.5 flex-1 rounded-full', ACCENT_BAR[band.accent])} />
+              </div>
+              <span
+                className={cn(
+                  'mt-1.5 font-display text-sm font-black uppercase tracking-[0.06em]',
+                  ACCENT_TEXT[band.accent],
+                )}
+              >
+                {band.label}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="mt-7 grid w-full max-w-md grid-cols-[1fr_auto] gap-2.5">
-        <button
-          type="button"
-          disabled={!selected || locked}
-          {...tapProps(lockPlacement)}
-          className="select-none rounded-tile border border-teal bg-teal/15 px-4 py-3 font-display text-sm font-bold uppercase tracking-[0.06em] text-teal transition-colors duration-150 hover:bg-teal/25 focus-visible:outline-none disabled:opacity-45"
-        >
-          Lock placement
-        </button>
-        <button
-          type="button"
-          disabled={locked}
-          {...tapProps(skip)}
-          className="select-none rounded-tile border border-transparent px-4 py-3 font-display text-sm font-bold uppercase tracking-[0.06em] text-muted transition-colors duration-150 hover:text-fg focus-visible:outline-none disabled:opacity-45"
-        >
+      {/* Live readout — tells the player what their placement means right now. */}
+      <p className="mt-4 min-h-5 text-center font-display text-sm font-bold uppercase tracking-[0.06em] text-fg">
+        {readout}
+      </p>
+
+      {/* Tray of unplaced covers (or a nudge once both are down). */}
+      <div className="mt-4 flex min-h-[120px] w-full max-w-2xl flex-wrap items-center justify-center gap-3 border-t border-border pt-4">
+        {tray.length > 0 ? (
+          tray.map((g) => (
+            <DraggableArcadeCard
+              key={g.igdbId}
+              game={g}
+              ariaLabel={`Place ${g.title}`}
+              picked={picked === g.igdbId}
+              onTap={() => tapCard(g.igdbId)}
+              onDropAt={(point) => handleDropAt(g.igdbId, point)}
+            />
+          ))
+        ) : (
+          <span className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted">
+            Both placed — lock it in or tap a cover to redo
+          </span>
+        )}
+      </div>
+
+      {/* Persistent actions: lock in the placement, or skip the round. */}
+      <div className="mt-4 flex items-center justify-center gap-2.5">
+        <Button onClick={lockIn} disabled={!allPlaced}>
+          Lock in placement →
+        </Button>
+        <Button variant="ghost" onClick={skip}>
           Skip
-        </button>
+        </Button>
       </div>
     </div>
   );
 }
 
-function cardStateFor(card: 'anchor' | 'challenger', selected: Placement | null, locked: boolean): CardState {
-  if (!locked || !selected) return 'idle';
-  if (selected === 'same') return 'equal';
-  const challengerWins = selected === 'crushes' || selected === 'above';
-  if (card === 'challenger') return challengerWins ? 'win' : 'lose';
-  return challengerWins ? 'lose' : 'win';
-}
-
-function Benchmark({ game, state }: { game: Game; state: CardState }) {
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <span className="rounded-hardware border border-accent/60 bg-accent/10 px-2.5 py-0.5 font-mono text-[0.6rem] font-bold uppercase tracking-[0.18em] text-accent">
-        Benchmark
-      </span>
-      <div className="rounded-tile border border-accent/35 bg-accent/10 p-2 shadow-cabinet">
-        <ArcadeCard game={game} state={state} />
-      </div>
-    </div>
-  );
-}
-
-function Challenger({
-  game,
-  state,
-  selectedStop,
-}: {
-  game: Game;
-  state: CardState;
-  selectedStop: (typeof PLACEMENTS)[number] | null;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <span className="rounded-hardware border border-teal/60 bg-teal/10 px-2.5 py-0.5 font-mono text-[0.6rem] font-bold uppercase tracking-[0.18em] text-teal">
-        Challenger
-      </span>
-      <motion.div
-        animate={selectedStop ? { y: (selectedStop.y - 50) * 0.2 } : { y: 0 }}
-        transition={{ type: 'spring', stiffness: 360, damping: 28 }}
-      >
-        <ArcadeCard game={game} state={state} />
-      </motion.div>
-      <span className="min-h-4 font-display text-sm font-black uppercase tracking-[0.05em] text-fg">
-        {selectedStop?.label ?? 'Unplaced'}
-      </span>
-    </div>
-  );
+/** Build the live "what this means" line from the current placements. */
+function readoutFor([anchor, challenger]: [Game, Game], bands: Record<number, number>): string {
+  const a = bands[anchor.igdbId];
+  const c = bands[challenger.igdbId];
+  if (a === undefined || c === undefined) {
+    const next = a === undefined ? anchor : challenger;
+    return `Now place ${next.title}`;
+  }
+  if (a === c) return `About even — both ${BANDS[a].label.toLowerCase()}`;
+  const gap = Math.abs(a - c);
+  const winner = c > a ? challenger : anchor;
+  const loser = c > a ? anchor : challenger;
+  const strength = gap >= STRONG_GAP ? ' wins big — ' : ' wins — ';
+  return `${winner.title}${strength}${BANDS[bands[winner.igdbId]].label} vs ${BANDS[bands[loser.igdbId]].label}`;
 }

@@ -189,7 +189,7 @@ export function ArcadeStep() {
 }
 
 function PhaseBadge({ phase, round }: { phase: string; round: number }) {
-  const label = phase === 'early' ? 'Warming up' : phase === 'middle' ? 'Finding the line' : 'Settling tiers';
+  const label = phase === 'early' ? 'Building tiers' : 'Fine-tuning';
   return (
     <div className="flex shrink-0 items-center gap-3 rounded-tile border border-border bg-surface/60 px-3 py-2 shadow-soft">
       <span className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-muted">Round</span>

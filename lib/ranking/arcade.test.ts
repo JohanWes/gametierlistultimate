@@ -8,6 +8,7 @@ import {
   buildVibeRound,
   canReveal,
   derivePhase,
+  LATE_PHASE_CONFIDENCE,
   REVEAL_MIN_CONFIDENCE,
   REVEAL_MIN_ROUNDS,
   selectRound,
@@ -29,11 +30,12 @@ describe('derivePhase', () => {
     expect(derivePhase(state, 90)).toBe('early');
   });
 
-  it('moves through middle and late as confidence climbs', () => {
+  it('keeps the multi-item early phase through high confidence, then flips to late', () => {
     const state = stateAtRound([1, 2, 3, 4, 5, 6], 10);
     expect(derivePhase(state, 20)).toBe('early');
-    expect(derivePhase(state, 50)).toBe('middle');
-    expect(derivePhase(state, 80)).toBe('late');
+    expect(derivePhase(state, 50)).toBe('early');
+    expect(derivePhase(state, LATE_PHASE_CONFIDENCE - 1)).toBe('early');
+    expect(derivePhase(state, LATE_PHASE_CONFIDENCE)).toBe('late');
   });
 });
 
@@ -45,18 +47,21 @@ describe('selectRound — phase matching', () => {
     expect(round!.gameIds).toHaveLength(5);
   });
 
-  it('middle phase yields a two-card pair minigame', () => {
-    let state = createRankingState([1, 2, 3, 4, 5, 6], { seed: 3 });
-    // 22 rounds — clear of every special-round cadence (bucket 4, vibe 5, replay 6, podium 7,
-    // gauntlet 8, bracket 9) so the engine's own pair matchup surfaces.
-    for (let i = 0; i < 11; i += 1) {
-      state = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 6 });
-      state = applyOutcome(state, { type: 'pairwise', winnerId: 2, loserId: 5 });
-    }
-    const round = selectRound(state, { phase: 'middle' });
-    expect(round).not.toBeNull();
-    expect(PAIR_KINDS).toContain(round!.kind);
-    expect(round!.gameIds).toHaveLength(2);
+  it('early phase yields a rare two-card breather at the pair-break round', () => {
+    // Round 11 is the first round clear of every special cadence (4/5/6/7/8/9)
+    // and reserved for the rare 2-card breather that breaks up the multi-item run.
+    const state = stateAtRound([1, 2, 3, 4, 5, 6], 11);
+    const round = selectRound(state, { phase: 'early' })!;
+    expect(PAIR_KINDS).toContain(round.kind);
+    expect(round.gameIds).toHaveLength(2);
+  });
+
+  it('early phase falls back to a five-card group outside the pair-break round', () => {
+    // Round 13: no special cadence hits, not a pair-break round → five-card group.
+    const state = stateAtRound([1, 2, 3, 4, 5, 6], 13);
+    const round = selectRound(state, { phase: 'early' })!;
+    expect(FIVE_GROUP).toContain(round.kind);
+    expect(round.gameIds).toHaveLength(5);
   });
 
   it('late phase targets boundary pairs (promotion or higher-lower)', () => {
@@ -104,14 +109,14 @@ describe('selectRound — variety control', () => {
 describe('selectRound — special injections', () => {
   it('injects a single-game replay test on schedule', () => {
     const state = stateAtRound([1, 2, 3, 4, 5, 6], 6);
-    const round = selectRound(state, { phase: 'middle' })!;
+    const round = selectRound(state, { phase: 'early' })!;
     expect(round.kind).toBe('replay');
     expect(round.gameIds).toHaveLength(1);
   });
 
   it('skips the replay injection when it would repeat the last kind', () => {
     const state = stateAtRound([1, 2, 3, 4, 5, 6], 6);
-    const round = selectRound(state, { phase: 'middle', recentKinds: ['replay'] })!;
+    const round = selectRound(state, { phase: 'early', recentKinds: ['replay'] })!;
     expect(round.kind).not.toBe('replay');
   });
 
@@ -121,7 +126,7 @@ describe('selectRound — special injections', () => {
       state = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 6 });
     }
     state = { ...state, round: 8 };
-    const round = selectRound(state, { phase: 'middle' })!;
+    const round = selectRound(state, { phase: 'early' })!;
     expect(round.kind).toBe('gauntlet');
     expect(round.gameIds.length).toBeGreaterThanOrEqual(2);
     expect(round.anchorId).toBe(round.gameIds[0]);
@@ -155,13 +160,13 @@ describe('multi-game special injections', () => {
   });
 
   it('injects a podium round on schedule', () => {
-    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 7), { phase: 'middle' })!;
+    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 7), { phase: 'early' })!;
     expect(round.kind).toBe('podium');
     expect(round.gameIds).toHaveLength(6);
   });
 
-  it('injects a bracket round on schedule in the middle phase', () => {
-    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 9), { phase: 'middle' })!;
+  it('injects a bracket round on schedule in the early phase', () => {
+    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 9), { phase: 'early' })!;
     expect(round.kind).toBe('bracket');
     expect(round.gameIds).toHaveLength(4);
     expect(round.anchorId).toBe(round.gameIds[0]);
@@ -182,6 +187,18 @@ describe('multi-game special injections', () => {
     expect(selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 9), { phase: 'late' })!.kind).not.toBe(
       'bracket',
     );
+  });
+
+  it('keeps firing multi-game specials in the early phase at high confidence', () => {
+    // The fix: the early (multi-item) phase runs through LATE_PHASE_CONFIDENCE, so a
+    // bucket round still fires at round 4 even when confidence is well past the old
+    // 65 cliff. Late phase only begins at LATE_PHASE_CONFIDENCE.
+    const state = stateAtRound([1, 2, 3, 4, 5, 6], 4);
+    const phase = derivePhase(state, LATE_PHASE_CONFIDENCE - 5);
+    expect(phase).toBe('early');
+    const round = selectRound(state, { phase })!;
+    expect(round.kind).toBe('bucket');
+    expect(round.gameIds).toHaveLength(6);
   });
 });
 

@@ -31,7 +31,7 @@ export interface PrefsState {
   flags: Record<string, boolean>;
 }
 
-export type ArcadePhase = 'early' | 'middle' | 'late';
+export type ArcadePhase = 'early' | 'late';
 
 export interface ArcadeState {
   phase: ArcadePhase;

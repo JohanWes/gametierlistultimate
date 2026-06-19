@@ -1,4 +1,4 @@
-export type RankingPhase = 'early' | 'middle' | 'late';
+export type RankingPhase = 'early' | 'late';
 
 export type Tier = 'S' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
 
@@ -88,6 +88,14 @@ const MIN_UNCERTAINTY = 60;
 const MAX_PRIOR_OFFSET = 75;
 const RECENT_WINDOW = 4;
 const RECENT_HISTORY = 10;
+
+/**
+ * Cadence for the rare two-card breather during the early (multi-item) phase.
+ * Picked as the first round not claimed by any scheduled special (bucket 4,
+ * vibe 5, replay 6, podium 7, gauntlet 8, bracket 9), so a breather never
+ * shadows a special and the run stays mostly multi-item.
+ */
+export const PAIR_BREAK_EVERY = 11;
 
 export function createRankingState(
   games: Array<number | GamePrior>,
@@ -258,23 +266,30 @@ export function nextMatchup(state: RankingState, phase: RankingPhase): Matchup |
   const games = gameList(state);
   if (games.length < 2) return null;
 
-  if (phase === 'early') {
-    const group = pickGroup(state, Math.min(5, games.length));
-    const cycle = ['champion', 'sacrifice', 'keep2kill3', 'lineup'] as const;
-    const type = cycle[state.round % cycle.length];
-    return { type: group.length < 5 && type === 'keep2kill3' ? 'champion' : type, gameIds: group };
-  }
-
   if (phase === 'late') {
     const boundary = pickBoundaryPair(state);
     if (boundary) return boundary;
+    const pair = pickClosePair(state);
+    if (!pair) return null;
+    return { type: 'higher-lower', gameIds: pair, anchorId: pair[0] };
   }
 
-  const pair = pickClosePair(state);
-  if (!pair) return null;
-  const middleTypes = ['duel', 'rivalry', 'higher-lower'] as const;
-  const type = phase === 'late' ? 'higher-lower' : middleTypes[state.round % middleTypes.length];
-  return { type, gameIds: pair, anchorId: pair[0] };
+  // early: the multi-item phase. A rare two-card breather (every PAIR_BREAK_EVERY
+  // rounds, once the opening is past) breaks up the run for variety; otherwise a
+  // five-card group minigame, the fastest way to spread ratings toward S/F.
+  if (state.round > 0 && state.round % PAIR_BREAK_EVERY === 0) {
+    const pair = pickClosePair(state);
+    if (pair) {
+      const breakTypes = ['duel', 'rivalry', 'higher-lower'] as const;
+      const type = breakTypes[state.round % breakTypes.length];
+      return { type, gameIds: pair, anchorId: pair[0] };
+    }
+  }
+
+  const group = pickGroup(state, Math.min(5, games.length));
+  const cycle = ['champion', 'sacrifice', 'keep2kill3', 'lineup'] as const;
+  const type = cycle[state.round % cycle.length];
+  return { type: group.length < 5 && type === 'keep2kill3' ? 'champion' : type, gameIds: group };
 }
 
 /**
