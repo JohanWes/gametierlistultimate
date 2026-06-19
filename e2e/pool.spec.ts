@@ -83,7 +83,8 @@ test('build a pool from batches + search, then enter the arcade', async ({ page 
     if (await finished.isVisible().catch(() => false)) {
       await finished.click();
     }
-    // Wait for the include to register; tolerate the occasional click on an exiting card.
+    // Wait for the include to register. Cards stay in fixed slots (no reflow),
+    // so clicks are reliable — the catch is a belt-and-suspenders guard.
     await expect
       .poll(poolSize, { timeout: 2000 })
       .toBeGreaterThan(before)

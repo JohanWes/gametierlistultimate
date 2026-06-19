@@ -20,6 +20,10 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
 
 // Start the MSW network-mock server for the whole test run. mongodb-memory-server uses
 // raw TCP sockets (not fetch), so it is unaffected by these HTTP interceptors.
-beforeAll(() => mswServer.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => {
+  mswServer.listen({ onUnhandledRequest: 'bypass' });
+  // jsdom's built-in scrollTo throws — silence it before Framer Motion first renders.
+  window.scrollTo = () => {};
+});
 afterEach(() => mswServer.resetHandlers());
 afterAll(() => mswServer.close());

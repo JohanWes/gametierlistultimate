@@ -1,6 +1,6 @@
 'use client';
 
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchSuggestions } from '@/lib/games/client';
@@ -14,39 +14,91 @@ import { PoolCard } from './PoolCard';
 import { MIN_POOL, RosterMeter } from './RosterMeter';
 import { StepScaffold } from './StepScaffold';
 
-const BATCH_SIZE = 5;
-/** Every Nth batch surfaces one "spotlight" card, so the played-status bonus stays rare. */
+const VISIBLE_SLOTS = 5;
+const REFILL_AT = 2;
 const SPOTLIGHT_EVERY = 3;
 
 export interface PoolStepProps {
-  /** Injectable for tests; defaults to the global fetch in the app. */
   fetchImpl?: typeof fetch;
 }
 
+interface SlotEntry {
+  game: Game;
+  spotlight: boolean;
+}
+
 /**
- * Step 3 — build the pool of games you've played. Cover-driven batches from the suggestions
- * API (preference-biased, exclude-aware) plus always-available manual search, gated behind a
- * roster meter that unlocks the arcade once the list is playable.
+ * Step 3 — build the pool of games you've played. Five fixed slots always stay on screen.
+ * Deciding a card fades it out and a fresh one from a hidden backlog fades into the same slot;
+ * the other four never move. The backlog is prefetched in the background so replacements
+ * appear instantly.
  */
 export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
   const prefs = useStore((s) => s.prefs);
   const poolCount = useStore((s) => s.pool.length);
+  const reduce = useReducedMotion();
 
-  const [batch, setBatch] = useState<Game[]>([]);
+  const [slots, setSlots] = useState<(SlotEntry | null)[]>(() =>
+    Array.from({ length: VISIBLE_SLOTS }, () => null),
+  );
+  const [backlog, setBacklog] = useState<SlotEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [exhausted, setExhausted] = useState(false);
   const [error, setError] = useState(false);
-  const [spotlightId, setSpotlightId] = useState<number | null>(null);
 
-  // Refs hold the authoritative live values the async callbacks read synchronously.
-  const decidedRef = useRef<Set<number>>(new Set(useStore.getState().pool.map((e) => e.game.igdbId)));
-  const batchRef = useRef<Game[]>([]);
-  const batchCountRef = useRef(0);
+  // Refs so async callbacks always read the latest values without stale closures.
+  const decidedRef = useRef<Set<number>>(
+    new Set(useStore.getState().pool.map((e) => e.game.igdbId)),
+  );
+  const slotsRef = useRef<(SlotEntry | null)[]>(slots);
+  const backlogRef = useRef<SlotEntry[]>([]);
+  const fetchCountRef = useRef(0);
   const fetchingRef = useRef(false);
+  const exhaustedRef = useRef(false);
+  const initRef = useRef(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchNext = useCallback(async () => {
-    if (fetchingRef.current) return;
+  // Keep refs in step with state.
+  useEffect(() => { slotsRef.current = slots; }, [slots]);
+  useEffect(() => { backlogRef.current = backlog; }, [backlog]);
+
+  /** Every id we're holding (decided, visible, or queued) — the canonical exclude set. */
+  const buildExclude = useCallback((): number[] => {
+    const ids = new Set(decidedRef.current);
+    for (const s of slotsRef.current) if (s) ids.add(s.game.igdbId);
+    for (const b of backlogRef.current) ids.add(b.game.igdbId);
+    return [...ids];
+  }, []);
+
+  /** Move entries from the backlog into any null slots. Idempotent. */
+  const fillEmptySlots = useCallback(() => {
+    const currentSlots = slotsRef.current;
+    const currentBacklog = backlogRef.current;
+
+    let changed = false;
+    let queue = [...currentBacklog];
+    const nextSlots = currentSlots.map((s) => {
+      if (s !== null || queue.length === 0) return s;
+      changed = true;
+      const [head, ...rest] = queue;
+      queue = rest;
+      return head ?? null;
+    });
+
+    if (!changed) return;
+
+    backlogRef.current = queue;
+    setBacklog(queue);
+    setSlots(nextSlots);
+  }, []);
+
+  /**
+   * Fetch a batch from the API and append to the backlog. Skips if already fetching,
+   * the shelf is exhausted, or the backlog is comfortably full (`REFILL_AT`).
+   */
+  const ensureBacklog = useCallback(async () => {
+    if (fetchingRef.current || exhaustedRef.current) return;
+    if (backlogRef.current.length >= REFILL_AT) return;
     fetchingRef.current = true;
     if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     setError(false);
@@ -54,34 +106,98 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
 
     try {
       const games = await fetchSuggestions(
-        { prefs, exclude: [...decidedRef.current], limit: BATCH_SIZE },
+        { prefs, exclude: buildExclude(), limit: VISIBLE_SLOTS },
         fetchImpl ?? fetch,
       );
 
-      batchCountRef.current += 1;
-      let spotlight: number | null = null;
-      if (games.length && batchCountRef.current % SPOTLIGHT_EVERY === 0) {
-        spotlight = games.reduce((best, g) => ((g.rating ?? 0) > (best.rating ?? 0) ? g : best)).igdbId;
+      if (games.length === 0) {
+        exhaustedRef.current = true;
+        setExhausted(true);
+        return;
       }
 
-      batchRef.current = games;
-      setBatch(games);
-      setSpotlightId(spotlight);
-      setExhausted(games.length === 0);
+      fetchCountRef.current += 1;
+      let spotlightGameId: number | null = null;
+      if (fetchCountRef.current % SPOTLIGHT_EVERY === 0) {
+        spotlightGameId = games.reduce(
+          (best, g) => ((g.rating ?? 0) > (best.rating ?? 0) ? g : best),
+        ).igdbId;
+      }
+
+      const entries: SlotEntry[] = games.map((g) => ({
+        game: g,
+        spotlight: g.igdbId === spotlightGameId,
+      }));
+
+      const next = [...backlogRef.current, ...entries];
+      backlogRef.current = next;
+      setBacklog(next);
+
+      fillEmptySlots();
     } catch {
-      // A failed request is recoverable — surface a retry rather than a permanent dead-end.
-      // Also auto-retry shortly, to ride out a dev cold-start or slow first connection.
       setError(true);
-      retryTimerRef.current = setTimeout(() => void fetchNext(), 1500);
+      retryTimerRef.current = setTimeout(() => void ensureBacklog(), 1500);
     } finally {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, [prefs, fetchImpl]);
+  }, [prefs, fetchImpl, buildExclude, fillEmptySlots]);
 
-  // Load the first batch on mount.
+  // Bootstrap: load the first batch straight into the five slots, then top up the backlog.
   useEffect(() => {
-    void fetchNext();
+    if (initRef.current) return;
+    initRef.current = true;
+
+    const bootstrap = async () => {
+      fetchingRef.current = true;
+      setError(false);
+      setLoading(true);
+
+      try {
+        const games = await fetchSuggestions(
+          { prefs, exclude: [...decidedRef.current], limit: VISIBLE_SLOTS },
+          fetchImpl ?? fetch,
+        );
+
+        if (games.length === 0) {
+          exhaustedRef.current = true;
+          setExhausted(true);
+          setLoading(false);
+          fetchingRef.current = false;
+          return;
+        }
+
+        fetchCountRef.current = 1;
+        let spotlightGameId: number | null = null;
+        if (fetchCountRef.current % SPOTLIGHT_EVERY === 0) {
+          spotlightGameId = games.reduce(
+            (best, g) => ((g.rating ?? 0) > (best.rating ?? 0) ? g : best),
+          ).igdbId;
+        }
+
+        const entries: (SlotEntry | null)[] = games.slice(0, VISIBLE_SLOTS).map((g) => ({
+          game: g,
+          spotlight: g.igdbId === spotlightGameId,
+        }));
+
+        while (entries.length < VISIBLE_SLOTS) entries.push(null);
+
+        slotsRef.current = entries;
+        setSlots(entries);
+        setLoading(false);
+        fetchingRef.current = false;
+
+        void ensureBacklog();
+      } catch {
+        setError(true);
+        setLoading(false);
+        fetchingRef.current = false;
+        retryTimerRef.current = setTimeout(() => void bootstrap(), 1500);
+      }
+    };
+
+    void bootstrap();
+
     return () => {
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
@@ -90,19 +206,43 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
 
   const handleDecide = (id: number) => {
     decidedRef.current.add(id);
-    const next = batchRef.current.filter((g) => g.igdbId !== id);
-    batchRef.current = next;
-    setBatch(next);
-    if (next.length === 0) void fetchNext();
+
+    // Pop one from the backlog (mutate ref + batch state) so ensureBacklog below
+    // reads the latest count and refills proactively.
+    if (backlogRef.current.length > 0) {
+      const [replacement, ...rest] = backlogRef.current;
+      backlogRef.current = rest;
+      setBacklog(rest);
+
+      setSlots((prev) => {
+        const idx = prev.findIndex((s) => s?.game.igdbId === id);
+        if (idx === -1) return prev;
+        const next = [...prev];
+        next[idx] = replacement ?? null;
+        return next;
+      });
+    } else {
+      setSlots((prev) => {
+        const idx = prev.findIndex((s) => s?.game.igdbId === id);
+        if (idx === -1) return prev;
+        const next = [...prev];
+        next[idx] = null;
+        return next;
+      });
+    }
+
+    void ensureBacklog();
   };
 
-  const showSkeletons = loading && batch.length === 0;
+  const showSkeletons = loading && slots.every((s) => s === null);
+  const showError = error && slots.every((s) => s === null);
+  const showExhausted = exhausted && slots.every((s) => s === null) && backlog.length === 0;
 
   return (
     <StepScaffold
       eyebrow="Step 3 · Your games"
-      title="Add the games you’ve played."
-      description="Wave through a few at a time, or search for anything. Aim for 20+ to get a sharp list — your list stays yours, so include only what you’ve actually played."
+      title="Add the games you've played."
+      description="Wave through a few at a time, or search for anything. Aim for 20+ to get a sharp list — your list stays yours, so include only what you've actually played."
       nextLabel="Enter the arcade →"
       nextDisabled={poolCount < MIN_POOL}
     >
@@ -112,7 +252,7 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
         <div className="min-h-[20rem]">
           {showSkeletons ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              {Array.from({ length: BATCH_SIZE }).map((_, i) => (
+              {Array.from({ length: VISIBLE_SLOTS }).map((_, i) => (
                 <div
                   key={i}
                   className="flex flex-col items-center gap-3 rounded-card border border-border bg-surface p-4 shadow-cabinet"
@@ -122,41 +262,64 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
                 </div>
               ))}
             </div>
-          ) : error && batch.length === 0 ? (
+          ) : showError ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 rounded-card border border-dashed border-coin/50 bg-surface/40 p-10 text-center">
               <p className="font-display text-lg font-bold uppercase tracking-[0.04em] text-fg">
-                Couldn’t load suggestions
+                Couldn&rsquo;t load suggestions
               </p>
               <p className="max-w-sm text-sm text-muted">
-                The game library didn’t respond — this can happen on the first load. Retrying
+                The game library didn&rsquo;t respond — this can happen on the first load. Retrying
                 automatically…
               </p>
-              <Button variant="secondary" onClick={() => void fetchNext()}>
+              <Button variant="secondary" onClick={() => void ensureBacklog()}>
                 Retry now
               </Button>
             </div>
-          ) : exhausted && batch.length === 0 ? (
+          ) : showExhausted ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 rounded-card border border-dashed border-border bg-surface/40 p-10 text-center">
               <p className="font-display text-lg font-bold uppercase tracking-[0.04em] text-fg">
-                That’s our whole shelf for now
+                That&rsquo;s our whole shelf for now
               </p>
               <p className="max-w-sm text-sm text-muted">
-                You’ve reviewed every suggestion that fits. Use search above to add any game by
+                You&rsquo;ve reviewed every suggestion that fits. Use search above to add any game by
                 name, then enter the arcade.
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              <AnimatePresence mode="popLayout">
-                {batch.map((game) => (
-                  <PoolCard
-                    key={game.igdbId}
-                    game={game}
-                    spotlight={game.igdbId === spotlightId}
-                    onDecide={() => handleDecide(game.igdbId)}
-                  />
-                ))}
-              </AnimatePresence>
+              {slots.map((entry, i) => (
+                <div key={i} className="relative" style={{ minHeight: '18rem' }}>
+                  <AnimatePresence mode="wait">
+                    {entry ? (
+                      <PoolCard
+                        key={entry.game.igdbId}
+                        game={entry.game}
+                        spotlight={entry.spotlight}
+                        onDecide={() => handleDecide(entry.game.igdbId)}
+                      />
+                    ) : (
+                      <motion.div
+                        key={`placeholder-${i}`}
+                        initial={reduce ? false : { opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={reduce ? { opacity: 0 } : { opacity: 0 }}
+                        className="flex flex-col items-center gap-3 rounded-card border border-dashed border-border bg-surface/30 p-4"
+                      >
+                        {loading ? (
+                          <>
+                            <GameCard loading />
+                            <div className="h-9 w-full" />
+                          </>
+                        ) : (
+                          <p className="py-8 text-center text-xs text-muted">
+                            No more suggestions
+                          </p>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ))}
             </div>
           )}
         </div>

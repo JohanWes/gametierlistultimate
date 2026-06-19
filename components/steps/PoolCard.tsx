@@ -69,11 +69,10 @@ export function PoolCard({ game, spotlight = false, onDecide }: PoolCardProps) {
 
   return (
     <motion.div
-      layout={!reduce}
-      initial={reduce ? false : { opacity: 0, y: 14, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.9, y: -10 }}
-      transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+      initial={reduce ? false : { opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
+      transition={reduce ? { duration: 0 } : { duration: 0.18, ease: [0.33, 1, 0.68, 1] }}
       className={cn(
         'relative flex flex-col items-center gap-3 rounded-card border bg-surface p-4 shadow-cabinet',
         spotlight ? 'border-accent/70' : 'border-border',
