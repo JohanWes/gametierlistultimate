@@ -10,24 +10,6 @@ import { Row, TIER_ORDER } from '../ui/Row';
 import { SAMPLE_TIERS } from './sample';
 import { StepScaffold } from './StepScaffold';
 
-export function PoolStep() {
-  return (
-    <StepScaffold
-      eyebrow="Step 2 · Your games"
-      title="Add the games you’ve played."
-      description="Review suggestions a handful at a time, or search for anything. Aim for 20+ to get a sharp list. (Full builder lands next phase.)"
-    >
-      <div className="flex flex-wrap gap-3">
-        {SAMPLE_TIERS.S.concat(SAMPLE_TIERS.A).map((g) => (
-          <GameCard key={g.igdbId} game={g} size="sm" onSelect={() => playSound('blip')} />
-        ))}
-        <GameCard loading size="sm" />
-        <GameCard loading size="sm" />
-      </div>
-    </StepScaffold>
-  );
-}
-
 export function ArcadeStep() {
   const [a, b] = SAMPLE_TIERS.S;
   return (

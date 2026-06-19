@@ -50,6 +50,12 @@ describe('getSuggestions', () => {
     const games = await getSuggestions({}, [], 2);
     expect(games).toHaveLength(2);
   });
+
+  it('maps onboarding genre labels onto the dataset’s IGDB genre strings', async () => {
+    // "Sports" (label) must match the stored "Sport" genre, so FIFA leads the results.
+    const games = await getSuggestions({ genres: ['Sports'] }, [], 3);
+    expect(games[0].igdbId).toBe(3);
+  });
 });
 
 describe('searchLocal', () => {

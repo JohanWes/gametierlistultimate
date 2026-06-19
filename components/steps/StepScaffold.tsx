@@ -13,6 +13,8 @@ interface StepScaffoldProps {
   /** Hide the Back button (e.g. first interactive step). */
   hideBack?: boolean;
   nextLabel?: string;
+  /** Disable the Next button (e.g. a step whose minimum isn't met yet). */
+  nextDisabled?: boolean;
   onNext?: () => void;
 }
 
@@ -24,6 +26,7 @@ export function StepScaffold({
   children,
   hideBack = false,
   nextLabel = 'Continue',
+  nextDisabled = false,
   onNext,
 }: StepScaffoldProps) {
   const goNext = useStore((s) => s.goNext);
@@ -52,6 +55,7 @@ export function StepScaffold({
           </Button>
         )}
         <Button
+          disabled={nextDisabled}
           onClick={() => {
             playSound('blip');
             (onNext ?? goNext)();

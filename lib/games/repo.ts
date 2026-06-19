@@ -38,6 +38,40 @@ function caseInsensitiveRegex(query: string): RegExp {
 }
 
 /**
+ * Onboarding shows friendly genre labels, but the dataset stores IGDB genre strings
+ * ("Role-playing (RPG)", "Simulator", "Sport", "Platform", …). Map each label to the
+ * substring(s) that actually appear in the data so a selection isn't silently ignored.
+ * Labels with no genre equivalent (they're IGDB themes/keywords) map to the closest genres.
+ */
+const GENRE_TERMS: Record<string, string[]> = {
+  RPG: ['Role-playing', 'RPG'],
+  Action: ['Hack and slash', 'Fighting', 'Arcade'],
+  Adventure: ['Adventure', 'Point-and-click'],
+  Strategy: ['Strategy', 'Tactical'],
+  Shooter: ['Shooter'],
+  Platformer: ['Platform'],
+  Horror: ['Horror'],
+  Racing: ['Racing'],
+  Fighting: ['Fighting'],
+  Puzzle: ['Puzzle'],
+  Simulation: ['Simulat'],
+  Sports: ['Sport'],
+  Indie: ['Indie'],
+  Multiplayer: ['MOBA'],
+  'Story-rich': ['Visual Novel', 'Adventure'],
+  'Open world': ['Adventure', 'Role-playing'],
+};
+
+/** Expand selected genre labels into the case-insensitive regexes that match the dataset. */
+function genreRegexes(genres: string[]): RegExp[] {
+  const terms = new Set<string>();
+  for (const genre of genres) {
+    for (const term of GENRE_TERMS[genre] ?? [genre]) terms.add(term);
+  }
+  return [...terms].map(caseInsensitiveRegex);
+}
+
+/**
  * Candidate games for the ranking pool, biased by onboarding preferences. Prioritizes games
  * with cover art and high rating, honors genre/platform preferences, excludes DLC and any
  * ids already in the pool, and respects the limit.
@@ -58,7 +92,7 @@ export async function getSuggestions(
 
   const prefOr: Document[] = [];
   if (prefs.genres?.length) {
-    prefOr.push({ genre: { $in: prefs.genres.map(caseInsensitiveRegex) } });
+    prefOr.push({ genre: { $in: genreRegexes(prefs.genres) } });
   }
   if (prefs.platforms?.length) {
     prefOr.push({ platform: { $in: prefs.platforms.map(caseInsensitiveRegex) } });
