@@ -99,17 +99,41 @@ describe('PUT + GET /api/session', () => {
       await mongo.db.collection(COLLECTIONS.gameCooccurrence).findOne({ pairKey: '1:3' }),
     ).toMatchObject({ gameA: 1, gameB: 3, count: 1 });
 
+    // Shrinking below the MIN_POOL_SIZE threshold removes all previous contributions,
+    // and the guard deletes the decayed docs instead of leaving them at count 0.
     await PUT(makeReq('PUT', { cookie: sessionId, body: { pool: [1, 3] } }));
 
     expect(
       await mongo.db.collection(COLLECTIONS.gamePoolStats).findOne({ gameId: 2 }),
-    ).toMatchObject({ includedCount: 0 });
+    ).toBeNull();
     expect(
       await mongo.db.collection(COLLECTIONS.gameCooccurrence).findOne({ pairKey: '1:2' }),
-    ).toMatchObject({ count: 0 });
+    ).toBeNull();
     expect(
       await mongo.db.collection(COLLECTIONS.gameCooccurrence).findOne({ pairKey: '1:3' }),
-    ).toMatchObject({ count: 1 });
+    ).toBeNull();
+    expect(
+      await mongo.db.collection(COLLECTIONS.gamePoolStats).findOne({ gameId: 1 }),
+    ).toBeNull();
+  });
+
+  it('skips pool-pattern aggregates for pools below the minimum size', async () => {
+    const created = await POST(makeReq('POST'));
+    const { sessionId } = await created.json();
+
+    // A 2-game pool is below the threshold — nothing should be recorded.
+    await PUT(makeReq('PUT', { cookie: sessionId, body: { pool: [1, 2] } }));
+    expect(await mongo.db.collection(COLLECTIONS.gamePoolStats).countDocuments()).toBe(0);
+    expect(await mongo.db.collection(COLLECTIONS.gameCooccurrence).countDocuments()).toBe(0);
+
+    // Growing to 3 games crosses the threshold — the full pool is recorded.
+    await PUT(makeReq('PUT', { cookie: sessionId, body: { pool: [1, 2, 3] } }));
+    expect(
+      await mongo.db.collection(COLLECTIONS.gamePoolStats).countDocuments(),
+    ).toBe(3);
+    expect(
+      await mongo.db.collection(COLLECTIONS.gameCooccurrence).countDocuments(),
+    ).toBe(3);
   });
 
   it('returns null session when no cookie is present', async () => {

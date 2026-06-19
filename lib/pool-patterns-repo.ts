@@ -48,29 +48,73 @@ function parsePair(key: string): [number, number] {
 }
 
 /**
+ * Minimum pool size for co-occurrence aggregates to be meaningful. Pools with fewer
+ * games than this are skipped entirely — they don't produce enough pairwise signal,
+ * and tiny pools from abandoned sessions pollute the aggregate with noise that later
+ * decays to zero/negative counts. This is the root-cause guard against stale data.
+ */
+const MIN_POOL_SIZE = 3;
+
+/**
  * Update anonymous pool-pattern aggregates from an autosaved session-pool delta.
  * The aggregate stores counts only, while the session document remains the only
  * place that knows which games belong to a specific anonymous restore state.
+ *
+ * Pools below MIN_POOL_SIZE are never recorded. If a pool shrinks below the
+ * threshold, all of its previous contributions are removed. Docs that decay to
+ * zero or below are deleted so the collections stay lean and the reader (which
+ * filters `count > 0`) doesn't scan dead entries.
  */
 export async function updatePoolPatternAggregates(previousPool: unknown, nextPool: unknown) {
   const previous = cleanIds(previousPool);
   const next = cleanIds(nextPool);
-  const now = new Date();
 
+  const previousRecorded = previous.length >= MIN_POOL_SIZE;
+  const nextRecorded = next.length >= MIN_POOL_SIZE;
+
+  // Neither pool meets the threshold — nothing to add or remove.
+  if (!previousRecorded && !nextRecorded) return;
+
+  const now = new Date();
   const previousIds = new Set(previous);
   const nextIds = new Set(next);
-  const added = next.filter((id) => !previousIds.has(id));
-  const removed = previous.filter((id) => !nextIds.has(id));
+
+  let statsAdded: number[];
+  let statsRemoved: number[];
+  let pairsAdded: Set<string>;
+  let pairsRemoved: Set<string>;
+
+  if (nextRecorded && previousRecorded) {
+    // Both meet threshold — process the diff.
+    statsAdded = next.filter((id) => !previousIds.has(id));
+    statsRemoved = previous.filter((id) => !nextIds.has(id));
+    const prevPairs = pairSet(previous);
+    const nextPairs = pairSet(next);
+    pairsAdded = new Set([...nextPairs].filter((key) => !prevPairs.has(key)));
+    pairsRemoved = new Set([...prevPairs].filter((key) => !nextPairs.has(key)));
+  } else if (nextRecorded) {
+    // Previous was below threshold (never recorded) — add everything in the new pool.
+    statsAdded = [...next];
+    statsRemoved = [];
+    pairsAdded = pairSet(next);
+    pairsRemoved = new Set();
+  } else {
+    // Next is below threshold but previous was recorded — remove all previous contributions.
+    statsAdded = [];
+    statsRemoved = [...previous];
+    pairsAdded = new Set();
+    pairsRemoved = pairSet(previous);
+  }
 
   const statsOps = [
-    ...added.map((gameId) => ({
+    ...statsAdded.map((gameId) => ({
       updateOne: {
         filter: { gameId },
         update: { $inc: { includedCount: 1 }, $set: { updatedAt: now } },
         upsert: true,
       },
     })),
-    ...removed.map((gameId) => ({
+    ...statsRemoved.map((gameId) => ({
       updateOne: {
         filter: { gameId },
         update: { $inc: { includedCount: -1 }, $set: { updatedAt: now } },
@@ -79,13 +123,8 @@ export async function updatePoolPatternAggregates(previousPool: unknown, nextPoo
     })),
   ];
 
-  const previousPairs = pairSet(previous);
-  const nextPairs = pairSet(next);
-  const addedPairs = [...nextPairs].filter((key) => !previousPairs.has(key));
-  const removedPairs = [...previousPairs].filter((key) => !nextPairs.has(key));
-
   const pairOps = [
-    ...addedPairs.map((key) => {
+    ...[...pairsAdded].map((key) => {
       const [gameA, gameB] = parsePair(key);
       return {
         updateOne: {
@@ -95,7 +134,7 @@ export async function updatePoolPatternAggregates(previousPool: unknown, nextPoo
         },
       };
     }),
-    ...removedPairs.map((key) => {
+    ...[...pairsRemoved].map((key) => {
       const [gameA, gameB] = parsePair(key);
       return {
         updateOne: {
@@ -112,6 +151,13 @@ export async function updatePoolPatternAggregates(previousPool: unknown, nextPoo
   await Promise.all([
     statsOps.length ? stats.bulkWrite(statsOps) : Promise.resolve(),
     pairOps.length ? cooccurrence.bulkWrite(pairOps) : Promise.resolve(),
+  ]);
+
+  // Delete any docs that have decayed to zero or below so the collections stay lean
+  // and the reader (which filters count > 0) doesn't scan dead entries.
+  await Promise.all([
+    stats.deleteMany({ includedCount: { $lte: 0 } }),
+    cooccurrence.deleteMany({ count: { $lte: 0 } }),
   ]);
 }
 
