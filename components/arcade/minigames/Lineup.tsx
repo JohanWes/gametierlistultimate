@@ -1,8 +1,9 @@
 'use client';
 
 import { Reorder, motion } from 'framer-motion';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
+import { zoneIndexAtPagePoint } from '@/components/steps/result/dnd';
 import type { Game } from '@/lib/games/types';
 import { playSound } from '@/lib/sound';
 
@@ -10,6 +11,7 @@ import { Button } from '../../ui/Button';
 import { tapProps, useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
+import { DraggableArcadeCard } from './DraggableArcadeCard';
 
 /**
  * Minigame 2 — "Rank these from favorite to least." The primary, touch-first interaction is
@@ -19,15 +21,27 @@ import { ArcadeCard } from './ArcadeCard';
 export function Lineup({ games, onComplete }: MinigameProps) {
   const complete = useComplete(onComplete);
   const [placed, setPlaced] = useState<Game[]>([]);
+  const slotRefs = useRef<(HTMLElement | null)[]>([]);
+  slotRefs.current.length = games.length;
 
   const remaining = games.filter((g) => !placed.some((p) => p.igdbId === g.igdbId));
   const full = placed.length === games.length;
   const emptySlots = games.length - placed.length;
 
-  const place = (game: Game) => {
-    if (placed.some((p) => p.igdbId === game.igdbId)) return;
+  const placeAt = (game: Game, index: number) => {
+    if (placed.some((p) => p.igdbId === game.igdbId)) return false;
     playSound('blip');
-    setPlaced((prev) => [...prev, game]);
+    setPlaced((prev) => {
+      if (prev.some((p) => p.igdbId === game.igdbId)) return prev;
+      const next = [...prev];
+      next.splice(Math.max(0, Math.min(Math.trunc(index), next.length)), 0, game);
+      return next;
+    });
+    return true;
+  };
+
+  const place = (game: Game) => {
+    placeAt(game, placed.length);
   };
 
   const unplace = (game: Game) => {
@@ -39,6 +53,12 @@ export function Lineup({ games, onComplete }: MinigameProps) {
     if (!full) return;
     playSound('success');
     complete([{ type: 'lineup', orderedIds: placed.map((g) => g.igdbId) }]);
+  };
+
+  const handleDropAt = (game: Game, point: { x: number; y: number }) => {
+    const idx = zoneIndexAtPagePoint(point, slotRefs.current);
+    if (idx < 0) return false;
+    return placeAt(game, idx);
   };
 
   return (
@@ -65,6 +85,9 @@ export function Lineup({ games, onComplete }: MinigameProps) {
             <Reorder.Item
               key={game.igdbId}
               value={game}
+              ref={(el: HTMLElement | null) => {
+                slotRefs.current[i] = el;
+              }}
               className="relative cursor-grab touch-none active:cursor-grabbing"
             >
               <ArcadeCard game={game} size="sm" badge={i + 1} />
@@ -81,6 +104,10 @@ export function Lineup({ games, onComplete }: MinigameProps) {
           {Array.from({ length: emptySlots }).map((_, i) => (
             <div
               key={`slot-${i}`}
+              data-testid={`lineup-slot-${placed.length + i + 1}`}
+              ref={(el) => {
+                slotRefs.current[placed.length + i] = el;
+              }}
               className="flex aspect-[3/4] w-[104px] items-center justify-center rounded-tile border border-dashed border-border/70 bg-surface/20 font-display text-2xl font-black text-muted/40"
             >
               {placed.length + i + 1}
@@ -94,7 +121,12 @@ export function Lineup({ games, onComplete }: MinigameProps) {
         <div className="flex flex-wrap justify-center gap-3 border-t border-border pt-5">
           {remaining.map((game) => (
             <motion.div key={game.igdbId} layout>
-              <ArcadeCard game={game} size="sm" onSelect={() => place(game)} />
+              <DraggableArcadeCard
+                game={game}
+                ariaLabel={game.title}
+                onTap={() => place(game)}
+                onDropAt={(point) => handleDropAt(game, point)}
+              />
             </motion.div>
           ))}
         </div>

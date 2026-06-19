@@ -35,6 +35,12 @@ function seed() {
   return games;
 }
 
+function renderedTierRows(): string[] {
+  return screen
+    .queryAllByTestId(/^tier-row-/)
+    .map((row) => row.getAttribute('data-testid')?.replace('tier-row-', '') ?? '');
+}
+
 describe('ResultStep reveal', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -44,24 +50,33 @@ describe('ResultStep reveal', () => {
     vi.useRealTimers();
   });
 
-  it('reveals from F upward with S last', () => {
+  it('builds a compact ladder from F upward with S last', () => {
     seed();
     renderWithProviders(<ResultStep />);
 
-    // Nothing is shown before the first timer fires.
-    expect(within(screen.getByTestId('tier-row-F')).queryByText('Game 7')).not.toBeInTheDocument();
+    // No hidden placeholder rows take up space before the first timer fires.
+    expect(renderedTierRows()).toEqual([]);
 
     act(() => {
       vi.advanceTimersByTime(460);
     });
-    // F (bottom) appears first; S (top) is still hidden.
+    // F appears alone at the top of the reveal stack.
+    expect(renderedTierRows()).toEqual(['F']);
     expect(within(screen.getByTestId('tier-row-F')).getByText('Game 7')).toBeInTheDocument();
-    expect(within(screen.getByTestId('tier-row-S')).queryByText('Game 1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('tier-row-S')).not.toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(460);
+    });
+    // Each stronger tier appears above the weaker tiers already shown.
+    expect(renderedTierRows()).toEqual(['E', 'F']);
+    expect(within(screen.getByTestId('tier-row-E')).getByText('Game 6')).toBeInTheDocument();
 
     act(() => {
       vi.advanceTimersByTime(5000);
     });
-    // After the full sequence, S is revealed.
+    // After the full sequence, the board is in its final S→F order.
+    expect(renderedTierRows()).toEqual(['S', 'A', 'B', 'C', 'D', 'E', 'F']);
     expect(within(screen.getByTestId('tier-row-S')).getByText('Game 1')).toBeInTheDocument();
   });
 

@@ -14,6 +14,37 @@ export interface DropTarget {
 }
 
 /**
+ * Page-coordinate bounds of a live DOM element: `getBoundingClientRect()` (viewport) shifted by the
+ * window scroll. This is the single place scroll is applied, so every drag drop-test stays in the
+ * same coordinate space as Framer Motion's `info.point` (which is `pageX`/`pageY`).
+ */
+export function pageRectOf(el: Element): { top: number; bottom: number; left: number; right: number } {
+  const r = el.getBoundingClientRect();
+  return {
+    top: r.top + window.scrollY,
+    bottom: r.bottom + window.scrollY,
+    left: r.left + window.scrollX,
+    right: r.right + window.scrollX,
+  };
+}
+
+/**
+ * Hit-test a page-coordinate point against a list of live drop-zone elements. Returns the index of
+ * the first element whose page-rect contains the point, or -1 if it's outside every zone. Nulls
+ * (unmounted refs) are skipped. Shared by every drag surface so scroll handling can't drift.
+ */
+export function zoneIndexAtPagePoint(
+  point: { x: number; y: number },
+  els: (Element | null)[],
+): number {
+  return els.findIndex((el) => {
+    if (!el) return false;
+    const r = pageRectOf(el);
+    return point.x >= r.left && point.x <= r.right && point.y >= r.top && point.y <= r.bottom;
+  });
+}
+
+/**
  * Pure hit-test: which tier row (if any) contains the drop point. Both inputs are in page
  * coordinates. Kept separate from the component so the drag-to-move mapping is unit-testable.
  */

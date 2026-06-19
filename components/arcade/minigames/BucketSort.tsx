@@ -1,9 +1,9 @@
 'use client';
 
-import { type PanInfo, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useRef, useState } from 'react';
 
-import type { Game } from '@/lib/games/types';
+import { zoneIndexAtPagePoint } from '@/components/steps/result/dnd';
 import { playSound } from '@/lib/sound';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +11,7 @@ import { Button } from '../../ui/Button';
 import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
+import { DraggableArcadeCard } from './DraggableArcadeCard';
 
 /** The three buckets, ordered best → worst (this order is the ranking the engine scores). */
 const BUCKETS = [
@@ -29,63 +30,6 @@ const ACCENT_TEXT: Record<string, string> = {
   accent: 'text-accent',
   coin: 'text-coin',
 };
-
-/**
- * A draggable cover with a deliberately heavy feel: it lifts and tilts when grabbed, lags the
- * pointer a touch via a low-elasticity weighty spring, and lands with a thunk when dropped into a
- * bucket. `onTap` is the accessible fallback — tap to pick up, then tap a bucket to drop.
- */
-function HeavyCard({
-  game,
-  picked,
-  onTap,
-  onDropAt,
-}: {
-  game: Game;
-  picked: boolean;
-  onTap: () => void;
-  onDropAt: (point: { x: number; y: number }) => void;
-}) {
-  const reduce = useReducedMotion();
-  const x = useMotionValue(0);
-  // Tilt toward the drag direction — the cover reads as having weight that swings behind the pointer.
-  const rotate = useTransform(x, [-160, 0, 160], [-9, 0, 9]);
-
-  return (
-    <motion.div
-      role="button"
-      tabIndex={0}
-      aria-label={`Place ${game.title}`}
-      className="cursor-grab touch-none select-none rounded-tile active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-      style={reduce ? undefined : { x, rotate }}
-      drag={reduce ? false : true}
-      dragSnapToOrigin
-      dragElastic={0.12}
-      dragTransition={{ power: 0.18, timeConstant: 360, bounceStiffness: 240, bounceDamping: 34 }}
-      whileDrag={{ scale: 1.08, zIndex: 50, cursor: 'grabbing' }}
-      onDragStart={() => {
-        playSound('blip');
-      }}
-      onDragEnd={(_e, info: PanInfo) => onDropAt({ x: info.point.x, y: info.point.y })}
-      onClick={onTap}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onTap();
-        }
-      }}
-      animate={picked ? { scale: 1.05 } : { scale: 1 }}
-      transition={{ type: 'spring', stiffness: 280, damping: 26, mass: 1.1 }}
-    >
-      <ArcadeCard
-        game={game}
-        size="sm"
-        state={picked ? 'win' : 'idle'}
-        className={picked ? 'shadow-[0_18px_40px_rgb(0_0_0/0.5)]' : undefined}
-      />
-    </motion.div>
-  );
-}
 
 /**
  * Minigame — "Tier Drop." Sort a handful of covers into three ordered buckets (Top / Middle /
@@ -124,14 +68,15 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
     });
   };
 
-  /** Hit-test a drag release against the bucket rects; drop into whichever zone it landed on. */
-  const handleDropAt = (gameId: number, point: { x: number; y: number }) => {
-    const idx = zoneRefs.current.findIndex((el) => {
-      if (!el) return false;
-      const r = el.getBoundingClientRect();
-      return point.x >= r.left && point.x <= r.right && point.y >= r.top && point.y <= r.bottom;
-    });
-    if (idx >= 0) drop(gameId, idx);
+  /**
+   * Hit-test a drag release (page coords) against the bucket rects; drop into whichever zone it
+   * landed on. Returns true when it landed in a bucket so the cover knows whether to spring back.
+   */
+  const handleDropAt = (gameId: number, point: { x: number; y: number }): boolean => {
+    const idx = zoneIndexAtPagePoint(point, zoneRefs.current);
+    if (idx < 0) return false;
+    drop(gameId, idx);
+    return true;
   };
 
   const tapCard = (gameId: number) => {
@@ -229,9 +174,10 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
       <div className="mt-6 flex min-h-[160px] w-full max-w-3xl flex-wrap justify-center gap-3 border-t border-border pt-5">
         {tray.length > 0 ? (
           tray.map((g) => (
-            <HeavyCard
+            <DraggableArcadeCard
               key={g.igdbId}
               game={g}
+              ariaLabel={`Place ${g.title}`}
               picked={picked === g.igdbId}
               onTap={() => tapCard(g.igdbId)}
               onDropAt={(point) => handleDropAt(g.igdbId, point)}

@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion } from 'framer-motion';
 import { useRef } from 'react';
 
 import type { Game } from '@/lib/games/types';
@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 
 import { GameCard } from '../../ui/GameCard';
 import { Row } from '../../ui/Row';
-import { insertionIndex, tierAtPoint, type DropTarget, type TierRect } from './dnd';
+import { insertionIndex, pageRectOf, tierAtPoint, type DropTarget, type TierRect } from './dnd';
 
 // Static class maps keep Tailwind's scanner happy (no dynamic class strings).
 const LABEL_BG: Record<Tier, string> = {
@@ -37,7 +37,7 @@ export interface TierBoardProps {
   /** Lookup for the games referenced by id in `tiers`. */
   gamesById: Map<number, Game>;
   /**
-   * When provided, only these tiers show their covers; others render as dim placeholder rows.
+   * When provided, reveal mode renders only these tiers as a compact ladder.
    * Omit for a fully-revealed, static board (the public share view).
    */
   visibleTiers?: Set<Tier>;
@@ -64,6 +64,9 @@ export function TierBoard({
 }: TierBoardProps) {
   const revealing = visibleTiers !== undefined;
   const interactive = typeof onMove === 'function';
+  const renderedTiers = revealing
+    ? TIER_ORDER.filter((tier) => visibleTiers.has(tier))
+    : TIER_ORDER;
   const rowRefs = useRef<Partial<Record<Tier, HTMLDivElement | null>>>({});
 
   // Which tier row + insertion index the cursor (in page coordinates) lands on. The dragged
@@ -77,16 +80,7 @@ export function TierBoard({
     for (const tier of TIER_ORDER) {
       const el = rowRefs.current[tier];
       if (!el) continue;
-      const r = el.getBoundingClientRect();
-      rects.push({
-        tier,
-        rect: {
-          top: r.top + window.scrollY,
-          bottom: r.bottom + window.scrollY,
-          left: r.left + window.scrollX,
-          right: r.right + window.scrollX,
-        },
-      });
+      rects.push({ tier, rect: pageRectOf(el) });
     }
     const tier = tierAtPoint(point, rects);
     if (!tier) return null;
@@ -100,8 +94,8 @@ export function TierBoard({
       cards.forEach((card) => {
         const id = Number(card.getAttribute('data-card-id'));
         if (!Number.isFinite(id) || id === excludeId) return;
-        const cr = card.getBoundingClientRect();
-        centers.push(cr.left + cr.width / 2 + window.scrollX);
+        const cr = pageRectOf(card);
+        centers.push((cr.left + cr.right) / 2);
       });
     }
     return { tier, index: insertionIndex(point.x, centers) };
@@ -110,83 +104,82 @@ export function TierBoard({
   return (
     <div className={className} data-testid="tier-board">
       <div className="flex flex-col gap-2.5">
-        {TIER_ORDER.map((tier) => {
-          const visible = !revealing || visibleTiers.has(tier);
-          const ids = tiers[tier];
+        <AnimatePresence initial={false}>
+          {renderedTiers.map((tier) => {
+            const ids = tiers[tier];
 
-          // Editable rows: no overflow clip, wrap, and a drop-target attribute.
-          if (interactive) {
-            return (
-              <div
-                key={tier}
-                data-testid={`tier-row-${tier}`}
-                data-tier={tier}
-                ref={(el) => {
-                  rowRefs.current[tier] = el;
-                }}
-                className={cn(
-                  'flex items-stretch gap-3 rounded-card border border-border bg-surface shadow-cabinet',
-                  ROW_TINT[tier],
-                )}
-              >
+            // Editable rows: no overflow clip, wrap, and a drop-target attribute.
+            if (interactive) {
+              return (
                 <div
+                  key={tier}
+                  data-testid={`tier-row-${tier}`}
+                  data-tier={tier}
+                  ref={(el) => {
+                    rowRefs.current[tier] = el;
+                  }}
                   className={cn(
-                    'flex w-14 shrink-0 flex-col items-center justify-center py-4 sm:w-16',
-                    LABEL_BG[tier],
+                    'flex items-stretch gap-3 rounded-card border border-border bg-surface shadow-cabinet',
+                    ROW_TINT[tier],
                   )}
                 >
-                  <span className="font-display text-2xl font-extrabold text-black/85 sm:text-3xl">
-                    {tier}
-                  </span>
-                  <span className="font-mono text-[0.65rem] text-black/60">{ids.length}</span>
-                </div>
-                <div className="flex min-h-[140px] flex-1 flex-wrap content-center items-center gap-2.5 py-3 pr-3">
-                  {ids.map((id, idx) => {
-                    const game = gamesById.get(id);
-                    if (!game) return null;
-                    return (
-                      <MovableCard
-                        key={id}
-                        game={game}
-                        from={tier}
-                        fromIndex={idx}
-                        resolveDrop={resolveDrop}
-                        onMove={onMove}
-                        onPick={onPick}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          }
-
-          // Read-only / reveal rows: the classic scrolling strip, dim until revealed.
-          return (
-            <motion.div
-              key={tier}
-              data-testid={`tier-row-${tier}`}
-              ref={(el) => {
-                rowRefs.current[tier] = el;
-              }}
-              initial={false}
-              animate={{ opacity: visible ? 1 : 0.22, filter: visible ? 'none' : 'saturate(0.4)' }}
-              transition={{ duration: 0.4, ease: 'easeOut' }}
-            >
-              <Row tier={tier} count={visible ? ids.length : undefined}>
-                {visible
-                  ? ids.map((id, idx) => {
+                  <div
+                    className={cn(
+                      'flex w-14 shrink-0 flex-col items-center justify-center py-4 sm:w-16',
+                      LABEL_BG[tier],
+                    )}
+                  >
+                    <span className="font-display text-2xl font-extrabold text-black/85 sm:text-3xl">
+                      {tier}
+                    </span>
+                    <span className="font-mono text-[0.65rem] text-black/60">{ids.length}</span>
+                  </div>
+                  <div className="flex min-h-[140px] flex-1 flex-wrap content-center items-center gap-2.5 py-3 pr-3">
+                    {ids.map((id, idx) => {
                       const game = gamesById.get(id);
                       if (!game) return null;
                       return (
-                        <RevealCard key={id} game={game} animateIn={revealing} index={idx} />
+                        <MovableCard
+                          key={id}
+                          game={game}
+                          from={tier}
+                          fromIndex={idx}
+                          resolveDrop={resolveDrop}
+                          onMove={onMove}
+                          onPick={onPick}
+                        />
                       );
-                    })
-                  : null}
-              </Row>
-            </motion.div>
-          );
-        })}
+                    })}
+                  </div>
+                </div>
+              );
+            }
+
+            // Read-only / reveal rows: during reveal, only shown tiers exist in the stack. Because
+            // rows are filtered in S→F order, each newly revealed tier appears above the previous one.
+            return (
+              <motion.div
+                key={tier}
+                layout
+                data-testid={`tier-row-${tier}`}
+                ref={(el) => {
+                  rowRefs.current[tier] = el;
+                }}
+                initial={revealing ? { opacity: 0, y: -14, scale: 0.985 } : false}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.34, ease: 'easeOut', layout: { duration: 0.28 } }}
+              >
+                <Row tier={tier} count={ids.length}>
+                  {ids.map((id, idx) => {
+                    const game = gamesById.get(id);
+                    if (!game) return null;
+                    return <RevealCard key={id} game={game} animateIn={revealing} index={idx} />;
+                  })}
+                </Row>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -230,7 +223,28 @@ function MovableCard({
   onPick?: (game: Game, from: Tier) => void;
 }) {
   const reduce = useReducedMotion();
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
   const draggedRef = useRef(false);
+  const resetRef = useRef<ReturnType<typeof animate>[]>([]);
+
+  const stopReset = () => {
+    resetRef.current.forEach((controls) => controls.stop());
+    resetRef.current = [];
+  };
+
+  const resetDragOffset = (instant = false) => {
+    stopReset();
+    if (instant || reduce) {
+      x.set(0);
+      y.set(0);
+      return;
+    }
+    resetRef.current = [
+      animate(x, 0, { type: 'spring', stiffness: 520, damping: 36 }),
+      animate(y, 0, { type: 'spring', stiffness: 520, damping: 36 }),
+    ];
+  };
 
   const open = () => {
     if (draggedRef.current) return;
@@ -243,11 +257,13 @@ function MovableCard({
       role="button"
       tabIndex={0}
       aria-label={`Move ${game.title}`}
+      layout="position"
       drag={!reduce}
-      dragSnapToOrigin
       dragMomentum={false}
+      style={reduce ? undefined : { x, y }}
       whileDrag={{ scale: 1.08, zIndex: 50 }}
       onDragStart={() => {
+        stopReset();
         draggedRef.current = true;
       }}
       onDragEnd={(_event, info) => {
@@ -256,10 +272,17 @@ function MovableCard({
         // "snaps back" bug where a bottom-grab lifted up would land the card center in its
         // original row even though the cursor reached the target row.
         const drop = resolveDrop(info.point, game.igdbId);
+        let moved = false;
         if (drop) {
           const sameTierSameSpot = drop.tier === from && drop.index === fromIndex;
-          if (!sameTierSameSpot) onMove(game.igdbId, from, drop.tier, drop.index);
+          if (!sameTierSameSpot) {
+            moved = true;
+            onMove(game.igdbId, from, drop.tier, drop.index);
+          }
         }
+        // A successful move is now represented by the new layout position, so clear the drag
+        // offset immediately. Misses/same-slot drops spring back to the current slot.
+        resetDragOffset(moved);
         window.setTimeout(() => {
           draggedRef.current = false;
         }, 60);

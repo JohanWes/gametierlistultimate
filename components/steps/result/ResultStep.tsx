@@ -118,12 +118,12 @@ export function ResultStep() {
             Step 5 · Your tier list
           </p>
           <h1 className="font-display text-4xl font-black uppercase leading-[0.95] tracking-[0.02em] text-fg sm:text-5xl">
-            {done ? 'Here’s where they landed.' : 'Counting down…'}
+            {done ? 'Here’s where they landed.' : 'Building the ladder…'}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted sm:text-base">
             {done
               ? 'Not quite right? Drag a cover to another tier, or tap it to pick one.'
-              : 'Revealing from F up to S. S lands last.'}
+              : 'F lands first. Each stronger tier drops in above it until S takes the top.'}
           </p>
         </div>
 

@@ -1,8 +1,9 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
+import { zoneIndexAtPagePoint } from '@/components/steps/result/dnd';
 import type { Game } from '@/lib/games/types';
 import { playSound } from '@/lib/sound';
 import type { RankingOutcome } from '@/lib/ranking';
@@ -12,6 +13,7 @@ import { Button } from '../../ui/Button';
 import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
+import { DraggableArcadeCard } from './DraggableArcadeCard';
 
 /** Podium steps: 1st in the middle and tallest, then 2nd, then 3rd. Rendered left→right as 2/1/3. */
 const STEPS = [
@@ -28,33 +30,65 @@ const STEPS = [
  */
 export function Podium({ games, onComplete }: MinigameProps) {
   const complete = useComplete(onComplete);
-  const [ranked, setRanked] = useState<Game[]>([]);
+  const [ranked, setRanked] = useState<(Game | null)[]>([null, null, null]);
+  const stepRefs = useRef<(HTMLElement | null)[]>([]);
 
   if (games.length < 3) return null;
 
-  const full = ranked.length === 3;
-  const isRanked = (g: Game) => ranked.some((r) => r.igdbId === g.igdbId);
+  const full = ranked.every(Boolean);
+  const isRanked = (g: Game) => ranked.some((r) => r?.igdbId === g.igdbId);
   const pool = games.filter((g) => !isRanked(g));
 
-  const promote = (game: Game) => {
+  const promoteAt = (game: Game, index: number) => {
     if (full || isRanked(game)) return;
     playSound('blip');
-    setRanked((prev) => [...prev, game]);
+    setRanked((prev) => {
+      if (prev.some((r) => r?.igdbId === game.igdbId)) return prev;
+      const target = Math.max(0, Math.min(Math.trunc(index), 2));
+      const next = [...prev];
+      if (next[target] === null) {
+        next[target] = game;
+        return next;
+      }
+
+      const openAfter = next.findIndex((slot, i) => i > target && slot === null);
+      if (openAfter >= 0) {
+        for (let i = openAfter; i > target; i -= 1) next[i] = next[i - 1];
+        next[target] = game;
+        return next;
+      }
+
+      const firstOpen = next.findIndex((slot) => slot === null);
+      if (firstOpen >= 0) next[firstOpen] = game;
+      return next;
+    });
+  };
+
+  const promote = (game: Game) => {
+    const firstOpen = ranked.findIndex((g) => g === null);
+    promoteAt(game, firstOpen >= 0 ? firstOpen : ranked.length);
   };
 
   const demote = (game: Game) => {
     playSound('click');
-    setRanked((prev) => prev.filter((r) => r.igdbId !== game.igdbId));
+    setRanked((prev) => prev.map((r) => (r?.igdbId === game.igdbId ? null : r)));
   };
 
   const lockIn = () => {
     if (!full) return;
     playSound('success');
-    const top = ranked.map((g) => g.igdbId);
+    const top = ranked.filter((g): g is Game => Boolean(g)).map((g) => g.igdbId);
     const rest = pool.map((g) => g.igdbId);
     const outcomes: RankingOutcome[] = [{ type: 'lineup', orderedIds: top }];
     if (rest.length > 0) outcomes.push({ type: 'pick-k-of-n', pickedIds: top, rejectedIds: rest });
     complete(outcomes);
+  };
+
+  const handleDropAt = (game: Game, point: { x: number; y: number }) => {
+    const visualIdx = zoneIndexAtPagePoint(point, stepRefs.current);
+    if (visualIdx < 0) return false;
+    promoteAt(game, STEPS[visualIdx].rank - 1);
+    return true;
   };
 
   return (
@@ -71,10 +105,17 @@ export function Podium({ games, onComplete }: MinigameProps) {
 
       {/* Podium */}
       <div className="flex items-end justify-center gap-3">
-        {STEPS.map((step) => {
+        {STEPS.map((step, i) => {
           const game = ranked[step.rank - 1];
           return (
-            <div key={step.rank} className={cn('flex flex-col items-center gap-2', step.order)}>
+            <div
+              key={step.rank}
+              data-testid={`podium-step-${step.rank}`}
+              ref={(el) => {
+                stepRefs.current[i] = el;
+              }}
+              className={cn('flex flex-col items-center gap-2', step.order)}
+            >
               <div className="flex h-[148px] items-end">
                 {game ? (
                   <motion.button
@@ -119,7 +160,12 @@ export function Podium({ games, onComplete }: MinigameProps) {
         ) : (
           pool.map((g) => (
             <motion.div key={g.igdbId} layout>
-              <ArcadeCard game={g} size="sm" onSelect={() => promote(g)} />
+              <DraggableArcadeCard
+                game={g}
+                ariaLabel={g.title}
+                onTap={() => promote(g)}
+                onDropAt={(point) => handleDropAt(g, point)}
+              />
             </motion.div>
           ))
         )}

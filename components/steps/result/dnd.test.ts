@@ -1,6 +1,25 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import { insertionIndex, moveInTierMap, tierAtPoint, type TierRect } from './dnd';
+import {
+  insertionIndex,
+  moveInTierMap,
+  pageRectOf,
+  tierAtPoint,
+  zoneIndexAtPagePoint,
+  type TierRect,
+} from './dnd';
+
+/** A stand-in element with a fixed viewport rect (only what the hit-test reads). */
+function fakeEl(rect: { top: number; bottom: number; left: number; right: number }): Element {
+  return {
+    getBoundingClientRect: () => ({ ...rect, width: rect.right - rect.left, height: rect.bottom - rect.top }),
+  } as unknown as Element;
+}
+
+function setScroll(x: number, y: number) {
+  Object.defineProperty(window, 'scrollX', { value: x, configurable: true });
+  Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
+}
 
 const rects: TierRect[] = [
   { tier: 'S', rect: { top: 0, bottom: 100, left: 0, right: 500 } },
@@ -17,6 +36,62 @@ describe('tierAtPoint', () => {
   it('returns null when the point is outside every row', () => {
     expect(tierAtPoint({ x: 50, y: 999 }, rects)).toBeNull();
     expect(tierAtPoint({ x: 999, y: 50 }, rects)).toBeNull();
+  });
+});
+
+describe('pageRectOf', () => {
+  afterEach(() => setScroll(0, 0));
+
+  it('returns the raw viewport rect when the page is not scrolled', () => {
+    setScroll(0, 0);
+    expect(pageRectOf(fakeEl({ top: 10, bottom: 110, left: 20, right: 220 }))).toEqual({
+      top: 10,
+      bottom: 110,
+      left: 20,
+      right: 220,
+    });
+  });
+
+  it('shifts the rect into page space by the window scroll', () => {
+    setScroll(30, 200);
+    expect(pageRectOf(fakeEl({ top: 10, bottom: 110, left: 20, right: 220 }))).toEqual({
+      top: 210,
+      bottom: 310,
+      left: 50,
+      right: 250,
+    });
+  });
+});
+
+describe('zoneIndexAtPagePoint', () => {
+  afterEach(() => setScroll(0, 0));
+
+  const zones = [
+    fakeEl({ top: 0, bottom: 100, left: 0, right: 100 }),
+    fakeEl({ top: 0, bottom: 100, left: 100, right: 200 }),
+    fakeEl({ top: 0, bottom: 100, left: 200, right: 300 }),
+  ];
+
+  it('returns the index of the zone containing the point', () => {
+    expect(zoneIndexAtPagePoint({ x: 50, y: 50 }, zones)).toBe(0);
+    expect(zoneIndexAtPagePoint({ x: 150, y: 50 }, zones)).toBe(1);
+    expect(zoneIndexAtPagePoint({ x: 250, y: 50 }, zones)).toBe(2);
+  });
+
+  it('returns -1 when the point is outside every zone', () => {
+    expect(zoneIndexAtPagePoint({ x: 50, y: 999 }, zones)).toBe(-1);
+  });
+
+  it('skips null refs', () => {
+    expect(zoneIndexAtPagePoint({ x: 150, y: 50 }, [null, ...zones])).toBe(2);
+  });
+
+  it('matches a page-coordinate point against scrolled zones', () => {
+    setScroll(0, 500);
+    // The zones sit at viewport y 0..100, i.e. page y 500..600 when scrolled down 500.
+    expect(zoneIndexAtPagePoint({ x: 150, y: 550 }, zones)).toBe(1);
+    // A point in viewport space (no scroll added) would now miss.
+    expect(zoneIndexAtPagePoint({ x: 150, y: 50 }, zones)).toBe(-1);
   });
 });
 

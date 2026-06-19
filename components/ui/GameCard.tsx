@@ -71,6 +71,8 @@ export function GameCard({
         <img
           src={game.coverUrl ?? undefined}
           alt={game.title}
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
           loading="lazy"
           className="h-full w-full object-cover"
         />
