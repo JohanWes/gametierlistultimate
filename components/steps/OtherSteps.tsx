@@ -100,7 +100,7 @@ export function ArcadeStep() {
             key={g.igdbId}
             type="button"
             onClick={() => playSound('success')}
-            className="flex flex-col items-center gap-3 rounded-card border border-border bg-surface p-5 transition-colors hover:border-accent/60 focus-visible:outline-none"
+            className="flex flex-col items-center gap-3 rounded-card border border-border bg-surface p-5 shadow-soft transition-colors hover:border-teal/60 focus-visible:outline-none"
           >
             <GameCard game={g} />
             <span className="text-sm font-medium text-fg">{g.title}</span>
@@ -163,10 +163,10 @@ export function ShareStep() {
       nextLabel="Start over"
       onNext={() => useStore.getState().setStep('welcome')}
     >
-      <div className="rounded-card border border-border bg-surface p-5">
+      <div className="rounded-card border border-border bg-surface p-5 shadow-cabinet">
         <p className="mb-3 text-sm text-muted">Your shareable link</p>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <code className="flex-1 truncate rounded-tile bg-bg px-4 py-3 font-mono text-sm text-fg">
+          <code className="flex-1 truncate rounded-tile border border-border bg-bg px-4 py-3 font-mono text-sm text-fg">
             ultimategametierlist.app/s/your-list
           </code>
           <Button variant="secondary" onClick={() => playSound('success')}>

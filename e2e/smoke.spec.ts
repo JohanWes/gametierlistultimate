@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test('landing page shows the welcome hero and shell', async ({ page }) => {
   await page.goto('/');
   await expect(
-    page.getByRole('heading', { name: /rank the games you actually love/i }),
+    page.getByRole('heading', { name: /create your game tier list/i }),
   ).toBeVisible();
   // The persistent shell: wordmark + always-visible mute toggle.
   await expect(page.getByText('Ultimate Tier List')).toBeVisible();

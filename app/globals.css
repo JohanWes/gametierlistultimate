@@ -3,19 +3,21 @@
 @tailwind utilities;
 
 /*
- * Arcade Premium design tokens (Phase 3). Neutrals are a deep charcoal with a faint violet
- * tint so the violet accent and the S–F tier spectrum read as the brand. Values are
- * space-separated RGB channels so Tailwind's `<alpha-value>` modifier works (e.g. `bg-surface/50`).
+ * Coin-op cabinet design tokens. Values are space-separated RGB channels so Tailwind's
+ * `<alpha-value>` modifier works (e.g. `bg-surface/50`).
  */
 :root {
-  --color-bg: 12 11 18;
-  --color-surface: 22 20 32;
-  --color-surface-elevated: 32 29 46;
-  --color-border: 48 44 68;
-  --color-fg: 244 243 250;
-  --color-muted: 158 153 178;
-  --color-accent: 141 107 255;
-  --color-ring: 167 139 255;
+  --color-bg: 17 16 13;
+  --color-surface: 35 32 27;
+  --color-surface-elevated: 50 45 37;
+  --color-border: 93 82 64;
+  --color-fg: 246 238 216;
+  --color-muted: 177 161 128;
+  --color-accent: 241 178 58;
+  --color-ring: 67 202 190;
+  --color-teal: 67 202 190;
+  --color-coin: 210 58 49;
+  --color-panel: 24 23 19;
 
   /* Tier accent palette (S–F) — the classic spectrum, the product's signature. */
   --tier-s: 255 99 110;
@@ -27,18 +29,32 @@
   --tier-f: 134 132 150;
 
   /* Font families are injected by next/font in app/layout.tsx. */
-  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-saira-condensed), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-ibm-plex-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
 html,
 body {
-  background-color: rgb(var(--color-bg));
+  background:
+    radial-gradient(circle at 18% 8%, rgb(var(--color-surface-elevated) / 0.28), transparent 28rem),
+    linear-gradient(135deg, rgb(var(--color-bg)), rgb(var(--color-panel)));
   color: rgb(var(--color-fg));
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+body::before {
+  background:
+    linear-gradient(rgb(var(--color-fg) / 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--color-fg) / 0.018) 1px, transparent 1px);
+  background-size: 100% 4px, 6px 100%;
+  content: '';
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  z-index: 0;
 }
 
 * {
@@ -63,7 +79,7 @@ body {
 }
 *::-webkit-scrollbar-thumb {
   background-color: rgb(var(--color-border));
-  border-radius: 9999px;
+  border-radius: 4px;
 }
 
 /* Respect users who prefer less motion — primitives gate Framer Motion on this too. */

@@ -1,20 +1,21 @@
 import type { Metadata, Viewport } from 'next';
-import { Bricolage_Grotesque, Inter, JetBrains_Mono } from 'next/font/google';
+import { IBM_Plex_Sans, JetBrains_Mono, Saira_Condensed } from 'next/font/google';
 
 import { Providers } from '@/components/Providers';
 
 import './globals.css';
 
-const bricolage = Bricolage_Grotesque({
+const sairaCondensed = Saira_Condensed({
   subsets: ['latin'],
-  weight: ['600', '700', '800'],
-  variable: '--font-bricolage',
+  weight: ['600', '700', '800', '900'],
+  variable: '--font-saira-condensed',
   display: 'swap',
 });
 
-const inter = Inter({
+const ibmPlexSans = IBM_Plex_Sans({
   subsets: ['latin'],
-  variable: '--font-inter',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-ibm-plex-sans',
   display: 'swap',
 });
 
@@ -32,14 +33,17 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0c0b12',
+  themeColor: '#11100d',
   width: 'device-width',
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${bricolage.variable} ${inter.variable} ${jetbrains.variable}`}>
+    <html
+      lang="en"
+      className={`${sairaCondensed.variable} ${ibmPlexSans.variable} ${jetbrains.variable}`}
+    >
       <body className="min-h-dvh bg-bg font-sans text-fg">
         <Providers>{children}</Providers>
       </body>

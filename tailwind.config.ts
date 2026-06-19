@@ -18,6 +18,9 @@ const config: Config = {
         muted: 'rgb(var(--color-muted) / <alpha-value>)',
         accent: 'rgb(var(--color-accent) / <alpha-value>)',
         ring: 'rgb(var(--color-ring) / <alpha-value>)',
+        teal: 'rgb(var(--color-teal) / <alpha-value>)',
+        coin: 'rgb(var(--color-coin) / <alpha-value>)',
+        panel: 'rgb(var(--color-panel) / <alpha-value>)',
         tier: {
           s: 'rgb(var(--tier-s) / <alpha-value>)',
           a: 'rgb(var(--tier-a) / <alpha-value>)',
@@ -34,14 +37,15 @@ const config: Config = {
         mono: ['var(--font-mono)'],
       },
       borderRadius: {
-        card: '1rem',
-        tile: '0.75rem',
-        pill: '9999px',
+        card: '0.375rem',
+        tile: '0.1875rem',
+        control: '0.625rem',
+        hardware: '9999px',
       },
       boxShadow: {
-        soft: '0 2px 8px rgb(0 0 0 / 0.35)',
-        lift: '0 12px 32px -8px rgb(0 0 0 / 0.55)',
-        glow: '0 0 0 1px rgb(var(--color-accent) / 0.4), 0 8px 28px -6px rgb(var(--color-accent) / 0.45)',
+        soft: '0 2px 0 rgb(0 0 0 / 0.7)',
+        lift: '0 16px 0 -10px rgb(0 0 0 / 0.85), 0 22px 44px -24px rgb(0 0 0 / 0.85)',
+        cabinet: 'inset 0 1px 0 rgb(255 255 255 / 0.08), inset 0 -2px 0 rgb(0 0 0 / 0.45), 0 18px 40px -24px rgb(0 0 0 / 0.9)',
       },
       keyframes: {
         shimmer: {

@@ -75,7 +75,7 @@ export function GameCard({
           className="h-full w-full object-cover"
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-surface-elevated to-surface p-3 text-center">
+        <div className="flex h-full w-full items-center justify-center bg-surface-elevated p-3 text-center">
           <span className="font-display text-sm font-semibold leading-tight text-fg/90">
             {game.title}
           </span>
@@ -92,7 +92,7 @@ export function GameCard({
   const classes = cn(
     'group relative block aspect-[3/4] shrink-0 overflow-hidden rounded-tile bg-surface',
     'border transition-colors duration-150',
-    selected ? 'border-accent shadow-glow' : 'border-border',
+    selected ? 'border-accent shadow-cabinet' : 'border-border shadow-soft',
     SIZES[size],
     className,
   );
@@ -118,7 +118,7 @@ export function GameCard({
         e.preventDefault();
         select();
       }}
-      className={cn(classes, 'cursor-pointer hover:border-accent/70 focus-visible:outline-none')}
+      className={cn(classes, 'cursor-pointer hover:border-teal/70 focus-visible:outline-none')}
     >
       {inner}
     </motion.button>

@@ -34,11 +34,11 @@ export function Chip({ label, selected = false, onToggle, className }: ChipProps
         toggle();
       }}
       className={cn(
-        'select-none rounded-pill border px-4 py-2 text-sm font-medium transition-colors duration-150',
+        'select-none rounded-tile border px-4 py-2 text-sm font-semibold transition-colors duration-150',
         'focus-visible:outline-none',
         selected
-          ? 'border-accent bg-accent/15 text-fg shadow-[0_0_0_1px_rgb(var(--color-accent)/0.5)]'
-          : 'border-border bg-surface text-muted hover:border-accent/50 hover:text-fg',
+          ? 'border-accent bg-accent text-bg shadow-soft'
+          : 'border-border bg-surface text-muted hover:border-teal/60 hover:text-fg',
         className,
       )}
     >

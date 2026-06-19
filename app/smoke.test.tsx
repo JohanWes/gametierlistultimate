@@ -8,7 +8,7 @@ describe('HomePage', () => {
   it('mounts and renders the welcome hero', () => {
     renderWithProviders(<HomePage />);
     expect(
-      screen.getByRole('heading', { name: /rank the games you actually love/i }),
+      screen.getByRole('heading', { name: /create your game tier list/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /start ranking/i })).toBeInTheDocument();
   });

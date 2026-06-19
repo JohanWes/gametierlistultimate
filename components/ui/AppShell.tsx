@@ -21,7 +21,7 @@ function TierSpectrum() {
   return (
     <span aria-hidden className="flex items-center gap-1">
       {TIER_ORDER.map((t) => (
-        <span key={t} className={cn('h-2.5 w-2.5 rounded-[3px]', TIER_DOT[t])} />
+        <span key={t} className={cn('h-2.5 w-4 rounded-[2px] shadow-soft', TIER_DOT[t])} />
       ))}
     </span>
   );
@@ -40,29 +40,31 @@ export function AppShell({ children, showProgress = false }: AppShellProps) {
   const pct = Math.round(((stepIndex + 1) / STEP_ORDER.length) * 100);
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-20 border-b border-border/70 bg-bg/80 backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-3">
+    <div className="relative z-10 flex min-h-dvh flex-col">
+      <header className="sticky top-0 z-20 border-b-2 border-black/60 bg-panel/95 shadow-cabinet backdrop-blur-sm">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <div className="flex items-center gap-3 rounded-tile border border-border bg-bg/80 px-3 py-2 shadow-soft">
             <TierSpectrum />
-            <span className="font-display text-sm font-extrabold uppercase tracking-[0.18em] text-fg sm:text-base">
+            <span className="font-display text-base font-black uppercase tracking-[0.18em] text-accent sm:text-lg">
               Ultimate Tier List
             </span>
           </div>
           <MuteButton />
         </div>
         {showProgress ? (
-          <div className="h-0.5 w-full bg-border/40">
+          <div className="h-1.5 w-full border-t border-border bg-bg">
             <div
-              className="h-full bg-gradient-to-r from-tier-s via-tier-c to-tier-e transition-[width] duration-500"
+              className="h-full bg-teal transition-[width] duration-500"
               style={{ width: `${pct}%` }}
             />
           </div>
         ) : null}
       </header>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-6 sm:px-6 sm:py-10">
-        {children}
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-3 py-4 sm:px-6 sm:py-8">
+        <div className="flex flex-1 flex-col rounded-card border-2 border-border bg-panel/86 p-3 shadow-cabinet sm:p-5">
+          {children}
+        </div>
       </main>
     </div>
   );

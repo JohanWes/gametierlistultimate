@@ -26,7 +26,11 @@ const RUNG_FILL: Record<Tier, number> = { S: 3, A: 4, B: 3, C: 4, D: 2, E: 2, F:
 function TierLadder() {
   const reduce = useReducedMotion();
   return (
-    <div className="flex flex-col gap-1.5 rounded-card border border-border bg-surface/60 p-3 shadow-lift">
+    <div className="relative flex flex-col gap-1.5 rounded-card border-2 border-border bg-bg p-3 shadow-cabinet">
+      <div className="mb-2 flex items-center justify-between border-b border-border pb-2 font-mono text-[0.65rem] uppercase tracking-[0.18em] text-muted">
+        <span>Cabinet preview</span>
+        <span className="text-teal">Live</span>
+      </div>
       {TIER_ORDER.map((tier, i) => (
         <motion.div
           key={tier}
@@ -37,7 +41,7 @@ function TierLadder() {
         >
           <span
             className={cn(
-              'flex h-9 w-9 shrink-0 items-center justify-center rounded-tile font-display text-base font-extrabold text-black/85',
+              'flex h-10 w-10 shrink-0 items-center justify-center rounded-tile font-display text-lg font-black text-black/85 shadow-soft',
               TIER_BG[tier],
             )}
           >
@@ -48,8 +52,8 @@ function TierLadder() {
               <span
                 key={slot}
                 className={cn(
-                  'h-9 flex-1 rounded-[6px]',
-                  slot < RUNG_FILL[tier] ? 'bg-surface-elevated' : 'bg-surface/40',
+                  'h-10 flex-1 rounded-tile border border-border',
+                  slot < RUNG_FILL[tier] ? 'bg-surface-elevated' : 'bg-panel',
                 )}
               />
             ))}
@@ -60,59 +64,33 @@ function TierLadder() {
   );
 }
 
-const STEPS = [
-  'Tell us what you like.',
-  'Add the games you’ve played.',
-  'Win quick ranking battles.',
-  'Get your S–F tier list.',
-];
-
 export function WelcomeStep() {
   const goNext = useStore((s) => s.goNext);
 
   return (
-    <div className="grid flex-1 items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-      <div>
-        <p className="mb-4 inline-flex items-center gap-2 rounded-pill border border-border bg-surface px-3 py-1 font-mono text-xs uppercase tracking-[0.18em] text-muted">
-          Anonymous · no login · mouse &amp; touch
-        </p>
-        <h1 className="font-display text-4xl font-extrabold leading-[0.98] tracking-tight text-fg sm:text-6xl">
-          Rank the games
-          <br />
-          you <span className="text-accent">actually</span> love.
+    <div className="flex flex-1 flex-col items-center justify-between gap-8 py-5 text-center sm:py-8">
+      <div className="max-w-4xl">
+        <h1 className="font-display text-5xl font-black uppercase leading-[0.9] tracking-[0.02em] text-fg sm:text-7xl">
+          Create your game tier list
         </h1>
-        <p className="mt-5 max-w-md text-balance text-muted">
-          No dragging fifty boxes around. Play quick head-to-head rounds and watch your personal
-          S-through-F tier list build itself.
+        <p className="mx-auto mt-4 max-w-xl text-balance text-sm uppercase tracking-[0.18em] text-muted sm:text-base">
+          Quick matchups. S-F results.
         </p>
-
-        <ol className="mt-7 grid gap-2 sm:grid-cols-2">
-          {STEPS.map((label, i) => (
-            <li key={label} className="flex items-center gap-2.5 text-sm text-fg/90">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-pill bg-surface-elevated font-mono text-xs text-accent">
-                {i + 1}
-              </span>
-              {label}
-            </li>
-          ))}
-        </ol>
-
-        <div className="mt-9">
-          <Button
-            size="lg"
-            onClick={() => {
-              playSound('success');
-              goNext();
-            }}
-          >
-            Start ranking →
-          </Button>
-        </div>
       </div>
 
-      <div className="lg:pl-4">
+      <div className="w-full max-w-4xl">
         <TierLadder />
       </div>
+
+      <Button
+        size="lg"
+        onClick={() => {
+          playSound('success');
+          goNext();
+        }}
+      >
+        Start ranking →
+      </Button>
     </div>
   );
 }

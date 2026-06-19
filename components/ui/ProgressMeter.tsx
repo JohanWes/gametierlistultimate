@@ -30,10 +30,10 @@ export function ProgressMeter({ value, label, className }: ProgressMeterProps) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={label ?? 'Progress'}
-        className="h-2.5 w-full overflow-hidden rounded-pill bg-surface-elevated"
+        className="h-3 w-full overflow-hidden rounded-tile border border-border bg-panel"
       >
         <motion.div
-          className="h-full rounded-pill bg-gradient-to-r from-accent to-tier-c"
+          className="h-full rounded-tile bg-teal"
           initial={false}
           animate={{ width: `${pct}%` }}
           transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 120, damping: 22 }}

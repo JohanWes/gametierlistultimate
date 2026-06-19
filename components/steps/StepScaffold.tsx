@@ -31,19 +31,19 @@ export function StepScaffold({
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="mx-auto w-full max-w-3xl">
+      <div className="w-full border-b border-border pb-5">
         {eyebrow ? (
-          <p className="mb-3 font-mono text-xs uppercase tracking-[0.22em] text-accent">{eyebrow}</p>
+          <p className="mb-3 font-mono text-xs uppercase tracking-[0.22em] text-teal">{eyebrow}</p>
         ) : null}
-        <h1 className="font-display text-3xl font-extrabold leading-[1.05] tracking-tight text-fg sm:text-4xl">
+        <h1 className="max-w-4xl font-display text-4xl font-black uppercase leading-[0.95] tracking-[0.02em] text-fg sm:text-5xl">
           {title}
         </h1>
-        {description ? <p className="mt-3 max-w-prose text-muted">{description}</p> : null}
+        {description ? <p className="mt-3 max-w-2xl text-sm leading-6 text-muted sm:text-base">{description}</p> : null}
       </div>
 
-      {children ? <div className="mx-auto mt-8 w-full max-w-3xl">{children}</div> : null}
+      {children ? <div className="mt-8 w-full">{children}</div> : null}
 
-      <div className="mx-auto mt-auto flex w-full max-w-3xl items-center justify-between gap-3 pt-10">
+      <div className="mt-auto flex w-full items-center justify-between gap-3 pt-10">
         {hideBack ? (
           <span />
         ) : (

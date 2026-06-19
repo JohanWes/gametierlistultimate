@@ -43,7 +43,7 @@ export function Row({ tier, children, count, className }: RowProps) {
   return (
     <div
       className={cn(
-        'flex items-stretch gap-3 overflow-hidden rounded-card bg-surface',
+        'flex items-stretch gap-3 overflow-hidden rounded-card border border-border bg-surface shadow-cabinet',
         ROW_TINT[tier],
         className,
       )}

@@ -16,8 +16,8 @@ export function MuteButton({ className }: { className?: string }) {
       aria-label={soundOn ? 'Mute sound' : 'Unmute sound'}
       onClick={toggleSound}
       className={cn(
-        'inline-flex h-9 w-9 items-center justify-center rounded-pill border border-border',
-        'text-muted transition-colors duration-150 hover:border-accent/50 hover:text-fg',
+        'inline-flex h-9 w-9 items-center justify-center rounded-hardware border border-border',
+        'bg-panel text-muted shadow-soft transition-colors duration-150 hover:border-teal/60 hover:text-fg',
         'focus-visible:outline-none',
         className,
       )}

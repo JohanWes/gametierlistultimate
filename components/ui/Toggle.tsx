@@ -34,7 +34,7 @@ export function Toggle({ label, description, checked = false, onChange, classNam
       }}
       className={cn(
         'flex w-full select-none items-center justify-between gap-4 rounded-tile border border-border',
-        'bg-surface px-4 py-3 text-left transition-colors duration-150 hover:border-accent/40',
+        'bg-surface px-4 py-3 text-left shadow-soft transition-colors duration-150 hover:border-teal/50',
         'focus-visible:outline-none',
         className,
       )}
@@ -46,14 +46,14 @@ export function Toggle({ label, description, checked = false, onChange, classNam
       <span
         aria-hidden
         className={cn(
-          'relative h-6 w-11 shrink-0 rounded-pill transition-colors duration-150',
-          checked ? 'bg-accent' : 'bg-border',
+          'relative h-6 w-11 shrink-0 rounded-hardware border transition-colors duration-150',
+          checked ? 'border-accent bg-accent' : 'border-border bg-panel',
         )}
       >
         <motion.span
           layout={!reduce}
           transition={{ type: 'spring', stiffness: 700, damping: 34 }}
-          className="absolute top-0.5 h-5 w-5 rounded-pill bg-fg shadow-soft"
+          className="absolute top-0.5 h-5 w-5 rounded-hardware bg-fg shadow-soft"
           style={{ left: checked ? 'calc(100% - 1.375rem)' : '0.125rem' }}
         />
       </span>
