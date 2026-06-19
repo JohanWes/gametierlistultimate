@@ -240,7 +240,7 @@ export function buildVibeRound(state: RankingState): ArcadeRound | null {
   const picked = [...games]
     .sort(
       (a, b) =>
-        a.comparisons - b.comparisons || a.uncertainty - b.uncertainty || a.gameId - b.gameId,
+        a.comparisons - b.comparisons || b.uncertainty - a.uncertainty || a.gameId - b.gameId,
     )
     .slice(0, VIBE_POOL_SIZE)
     .map((g) => g.gameId);

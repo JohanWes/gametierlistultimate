@@ -5,43 +5,61 @@ import { useRef, useState } from 'react';
 
 import type { Game } from '@/lib/games/types';
 import { playSound } from '@/lib/sound';
-import { clamp } from '@/lib/utils';
+import type { Tier } from '@/lib/ranking';
+import { clamp, cn } from '@/lib/utils';
 
 import { Button } from '../../ui/Button';
 import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
 
-/** Subtle reference marks on the meter — labels at the top, mid and bottom of the 0–100 range. */
-const SCALE_MARKS = [100, 75, 50, 25, 0];
+const TIERS: Tier[] = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
+
+const TIER_TEXT: Record<Tier, string> = {
+  S: 'text-teal',
+  A: 'text-teal',
+  B: 'text-accent',
+  C: 'text-accent',
+  D: 'text-coin',
+  E: 'text-coin',
+  F: 'text-coin',
+};
+
+function tierFromPosition(pos: number): Tier {
+  const idx = Math.min(TIERS.length - 1, Math.floor(pos * TIERS.length));
+  return TIERS[idx];
+}
+
+function positionForTier(tier: Tier): number {
+  const idx = TIERS.indexOf(tier);
+  return (idx + 0.5) / TIERS.length;
+}
 
 function VibeRow({
   game,
-  score,
+  tier,
   onChange,
 }: {
   game: Game;
-  score: number | null;
-  onChange: (score: number) => void;
+  tier: Tier | null;
+  onChange: (tier: Tier) => void;
 }) {
   const reduce = useReducedMotion();
   const barRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
 
-  /** clientY → 0–100 score; top of the bar is 100, bottom is 0. */
-  const scoreFromEvent = (clientY: number): number => {
+  const positionFromEvent = (clientY: number): number => {
     const el = barRef.current;
     if (!el) return 0;
     const rect = el.getBoundingClientRect();
     if (rect.height <= 0) return 0;
-    const pos = clamp((clientY - rect.top) / rect.height, 0, 1);
-    return Math.round((1 - pos) * 100);
+    return clamp((clientY - rect.top) / rect.height, 0, 1);
   };
 
-  const update = (newScore: number) => {
-    if (newScore !== score) {
+  const update = (newTier: Tier) => {
+    if (newTier !== tier) {
       playSound('blip');
-      onChange(newScore);
+      onChange(newTier);
     }
   };
 
@@ -49,12 +67,12 @@ function VibeRow({
     e.preventDefault();
     draggingRef.current = true;
     e.currentTarget?.setPointerCapture?.(e.pointerId);
-    update(scoreFromEvent(e.clientY));
+    update(tierFromPosition(positionFromEvent(e.clientY)));
   };
 
   const handleMove = (e: React.PointerEvent) => {
     if (!draggingRef.current) return;
-    update(scoreFromEvent(e.clientY));
+    update(tierFromPosition(positionFromEvent(e.clientY)));
   };
 
   const handleUp = (e: React.PointerEvent) => {
@@ -63,12 +81,11 @@ function VibeRow({
     e.currentTarget?.releasePointerCapture?.(e.pointerId);
   };
 
-  // Position from the top: 100 → 0%, 0 → 100%.
-  const handleTopPct = score !== null ? 100 - score : null;
+  const handleTopPct = tier !== null ? positionForTier(tier) * 100 : null;
 
   return (
     <div className="flex items-stretch justify-center gap-3">
-      <ArcadeCard game={game} size="sm" state={score !== null ? 'win' : 'idle'} />
+      <ArcadeCard game={game} size="sm" state={tier ? 'win' : 'idle'} />
 
       <div className="flex flex-1 flex-col">
         <span className="mb-1.5 truncate font-display text-xs font-bold uppercase tracking-wide text-fg">
@@ -76,15 +93,18 @@ function VibeRow({
         </span>
 
         <div className="flex flex-1 items-stretch justify-center gap-1.5">
-          {/* Scale labels */}
+          {/* Tier labels */}
           <div className="flex flex-col justify-between py-0 text-right">
-            {SCALE_MARKS.map((mark) => (
+            {TIERS.map((t) => (
               <span
-                key={mark}
+                key={t}
                 aria-hidden
-                className="font-mono text-[0.55rem] font-bold leading-none tabular-nums text-muted/40"
+                className={cn(
+                  'font-mono text-[0.6rem] font-bold leading-none transition-colors',
+                  tier === t ? TIER_TEXT[t] : 'text-muted/40',
+                )}
               >
-                {mark}
+                {t}
               </span>
             ))}
           </div>
@@ -96,9 +116,9 @@ function VibeRow({
             aria-label={`Rate ${game.title}`}
             aria-orientation="vertical"
             aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={score ?? undefined}
-            aria-valuetext={score !== null ? String(score) : 'unrated'}
+            aria-valuemax={6}
+            aria-valuenow={tier ? TIERS.indexOf(tier) : undefined}
+            aria-valuetext={tier ?? 'unrated'}
             onPointerDown={handleDown}
             onPointerMove={handleMove}
             onPointerUp={handleUp}
@@ -109,34 +129,28 @@ function VibeRow({
                 'linear-gradient(to bottom, rgb(var(--color-teal)), rgb(var(--color-accent)) 50%, rgb(var(--color-coin)))',
             }}
           >
-            {/* Quartile gridlines */}
-            {[25, 50, 75].map((mark) => (
+            {/* Tier segment dividers */}
+            {TIERS.slice(1).map((_, i) => (
               <span
-                key={mark}
+                key={i}
                 aria-hidden
                 className="pointer-events-none absolute left-0 right-0 h-px bg-bg/30"
-                style={{ top: `${100 - mark}%` }}
+                style={{ top: `${((i + 1) / TIERS.length) * 100}%` }}
               />
             ))}
-
-            {/* Active fill from the top down to the handle */}
-            {handleTopPct !== null && (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute left-0 right-0 top-0 bg-bg/15"
-                style={{ height: `${handleTopPct}%` }}
-              />
-            )}
 
             {/* Handle */}
             {handleTopPct !== null && (
               <motion.div
                 aria-hidden
-                className="pointer-events-none absolute left-1/2 z-10 flex h-7 w-9 -translate-x-1/2 items-center justify-center rounded-hardware border border-border bg-bg font-display text-xs font-black tabular-nums text-fg shadow-soft"
+                className={cn(
+                  'pointer-events-none absolute left-1/2 z-10 flex h-7 w-9 -translate-x-1/2 items-center justify-center rounded-hardware border border-border bg-bg font-display text-xs font-black shadow-soft',
+                  TIER_TEXT[tier as Tier],
+                )}
                 animate={{ top: `${handleTopPct}%`, y: '-50%' }}
                 transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 30 }}
               >
-                {score}
+                {tier}
               </motion.div>
             )}
           </div>
@@ -148,25 +162,23 @@ function VibeRow({
 
 /**
  * Minigame 11 — "Where do these land for you?" Shows 3–5 covers, each beside its own vertical
- * 0–100 feel-meter. Drag (or tap) a meter to set how strongly the game lands; the engine nudges
- * each game's ELO toward the rating interpolated from that 0–100 score via a soft `vibe` outcome
- * (one per game). The scale is deliberately low-key — no S–F letters — so the player rates by feel
- * rather than explicitly sorting into tiers.
+ * S–F tier meter. Drag (or tap) a meter to place the game in a tier; the engine nudges each game's
+ * ELO toward that tier's representative band via a soft `vibe` outcome (one per game).
  *
  * Mouse + touch are unified through Pointer Events (`touch-none` prevents scroll hijacking on
  * mobile). No keyboard dependency; ARIA labels carry screen-reader context.
  */
 export function VibeMeter({ games, onComplete }: MinigameProps) {
   const complete = useComplete(onComplete);
-  const [scores, setScores] = useState<Record<number, number | null>>({});
+  const [tiers, setTiers] = useState<Record<number, Tier | null>>({});
 
   if (games.length === 0) return null;
 
-  const ratedCount = games.filter((g) => scores[g.igdbId] != null).length;
+  const ratedCount = games.filter((g) => tiers[g.igdbId] != null).length;
   const allRated = ratedCount === games.length;
 
-  const setScore = (gameId: number, score: number) => {
-    setScores((prev) => ({ ...prev, [gameId]: score }));
+  const setTier = (gameId: number, tier: Tier) => {
+    setTiers((prev) => ({ ...prev, [gameId]: tier }));
   };
 
   const lockIn = () => {
@@ -175,7 +187,7 @@ export function VibeMeter({ games, onComplete }: MinigameProps) {
     const outcomes = games.map((g) => ({
       type: 'vibe' as const,
       gameId: g.igdbId,
-      score: scores[g.igdbId] as number,
+      tier: tiers[g.igdbId] as Tier,
     }));
     complete(outcomes);
   };
@@ -188,7 +200,7 @@ export function VibeMeter({ games, onComplete }: MinigameProps) {
           Where do these land?
         </h2>
         <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted">
-          Drag each meter — 100 is a must-play, 0 is a pass
+          Drag each meter — top is S, bottom is F
         </p>
       </header>
 
@@ -197,8 +209,8 @@ export function VibeMeter({ games, onComplete }: MinigameProps) {
           <div key={g.igdbId} className="w-full max-w-xs">
             <VibeRow
               game={g}
-              score={scores[g.igdbId] ?? null}
-              onChange={(s) => setScore(g.igdbId, s)}
+              tier={tiers[g.igdbId] ?? null}
+              onChange={(t) => setTier(g.igdbId, t)}
             />
           </div>
         ))}

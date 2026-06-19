@@ -34,14 +34,14 @@ function stubMeterRect(label: RegExp, height = 100): HTMLElement {
   return meter;
 }
 
-/** clientY → 0–100 score for height=100: top (y=0) is 100, bottom (y=100) is 0. */
-function scoreForClientY(clientY: number): number {
-  return Math.round((1 - clientY / 100) * 100);
-}
+/**
+ * clientY → tier for height=100. The meter is split into 7 equal segments (S at top, F at bottom).
+ * clientY 0–14=S, 15–28=A, 29–42=B, 43–57=C, 58–71=D, 72–85=E, 86–100=F.
+ */
+const CLIENT_Y_FOR_TIER: Record<string, number> = { S: 5, A: 20, B: 35, C: 50, D: 65, E: 80, F: 95 };
 
-/** Drag a meter to a target 0–100 score (height=100 stub → clientY = 100 - score). */
-function dragToScore(meter: HTMLElement, score: number, pointerId = 1) {
-  const y = 100 - score;
+function dragToTier(meter: HTMLElement, tier: string, pointerId = 1) {
+  const y = CLIENT_Y_FOR_TIER[tier];
   fireEvent(meter, pointerEvent('pointerdown', y, pointerId));
   fireEvent(meter, pointerEvent('pointermove', y, pointerId));
   fireEvent(meter, pointerEvent('pointerup', y, pointerId));
@@ -63,19 +63,19 @@ describe('VibeMeter', () => {
     const onComplete = vi.fn();
     renderWithProviders(<VibeMeter games={[a, b, c, d]} onComplete={onComplete} />);
 
-    dragToScore(stubMeterRect(/rate game 1/i), 95);
-    dragToScore(stubMeterRect(/rate game 2/i), 80);
-    dragToScore(stubMeterRect(/rate game 3/i), 50);
-    dragToScore(stubMeterRect(/rate game 4/i), 5);
+    dragToTier(stubMeterRect(/rate game 1/i), 'S');
+    dragToTier(stubMeterRect(/rate game 2/i), 'A');
+    dragToTier(stubMeterRect(/rate game 3/i), 'C');
+    dragToTier(stubMeterRect(/rate game 4/i), 'F');
 
     fireEvent.click(screen.getByRole('button', { name: /lock in vibes/i }));
 
     await waitFor(() =>
       expect(onComplete).toHaveBeenCalledWith([
-        { type: 'vibe', gameId: a.igdbId, score: 95 },
-        { type: 'vibe', gameId: b.igdbId, score: 80 },
-        { type: 'vibe', gameId: c.igdbId, score: 50 },
-        { type: 'vibe', gameId: d.igdbId, score: 5 },
+        { type: 'vibe', gameId: a.igdbId, tier: 'S' },
+        { type: 'vibe', gameId: b.igdbId, tier: 'A' },
+        { type: 'vibe', gameId: c.igdbId, tier: 'C' },
+        { type: 'vibe', gameId: d.igdbId, tier: 'F' },
       ]),
     );
   });
@@ -107,8 +107,8 @@ describe('VibeMeter', () => {
 
     await waitFor(() =>
       expect(onComplete).toHaveBeenCalledWith([
-        { type: 'vibe', gameId: a.igdbId, score: scoreForClientY(5) },
-        { type: 'vibe', gameId: b.igdbId, score: scoreForClientY(95) },
+        { type: 'vibe', gameId: a.igdbId, tier: 'S' },
+        { type: 'vibe', gameId: b.igdbId, tier: 'F' },
       ]),
     );
   });
@@ -120,12 +120,12 @@ describe('VibeMeter', () => {
     const button = screen.getByRole('button', { name: /lock in vibes/i });
     expect(button).toBeDisabled();
 
-    dragToScore(stubMeterRect(/rate game 1/i), 95);
+    dragToTier(stubMeterRect(/rate game 1/i), 'S');
     expect(button).toBeDisabled();
 
-    dragToScore(stubMeterRect(/rate game 2/i), 60);
-    dragToScore(stubMeterRect(/rate game 3/i), 30);
-    dragToScore(stubMeterRect(/rate game 4/i), 5);
+    dragToTier(stubMeterRect(/rate game 2/i), 'B');
+    dragToTier(stubMeterRect(/rate game 3/i), 'D');
+    dragToTier(stubMeterRect(/rate game 4/i), 'F');
     expect(button).not.toBeDisabled();
   });
 
@@ -134,7 +134,7 @@ describe('VibeMeter', () => {
     const onComplete = vi.fn();
     renderWithProviders(<VibeMeter games={[a]} onComplete={onComplete} />);
 
-    dragToScore(stubMeterRect(/rate game 1/i), 60);
+    dragToTier(stubMeterRect(/rate game 1/i), 'B');
 
     const button = screen.getByRole('button', { name: /lock in vibes/i });
     fireEvent.click(button);
