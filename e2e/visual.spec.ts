@@ -15,7 +15,7 @@ for (const vp of VIEWPORTS) {
     await page.goto('/');
 
     await expect(
-      page.getByRole('heading', { name: /build your ultimate game tier list/i }),
+      page.getByRole('heading', { name: /game tier list ultimate/i }),
     ).toBeVisible();
     await expect(page.getByRole('button', { name: /press start/i })).toBeVisible();
     await expect(page.getByRole('switch', { name: /mute sound|unmute sound/i })).toBeVisible();
