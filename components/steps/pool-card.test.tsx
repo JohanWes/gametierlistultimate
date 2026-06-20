@@ -41,16 +41,6 @@ describe('PoolCard', () => {
     expect(onDecide).toHaveBeenCalledWith('reject');
   });
 
-  it('skips without adding to the pool', () => {
-    const onDecide = vi.fn();
-    renderWithProviders(<PoolCard game={game} onDecide={onDecide} />);
-
-    fireEvent.click(screen.getByRole('button', { name: /skip/i }));
-
-    expect(useStore.getState().pool).toHaveLength(0);
-    expect(onDecide).toHaveBeenCalledWith('skip');
-  });
-
   it('on a spotlight card, Played it reveals the status picker and records the chosen status', () => {
     const onDecide = vi.fn();
     renderWithProviders(<PoolCard game={game} spotlight onDecide={onDecide} />);

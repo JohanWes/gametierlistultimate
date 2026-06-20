@@ -11,16 +11,19 @@ export interface GameCardProps {
   /** Show the loading skeleton instead of content. */
   loading?: boolean;
   selected?: boolean;
+  /** Hide the title overlay when a parent surface provides its own cover treatment. */
+  showTitle?: boolean;
   /** When provided the card becomes an interactive button. */
   onSelect?: (game: Game) => void;
   /** Visual size of the card. */
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
   className?: string;
 }
 
 const SIZES = {
   sm: 'w-[104px]',
   md: 'w-[150px]',
+  lg: 'w-[220px]',
 } as const;
 
 /**
@@ -32,6 +35,7 @@ export function GameCard({
   game,
   loading = false,
   selected = false,
+  showTitle = true,
   onSelect,
   size = 'md',
   className,
@@ -83,9 +87,11 @@ export function GameCard({
           </span>
         </div>
       )}
-      {showCover ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent p-2 pt-6">
-          <span className="line-clamp-2 text-xs font-medium leading-tight text-fg">{game.title}</span>
+      {showCover && showTitle ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 min-h-[28%] bg-gradient-to-t from-black/95 via-black/70 via-45% to-transparent p-2 pt-8">
+          <span className="line-clamp-2 text-xs font-semibold leading-tight text-fg drop-shadow-[0_2px_3px_rgb(0_0_0/0.95)]">
+            {game.title}
+          </span>
         </div>
       ) : null}
     </>

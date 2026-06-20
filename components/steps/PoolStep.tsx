@@ -306,14 +306,17 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
 
         <div className="min-h-[20rem]">
           {showSkeletons ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="grid grid-cols-1 justify-items-center gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {Array.from({ length: VISIBLE_SLOTS }).map((_, i) => (
                 <div
                   key={i}
-                  className="flex flex-col items-center gap-3 rounded-card border border-border bg-surface p-4 shadow-cabinet"
+                  className="relative mx-auto w-full max-w-[22rem] overflow-hidden rounded-card border border-border bg-surface shadow-cabinet"
                 >
-                  <GameCard loading />
-                  <div className="h-9 w-full" />
+                  <GameCard loading size="lg" className="w-full rounded-none" />
+                  <div className="grid grid-cols-2 gap-2 border-t border-border/70 bg-surface px-3 py-3">
+                    <div className="h-9 rounded-tile border border-border bg-surface-elevated" />
+                    <div className="h-9 rounded-tile border border-teal/40 bg-teal/10" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -341,9 +344,9 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="grid grid-cols-1 justify-items-center gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {slots.map((entry, i) => (
-                <div key={i} className="relative" style={{ minHeight: '18rem' }}>
+                <div key={i} className="relative w-full" style={{ minHeight: '21rem' }}>
                   <AnimatePresence mode="wait">
                     {entry ? (
                       <PoolCard
@@ -358,13 +361,10 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
                         initial={reduce ? false : { opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={reduce ? { opacity: 0 } : { opacity: 0 }}
-                        className="flex flex-col items-center gap-3 rounded-card border border-dashed border-border bg-surface/30 p-4"
+                        className="mx-auto flex min-h-[21rem] w-full max-w-[22rem] items-center justify-center rounded-card border border-dashed border-border bg-surface/30 p-4"
                       >
                         {loading ? (
-                          <>
-                            <GameCard loading />
-                            <div className="h-9 w-full" />
-                          </>
+                          <GameCard loading size="lg" className="w-full" />
                         ) : (
                           <p className="py-8 text-center text-xs text-muted">No more suggestions</p>
                         )}
