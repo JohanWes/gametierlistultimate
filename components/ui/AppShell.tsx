@@ -80,7 +80,7 @@ export function AppShell({
                 compact ? 'text-sm sm:text-base' : 'text-base sm:text-lg',
               )}
             >
-              Ultimate Tier List
+              Game Tier List Ultimate
             </span>
           </div>
           <MuteButton />

@@ -27,7 +27,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Ultimate Game Tier List',
+  title: 'Game Tier List Ultimate',
   description:
     'Build a personalized S–F tier list of the best games you have played, through quick ranking minigames.',
 };

@@ -120,7 +120,7 @@ export function WelcomeStep() {
       <div className="flex flex-col items-center gap-6 lg:items-start">
         <motion.div variants={item} className="max-w-xl">
           <h1 className="font-display text-5xl font-black uppercase leading-[0.9] tracking-[0.02em] text-fg sm:text-6xl">
-            Build your ultimate game tier list
+            Game Tier List Ultimate
           </h1>
           <p className="mt-3 text-balance text-sm uppercase tracking-[0.18em] text-muted sm:text-base">
             Rank the best games you&rsquo;ve played — through quick matchups, not drag-and-drop.
