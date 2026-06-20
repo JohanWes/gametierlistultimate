@@ -11,7 +11,7 @@ describe('WelcomeStep', () => {
   it('renders the headline and the full how-it-works sequence', () => {
     renderWithProviders(<WelcomeStep />);
     expect(
-      screen.getByRole('heading', { name: /build your ultimate game tier list/i }),
+      screen.getByRole('heading', { name: /game tier list ultimate/i }),
     ).toBeInTheDocument();
     for (const beat of ['Pick genres', 'Choose games', 'Play rounds', 'Get your list']) {
       expect(screen.getByText(beat)).toBeInTheDocument();
