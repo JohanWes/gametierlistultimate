@@ -2,28 +2,51 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { __resetAudioForTest, initAudio, isAudioReady, playSound, setMuted } from './index';
 
-// A minimal Web Audio mock: connect() returns the next node so the chain works.
+// A minimal Web Audio mock: connect() returns the next node so the chain works. AudioParams
+// expose every setter the synth engine touches (the click voice adds a noise source + filters)
+// so playSound runs without throwing.
+function makeParam() {
+  return {
+    value: 0,
+    setValueAtTime: vi.fn(),
+    exponentialRampToValueAtTime: vi.fn(),
+    setTargetAtTime: vi.fn(),
+  };
+}
+
 function makeNode() {
   return {
     type: '',
     connect: (n: unknown) => n,
     start: vi.fn(),
     stop: vi.fn(),
-    frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
-    gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+    buffer: null as unknown,
+    frequency: makeParam(),
+    detune: makeParam(),
+    Q: makeParam(),
+    gain: makeParam(),
   };
 }
 
 const createOscillator = vi.fn(makeNode);
 const createGain = vi.fn(makeNode);
+const createBiquadFilter = vi.fn(makeNode);
+const createBufferSource = vi.fn(makeNode);
+const createBuffer = vi.fn((_channels: number, length: number) => ({
+  getChannelData: () => new Float32Array(length),
+}));
 
 class MockAudioContext {
   currentTime = 0;
   state = 'running';
+  sampleRate = 44100;
   destination = {};
   resume = vi.fn();
   createOscillator = createOscillator;
   createGain = createGain;
+  createBiquadFilter = createBiquadFilter;
+  createBufferSource = createBufferSource;
+  createBuffer = createBuffer;
 }
 
 describe('sound system', () => {

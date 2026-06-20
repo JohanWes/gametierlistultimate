@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { CommunityComparison } from '@/components/steps/result/CommunityComparison';
 import { SharedBoard } from '@/components/steps/result/SharedBoard';
 import { AppShell } from '@/components/ui/AppShell';
 import { getList } from '@/lib/lists-repo';
@@ -50,12 +51,15 @@ export default async function SharedListPage({
               The best games they’ve played.
             </h1>
           </div>
-          <Link
-            href="/"
-            className="shrink-0 self-start rounded-tile border border-accent bg-accent px-5 py-3 font-display text-sm font-bold uppercase tracking-[0.08em] text-bg shadow-cabinet transition-colors hover:bg-accent/90"
-          >
-            Build your own →
-          </Link>
+          <div className="flex shrink-0 flex-col items-stretch gap-3 sm:items-end">
+            <Link
+              href="/"
+              className="self-start rounded-tile border border-accent bg-accent px-5 py-3 font-display text-sm font-bold uppercase tracking-[0.08em] text-bg shadow-cabinet transition-colors hover:bg-accent/90 sm:self-end"
+            >
+              Build your own →
+            </Link>
+            <CommunityComparison shareId={shareId} games={list.games} />
+          </div>
         </div>
 
         <div className="mt-6">

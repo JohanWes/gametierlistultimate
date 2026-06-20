@@ -73,10 +73,10 @@ describe('VibeMeter', () => {
 
     await waitFor(() =>
       expect(onComplete).toHaveBeenCalledWith([
-        { type: 'vibe', gameId: a.igdbId, tier: TIER_FOR_SCORE[95] },
-        { type: 'vibe', gameId: b.igdbId, tier: TIER_FOR_SCORE[80] },
-        { type: 'vibe', gameId: c.igdbId, tier: TIER_FOR_SCORE[50] },
-        { type: 'vibe', gameId: d.igdbId, tier: TIER_FOR_SCORE[5] },
+        { type: 'vibe', gameId: a.igdbId, score: 95, tier: TIER_FOR_SCORE[95] },
+        { type: 'vibe', gameId: b.igdbId, score: 80, tier: TIER_FOR_SCORE[80] },
+        { type: 'vibe', gameId: c.igdbId, score: 50, tier: TIER_FOR_SCORE[50] },
+        { type: 'vibe', gameId: d.igdbId, score: 5, tier: TIER_FOR_SCORE[5] },
       ]),
     );
   });
@@ -108,8 +108,8 @@ describe('VibeMeter', () => {
 
     await waitFor(() =>
       expect(onComplete).toHaveBeenCalledWith([
-        { type: 'vibe', gameId: a.igdbId, tier: TIER_FOR_SCORE[95] },
-        { type: 'vibe', gameId: b.igdbId, tier: TIER_FOR_SCORE[5] },
+        { type: 'vibe', gameId: a.igdbId, score: 95, tier: TIER_FOR_SCORE[95] },
+        { type: 'vibe', gameId: b.igdbId, score: 5, tier: TIER_FOR_SCORE[5] },
       ]),
     );
   });

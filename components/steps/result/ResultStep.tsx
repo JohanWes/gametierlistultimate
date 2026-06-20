@@ -19,6 +19,7 @@ import { playSound } from '@/lib/sound';
 import { useStore } from '@/lib/store';
 
 import { Button } from '../../ui/Button';
+import { CommunityComparison } from './CommunityComparison';
 import { moveInTierMap } from './dnd';
 import { ShareBar } from './ShareBar';
 import { TierBoard } from './TierBoard';
@@ -127,15 +128,18 @@ export function ResultStep() {
           </p>
         </div>
 
-        <div className="flex shrink-0 items-center gap-3">
-          <Button variant="ghost" onClick={goBack}>
-            ← Keep ranking
-          </Button>
-          {!done ? (
-            <Button variant="secondary" onClick={skip}>
-              Reveal all →
+        <div className="flex shrink-0 flex-col items-stretch gap-3 sm:items-end">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" onClick={goBack}>
+              ← Keep ranking
             </Button>
-          ) : null}
+            {!done ? (
+              <Button variant="secondary" onClick={skip}>
+                Reveal all →
+              </Button>
+            ) : null}
+          </div>
+          {done ? <CommunityComparison tiers={tiers} gamesById={gamesById} /> : null}
         </div>
       </div>
 

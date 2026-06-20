@@ -9,6 +9,7 @@ export type SoundName = 'click' | 'blip' | 'hover' | 'success' | 'reveal';
 type Ctor = new () => AudioContext;
 
 let ctx: AudioContext | null = null;
+let noiseBuffer: AudioBuffer | null = null;
 let initialized = false;
 let muted = false;
 
@@ -67,10 +68,59 @@ function tone(
   osc.stop(now + opts.duration + 0.02);
 }
 
+/** Lazily build (and cache) a short white-noise buffer used for the click transient. */
+function getNoiseBuffer(context: AudioContext): AudioBuffer {
+  if (noiseBuffer) return noiseBuffer;
+  const length = Math.floor(context.sampleRate * 0.2);
+  const buffer = context.createBuffer(1, length, context.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+  noiseBuffer = buffer;
+  return buffer;
+}
+
+/**
+ * The "no"/Pass click: a crisp highpassed noise tick layered with a short, filtered triangle
+ * pluck that drops in pitch — tight and poppy. (The other sounds use the plain `tone` above.)
+ */
+function clickSound(context: AudioContext): void {
+  const now = context.currentTime;
+
+  // Crisp transient — a brief, highpassed noise tick.
+  const src = context.createBufferSource();
+  src.buffer = getNoiseBuffer(context);
+  const hp = context.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.setValueAtTime(2200, now);
+  const nAmp = context.createGain();
+  nAmp.gain.setValueAtTime(0.11, now);
+  nAmp.gain.exponentialRampToValueAtTime(0.0001, now + 0.025);
+  src.connect(hp).connect(nAmp).connect(context.destination);
+  src.start(now);
+  src.stop(now + 0.045);
+
+  // Tight pluck — triangle dropping 880 → 500 Hz through a gentle lowpass.
+  const osc = context.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(880, now);
+  osc.frequency.exponentialRampToValueAtTime(500, now + 0.05);
+  const lp = context.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(3200, now);
+  lp.Q.setValueAtTime(0.7, now);
+  const amp = context.createGain();
+  amp.gain.setValueAtTime(0.0001, now);
+  amp.gain.exponentialRampToValueAtTime(0.145, now + 0.003);
+  amp.gain.setTargetAtTime(0.0001, now + 0.012, 0.017);
+  osc.connect(lp).connect(amp).connect(context.destination);
+  osc.start(now);
+  osc.stop(now + 0.1);
+}
+
 function synth(context: AudioContext, name: SoundName): void {
   switch (name) {
     case 'click':
-      tone(context, { type: 'square', from: 320, to: 220, duration: 0.07, gain: 0.18 });
+      clickSound(context);
       break;
     case 'hover':
       tone(context, { type: 'sine', from: 520, duration: 0.05, gain: 0.06 });
@@ -100,6 +150,7 @@ export function playSound(name: SoundName): void {
 /** Test-only: tear down module state between cases. */
 export function __resetAudioForTest(): void {
   ctx = null;
+  noiseBuffer = null;
   initialized = false;
   muted = false;
 }

@@ -64,7 +64,7 @@ export type RankingOutcome =
       answer: 'immediately' | 'maybe' | 'probably-not' | 'never';
       weight?: number;
     }
-  | { type: 'vibe'; gameId: number; tier: Tier; weight?: number }
+  | { type: 'vibe'; gameId: number; tier: Tier; score?: number; weight?: number }
   | { type: 'bucket'; buckets: number[][]; weight?: number }
   | { type: 'skip'; gameIds?: number[] };
 
@@ -229,7 +229,7 @@ export function applyOutcome(state: RankingState, outcome: RankingOutcome): Rank
       markParticipants(next, [outcome.gameId], beforeRound + 1);
       break;
     case 'vibe':
-      applyVibe(next, outcome.gameId, outcome.tier, outcome.weight ?? 0.6);
+      applyVibe(next, outcome.gameId, outcome.tier, outcome.weight ?? 0.6, outcome.score);
       markParticipants(next, [outcome.gameId], beforeRound + 1);
       break;
     case 'skip':
@@ -442,19 +442,37 @@ function applyReplay(
 }
 
 /**
- * Apply a "vibe" verdict — the player drags a single game onto an S–F tier meter. Like `applyReplay`
- * it is an absolute signal (a single game rated against the implicit `BASE_RATING` benchmark via the
- * ELO expected-score transform), but the target is the chosen tier's representative band
- * (`TIER_BANDS[tier]`). The nudge is soft (weight capped at 0.75) so it coexists with accumulated
- * pairwise results rather than overwriting them. Default weight is a touch stronger than `replay`
- * because a deliberate tier placement is more intentional than a replay verdict.
+ * Map a continuous 0–100 vibe-meter score onto a target rating, smoothly interpolated across the
+ * full tier range (0 → F band, 100 → S band). This keeps the meter granular: e.g. 95 pulls harder
+ * than 75 even when both classify into the same letter tier, instead of snapping to one of 7 bands.
  */
-function applyVibe(state: RankingState, gameId: number, tier: Tier, weight: number): void {
+export function vibeScoreToRating(score: number): number {
+  const s = clamp(score, 0, 100);
+  return TIER_BANDS.F + (s / 100) * (TIER_BANDS.S - TIER_BANDS.F);
+}
+
+/**
+ * Apply a "vibe" verdict — the player drags a single game onto a 0–100 meter. Like `applyReplay`
+ * it is an absolute signal (a single game rated against the implicit `BASE_RATING` benchmark via the
+ * ELO expected-score transform). The target is the continuous rating for the dragged `score`
+ * (`vibeScoreToRating`), falling back to the chosen tier's representative band (`TIER_BANDS[tier]`)
+ * when no score is supplied. The nudge is soft (weight capped at 0.75) so it coexists with
+ * accumulated pairwise results rather than overwriting them. Default weight is a touch stronger than
+ * `replay` because a deliberate placement is more intentional than a replay verdict.
+ */
+function applyVibe(
+  state: RankingState,
+  gameId: number,
+  tier: Tier,
+  weight: number,
+  score?: number,
+): void {
   const game = state.games[String(gameId)];
   if (!game) return;
 
+  const targetRating = score != null ? vibeScoreToRating(score) : TIER_BANDS[tier];
   const expected = expectedScore(game.rating, BASE_RATING);
-  const targetScore = expectedScore(TIER_BANDS[tier], BASE_RATING);
+  const targetScore = expectedScore(targetRating, BASE_RATING);
   const delta = 30 * clamp(weight, 0.05, 0.75) * (targetScore - expected);
   game.rating += delta;
   game.uncertainty = Math.max(MIN_UNCERTAINTY, game.uncertainty * 0.975);

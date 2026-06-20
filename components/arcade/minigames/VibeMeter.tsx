@@ -41,11 +41,12 @@ function positionFromScore(score: number): number {
 }
 
 /** Glow color stops: red at 0, yellow at 50, green at 100. */
-const COLOR_STOPS = [
+type ColorStop = { at: number; rgb: readonly [number, number, number] };
+const COLOR_STOPS: readonly ColorStop[] = [
   { at: 0, rgb: [210, 58, 49] },
   { at: 50, rgb: [255, 213, 92] },
   { at: 100, rgb: [130, 224, 122] },
-] as const;
+];
 
 /**
  * Interpolate a 0-100 score to an `rgb(r g b / alpha)` color across red → yellow → green.
@@ -91,17 +92,17 @@ function VibeRow({
     return clamp((clientY - rect.top) / rect.height, 0, 1);
   };
 
+  // Silent update — used while dragging so we don't blip on every tick.
   const update = (newScore: number) => {
-    if (newScore !== score) {
-      playSound('blip');
-      onChange(newScore);
-    }
+    if (newScore !== score) onChange(newScore);
   };
 
   const handleDown = (e: React.PointerEvent) => {
     e.preventDefault();
     draggingRef.current = true;
     e.currentTarget?.setPointerCapture?.(e.pointerId);
+    // One blip per drag gesture, on the initial press.
+    playSound('blip');
     update(scoreFromPosition(positionFromEvent(e.clientY)));
   };
 
@@ -115,8 +116,6 @@ function VibeRow({
     draggingRef.current = false;
     e.currentTarget?.releasePointerCapture?.(e.pointerId);
   };
-
-  const handleTopPct = score !== null ? positionFromScore(score) * 100 : null;
 
   return (
     <div className="flex items-stretch justify-center gap-3">
@@ -180,12 +179,12 @@ function VibeRow({
             ))}
 
             {/* Handle */}
-            {handleTopPct !== null && (
+            {score !== null && (
               <motion.div
                 aria-hidden
                 className="pointer-events-none absolute left-1/2 z-10 flex h-7 w-9 -translate-x-1/2 items-center justify-center rounded-hardware border border-border bg-bg font-display text-xs font-black tabular-nums shadow-soft"
                 style={{ color: vibeColor(score, 1) }}
-                animate={{ top: `${handleTopPct}%`, y: '-50%' }}
+                animate={{ top: `${positionFromScore(score) * 100}%`, y: '-50%' }}
                 transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 30 }}
               >
                 {score}
@@ -223,11 +222,16 @@ export function VibeMeter({ games, onComplete }: MinigameProps) {
   const lockIn = () => {
     if (!allRated) return;
     playSound('success');
-    const outcomes = games.map((g) => ({
-      type: 'vibe' as const,
-      gameId: g.igdbId,
-      tier: tierFromPosition(positionFromScore(scores[g.igdbId] as number)),
-    }));
+    const outcomes = games.map((g) => {
+      const score = scores[g.igdbId] as number;
+      return {
+        type: 'vibe' as const,
+        gameId: g.igdbId,
+        // Continuous 0-100 score drives the ELO nudge; tier is kept as a coarse fallback.
+        score,
+        tier: tierFromPosition(positionFromScore(score)),
+      };
+    });
     complete(outcomes);
   };
 

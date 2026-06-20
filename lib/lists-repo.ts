@@ -98,3 +98,16 @@ export async function getList(shareId: string): Promise<ListDoc | null> {
   const coll = await listsCollection();
   return coll.findOne({ shareId }, { projection: { _id: 0 } });
 }
+
+/** Anonymous community tier counts for the given games (Phase 11 comparison). */
+export async function getGameStats(gameIds: number[]): Promise<GameStatsDoc[]> {
+  if (gameIds.length === 0) return [];
+  const coll = await gameStatsCollection();
+  return coll.find({ gameId: { $in: gameIds } }, { projection: { _id: 0 } }).toArray();
+}
+
+/** Total published lists — the "based on N lists" sample size for the comparison stat. */
+export async function countLists(): Promise<number> {
+  const coll = await listsCollection();
+  return coll.countDocuments();
+}
