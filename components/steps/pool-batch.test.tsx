@@ -136,8 +136,8 @@ describe('PoolStep batches', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: /played it/i })[0]);
     fireEvent.click(screen.getAllByRole('button', { name: /pass/i })[1]);
-    fireEvent.click(screen.getAllByRole('button', { name: /skip/i })[2]);
-    fireEvent.click(screen.getAllByRole('button', { name: /skip/i })[3]);
+    fireEvent.click(screen.getAllByRole('button', { name: /pass/i })[2]);
+    fireEvent.click(screen.getAllByRole('button', { name: /pass/i })[3]);
 
     await waitFor(() => {
       expect(calls.some((url) => listParam(url, 'seedIds').includes('1000'))).toBe(true);
@@ -172,7 +172,7 @@ describe('PoolStep batches', () => {
     }
 
     await waitFor(() => {
-      expect(screen.getAllByText('Game 6')).toHaveLength(2);
+      expect(screen.getAllByText('Game 6')).toHaveLength(1);
     });
   });
 
@@ -194,7 +194,7 @@ describe('PoolStep batches', () => {
     fireEvent.click(firstPass);
 
     await waitFor(() => {
-      expect(screen.getAllByText('Game 6')).toHaveLength(2);
+      expect(screen.getAllByText('Game 6')).toHaveLength(1);
     });
     expect(screen.queryByText('Game 7')).not.toBeInTheDocument();
   });

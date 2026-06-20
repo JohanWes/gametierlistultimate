@@ -46,7 +46,7 @@ describe('PoolStep preset shelf handoff', () => {
     expect(param(calls[calls.length - 1], 'preset')).toBeNull();
   });
 
-  it('keeps preset=true if the user only skips (no accepts), until the shelf drains', async () => {
+  it('keeps preset=true if the user only passes (no accepts), until the shelf drains', async () => {
     const calls: string[] = [];
     const fetchImpl = vi.fn(async (url: string) => {
       calls.push(url);
@@ -59,12 +59,12 @@ describe('PoolStep preset shelf handoff', () => {
 
     renderWithProviders(<PoolStep fetchImpl={fetchImpl} />);
 
-    // Skip 4 distinct slots (no accepts) — drains the backlog and triggers a refill fetch.
-    const skipButtons = await screen.findAllByRole('button', { name: /skip/i });
-    fireEvent.click(skipButtons[0]);
-    fireEvent.click(skipButtons[1]);
-    fireEvent.click(skipButtons[2]);
-    fireEvent.click(skipButtons[3]);
+    // Pass 4 distinct slots (no accepts) — drains the backlog and triggers a refill fetch.
+    const passButtons = await screen.findAllByRole('button', { name: /pass/i });
+    fireEvent.click(passButtons[0]);
+    fireEvent.click(passButtons[1]);
+    fireEvent.click(passButtons[2]);
+    fireEvent.click(passButtons[3]);
 
     await waitFor(() => expect(calls.length).toBeGreaterThanOrEqual(3));
 
