@@ -24,7 +24,7 @@ describe('PoolStep preset shelf handoff', () => {
       return { ok: true, status: 200, json: async () => ({ games: makeGames(5, start) }) };
     }) as unknown as typeof fetch;
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} />);
+    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
 
     // First batch (bootstrap) + backlog prefetch — both preset while cold.
     const playedButtons = await screen.findAllByRole('button', { name: /played it/i });
@@ -57,7 +57,7 @@ describe('PoolStep preset shelf handoff', () => {
       return { ok: true, status: 200, json: async () => ({ games: makeGames(5, start) }) };
     }) as unknown as typeof fetch;
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} />);
+    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
 
     // Pass 4 distinct slots (no accepts) — drains the backlog and triggers a refill fetch.
     const passButtons = await screen.findAllByRole('button', { name: /pass/i });

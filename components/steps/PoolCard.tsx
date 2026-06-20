@@ -12,10 +12,17 @@ import { GameCard } from '../ui/GameCard';
 
 export type PoolDecision = 'include' | 'reject';
 
+/**
+ * Chance that tapping "Played it" triggers the spotlight picker instead of including immediately.
+ * The picker only ever fires on a game the user has confirmed they played, so a spotlight is never
+ * wasted on a passed game. Inject `random` for deterministic tests.
+ */
+const SPOTLIGHT_CHANCE = 1 / 5;
+
 export interface PoolCardProps {
   game: Game;
-  /** Occasionally true — turns the include action into a quick "how much did you play it?" pick. */
-  spotlight?: boolean;
+  /** Injected RNG in [0, 1); defaults to Math.random. */
+  random?: () => number;
   onDecide: (action: PoolDecision) => void;
 }
 
@@ -38,11 +45,13 @@ const STATUS_OPTIONS: { status: PlayedStatus; label: string }[] = [
 
 /**
  * One candidate game in the pool-building batch: the cover is the whole decision surface,
- * with compact actions docked over the art. Most includes are a single tap; a `spotlight`
- * card instead reveals a small played-status picker — a sprinkled bonus, where "Played a lot"
- * gets a short celebration and seeds a stronger starting score for the ranking phase.
+ * with compact actions docked over the art. Most "Played it" taps include immediately; a random
+ * minority (SPOTLIGHT_CHANCE) instead reveals a small played-status picker — a sprinkled bonus,
+ * where "Played a lot" gets a short celebration and seeds a stronger starting score for the
+ * ranking phase. The trigger is rolled only on a "Played it" tap, so it never fires on a game the
+ * user passed on.
  */
-export function PoolCard({ game, spotlight = false, onDecide }: PoolCardProps) {
+export function PoolCard({ game, random = Math.random, onDecide }: PoolCardProps) {
   const reduce = useReducedMotion();
   const addToPool = useStore((s) => s.addToPool);
   const [picking, setPicking] = useState(false);
@@ -55,7 +64,7 @@ export function PoolCard({ game, spotlight = false, onDecide }: PoolCardProps) {
   };
 
   const onPlayed = () => {
-    if (spotlight) {
+    if (random() < SPOTLIGHT_CHANCE) {
       playSound('blip');
       setPicking(true);
       return;
@@ -71,15 +80,9 @@ export function PoolCard({ game, spotlight = false, onDecide }: PoolCardProps) {
       transition={reduce ? { duration: 0 } : { duration: 0.18, ease: [0.33, 1, 0.68, 1] }}
       className={cn(
         'relative mx-auto w-full max-w-[22rem] overflow-hidden rounded-card border bg-surface shadow-cabinet',
-        spotlight ? 'border-accent/80' : 'border-border',
+        'border-border',
       )}
     >
-      {spotlight ? (
-        <span className="absolute left-3 top-3 z-20 rounded-hardware border border-accent/70 bg-black/70 px-2 py-0.5 font-mono text-[0.58rem] font-bold uppercase tracking-[0.18em] text-accent shadow-soft backdrop-blur-sm">
-          ★ Spotlight
-        </span>
-      ) : null}
-
       <div className="relative">
         <GameCard game={game} showTitle={false} size="lg" className="w-full rounded-none border-0 shadow-none" />
         <div
@@ -104,6 +107,9 @@ export function PoolCard({ game, spotlight = false, onDecide }: PoolCardProps) {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col gap-1.5 border-t border-border/70 bg-surface px-3 py-3"
         >
+          <span className="self-center rounded-hardware border border-accent/70 bg-black/70 px-2 py-0.5 font-mono text-[0.58rem] font-bold uppercase tracking-[0.18em] text-accent shadow-soft backdrop-blur-sm">
+            ★ Spotlight
+          </span>
           <p className="text-center font-mono text-[0.62rem] uppercase tracking-[0.18em] text-teal">
             How much did you play it?
           </p>

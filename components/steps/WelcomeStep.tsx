@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 import { Button } from '../ui/Button';
 import { TIER_ORDER, type Tier } from '../ui/Row';
+import { AttractCabinet } from './AttractCabinet';
 
 const TIER_BG: Record<Tier, string> = {
   S: 'bg-tier-s',
@@ -19,9 +20,6 @@ const TIER_BG: Record<Tier, string> = {
   F: 'bg-tier-f',
 };
 
-// How many filled cover slots each ladder rung shows — a decorative spectrum.
-const RUNG_FILL: Record<Tier, number> = { S: 3, A: 4, B: 3, C: 4, D: 2, E: 2, F: 1 };
-
 // The flow, as a real four-beat sequence — numbered markers are earned here.
 const STEPS: { label: string; detail: string }[] = [
   { label: 'Pick genres', detail: 'Tell us what you reach for.' },
@@ -30,43 +28,15 @@ const STEPS: { label: string; detail: string }[] = [
   { label: 'Get your list', detail: 'A personal S–F ranking.' },
 ];
 
-/** Decorative vertical tier ladder (S→F) — the signature hero visual. */
-function TierLadder() {
-  const reduce = useReducedMotion();
+/** Slim S→F spectrum rule — the tier palette as a single identity mark under the wordmark. */
+function SpectrumRule() {
   return (
-    <div className="relative flex flex-col gap-1.5 rounded-card border-2 border-border bg-bg p-3 shadow-cabinet">
-      <div className="mb-2 flex items-center justify-between border-b border-border pb-2 font-mono text-[0.65rem] uppercase tracking-[0.18em] text-muted">
-        <span>Cabinet preview</span>
-        <span className="text-teal">Live</span>
-      </div>
-      {TIER_ORDER.map((tier, i) => (
-        <motion.div
-          key={tier}
-          initial={reduce ? false : { opacity: 0, x: 14 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 + i * 0.06, type: 'spring', stiffness: 260, damping: 26 }}
-          className="flex items-center gap-1.5"
-        >
-          <span
-            className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-tile font-display text-lg font-black text-black/85 shadow-soft',
-              TIER_BG[tier],
-            )}
-          >
-            {tier}
-          </span>
-          <div className="flex flex-1 gap-1.5">
-            {Array.from({ length: 4 }).map((_, slot) => (
-              <span
-                key={slot}
-                className={cn(
-                  'h-10 flex-1 rounded-tile border border-border',
-                  slot < RUNG_FILL[tier] ? 'bg-surface-elevated' : 'bg-panel',
-                )}
-              />
-            ))}
-          </div>
-        </motion.div>
+    <div
+      aria-hidden
+      className="mt-4 flex h-1.5 w-full max-w-xs overflow-hidden rounded-hardware lg:mx-0"
+    >
+      {TIER_ORDER.map((tier) => (
+        <span key={tier} className={cn('flex-1', TIER_BG[tier])} />
       ))}
     </div>
   );
@@ -117,16 +87,30 @@ export function WelcomeStep() {
       animate="show"
       className="grid flex-1 items-center gap-8 py-2 text-center lg:grid-cols-2 lg:gap-12 lg:text-left"
     >
-      <div className="flex flex-col items-center gap-6 lg:items-start">
-        <motion.div variants={item} className="max-w-xl">
-          <h1 className="font-display text-5xl font-black uppercase leading-[0.9] tracking-[0.02em] text-fg sm:text-6xl">
-            Game Tier List Ultimate
-          </h1>
-          <p className="mt-3 text-balance text-sm uppercase tracking-[0.18em] text-muted sm:text-base">
-            Rank the best games you&rsquo;ve played — through quick matchups, not drag-and-drop.
-          </p>
-        </motion.div>
+      {/* Headline — row 1, left column on desktop; first on mobile. */}
+      <motion.div
+        variants={item}
+        className="flex flex-col items-center lg:col-start-1 lg:row-start-1 lg:items-start"
+      >
+        <h1 className="font-display text-5xl font-black uppercase leading-[0.9] tracking-[0.02em] text-fg sm:text-6xl">
+          Game Tier List Ultimate
+        </h1>
+        <p className="mt-3 max-w-xl text-balance text-sm uppercase tracking-[0.18em] text-muted sm:text-base">
+          Rank the best games you&rsquo;ve played — through quick matchups, not drag-and-drop.
+        </p>
+        <SpectrumRule />
+      </motion.div>
 
+      {/* Cabinet — right column spanning both rows on desktop; second on mobile (the eye-catcher). */}
+      <motion.div
+        variants={item}
+        className="w-full lg:col-start-2 lg:row-span-2 lg:self-center"
+      >
+        <AttractCabinet />
+      </motion.div>
+
+      {/* How it works + CTA — row 2, left column on desktop; last on mobile. */}
+      <div className="flex flex-col items-center gap-6 lg:col-start-1 lg:row-start-2 lg:items-start">
         <motion.div variants={item} className="w-full max-w-xl">
           <HowItWorks itemVariants={item} />
         </motion.div>
@@ -150,10 +134,6 @@ export function WelcomeStep() {
           </Button>
         </motion.div>
       </div>
-
-      <motion.div variants={item} className="mx-auto w-full max-w-md lg:max-w-none">
-        <TierLadder />
-      </motion.div>
     </motion.div>
   );
 }

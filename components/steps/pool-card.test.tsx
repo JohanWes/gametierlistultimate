@@ -11,9 +11,9 @@ const game = makeGame({ igdbId: 42, title: 'Hollow Knight', releaseYear: 2017, g
 describe('PoolCard', () => {
   beforeEach(() => resetStore());
 
-  it('adds the game to the pool when Played it is clicked', () => {
+  it('adds the game to the pool when Played it is clicked (spotlight roll misses)', () => {
     const onDecide = vi.fn();
-    renderWithProviders(<PoolCard game={game} onDecide={onDecide} />);
+    renderWithProviders(<PoolCard game={game} random={() => 1} onDecide={onDecide} />);
 
     fireEvent.click(screen.getByRole('button', { name: /played it/i }));
 
@@ -21,9 +21,9 @@ describe('PoolCard', () => {
     expect(onDecide).toHaveBeenCalledWith('include');
   });
 
-  it('adds the game to the pool on touch as well', () => {
+  it('adds the game to the pool on touch as well (spotlight roll misses)', () => {
     const onDecide = vi.fn();
-    renderWithProviders(<PoolCard game={game} onDecide={onDecide} />);
+    renderWithProviders(<PoolCard game={game} random={() => 1} onDecide={onDecide} />);
 
     fireEvent.touchEnd(screen.getByRole('button', { name: /played it/i }));
 
@@ -33,7 +33,7 @@ describe('PoolCard', () => {
 
   it('rejects without adding to the pool', () => {
     const onDecide = vi.fn();
-    renderWithProviders(<PoolCard game={game} onDecide={onDecide} />);
+    renderWithProviders(<PoolCard game={game} random={() => 1} onDecide={onDecide} />);
 
     fireEvent.click(screen.getByRole('button', { name: /pass/i }));
 
@@ -41,9 +41,9 @@ describe('PoolCard', () => {
     expect(onDecide).toHaveBeenCalledWith('reject');
   });
 
-  it('on a spotlight card, Played it reveals the status picker and records the chosen status', () => {
+  it('when the spotlight roll hits, Played it reveals the status picker and records the chosen status', () => {
     const onDecide = vi.fn();
-    renderWithProviders(<PoolCard game={game} spotlight onDecide={onDecide} />);
+    renderWithProviders(<PoolCard game={game} random={() => 0} onDecide={onDecide} />);
 
     // First tap reveals the picker rather than including immediately.
     fireEvent.click(screen.getByRole('button', { name: /played it/i }));
@@ -54,6 +54,18 @@ describe('PoolCard', () => {
 
     const entry = useStore.getState().pool.find((e) => e.game.igdbId === 42);
     expect(entry?.status).toBe('played-a-lot');
+    expect(onDecide).toHaveBeenCalledWith('include');
+  });
+
+  it('a spotlight roll just above the threshold still includes immediately as finished', () => {
+    const onDecide = vi.fn();
+    renderWithProviders(<PoolCard game={game} random={() => 0.99} onDecide={onDecide} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /played it/i }));
+
+    expect(screen.queryByText(/how much did you play it/i)).not.toBeInTheDocument();
+    const entry = useStore.getState().pool.find((e) => e.game.igdbId === 42);
+    expect(entry?.status).toBe('finished');
     expect(onDecide).toHaveBeenCalledWith('include');
   });
 });

@@ -17,7 +17,6 @@ import { StepScaffold } from './StepScaffold';
 
 const VISIBLE_SLOTS = 5;
 const REFILL_AT = 2;
-const SPOTLIGHT_EVERY = 3;
 /**
  * Curated starter shelf handoff. The first few batches pull the preset shelf so the user's
  * accepts can branch into the pre-seeded persona co-occurrence clusters. We stop asking for the
@@ -30,11 +29,12 @@ const PRESET_ACCEPT_HANDOFF = 3;
 
 export interface PoolStepProps {
   fetchImpl?: typeof fetch;
+  /** Injected RNG forwarded to each PoolCard's spotlight roll; defaults to Math.random. */
+  random?: () => number;
 }
 
 interface SlotEntry {
   game: Game;
-  spotlight: boolean;
 }
 
 /**
@@ -43,7 +43,7 @@ interface SlotEntry {
  * the other four never move. The backlog is prefetched in the background so replacements
  * appear instantly.
  */
-export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
+export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
   const prefs = useStore((s) => s.prefs);
   const poolCount = useStore((s) => s.pool.length);
   const reduce = useReducedMotion();
@@ -63,7 +63,6 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
   const rejectedRef = useRef<Set<number>>(new Set());
   const slotsRef = useRef<(SlotEntry | null)[]>(slots);
   const backlogRef = useRef<SlotEntry[]>([]);
-  const fetchCountRef = useRef(0);
   const fetchingRef = useRef(false);
   const exhaustedRef = useRef(false);
   const initRef = useRef(false);
@@ -168,17 +167,8 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
 
       if (preset) presetBatchesRef.current += 1;
 
-      fetchCountRef.current += 1;
-      let spotlightGameId: number | null = null;
-      if (fetchCountRef.current % SPOTLIGHT_EVERY === 0) {
-        spotlightGameId = freshGames.reduce((best, g) =>
-          (g.rating ?? 0) > (best.rating ?? 0) ? g : best,
-        ).igdbId;
-      }
-
       const entries: SlotEntry[] = freshGames.map((g) => ({
         game: g,
-        spotlight: g.igdbId === spotlightGameId,
       }));
 
       const next = [...backlogRef.current, ...entries];
@@ -230,17 +220,8 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
 
         if (preset) presetBatchesRef.current += 1;
 
-        fetchCountRef.current = 1;
-        let spotlightGameId: number | null = null;
-        if (fetchCountRef.current % SPOTLIGHT_EVERY === 0) {
-          spotlightGameId = freshGames.reduce((best, g) =>
-            (g.rating ?? 0) > (best.rating ?? 0) ? g : best,
-          ).igdbId;
-        }
-
         const entries: (SlotEntry | null)[] = freshGames.slice(0, VISIBLE_SLOTS).map((g) => ({
           game: g,
-          spotlight: g.igdbId === spotlightGameId,
         }));
 
         while (entries.length < VISIBLE_SLOTS) entries.push(null);
@@ -354,7 +335,7 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
                       <PoolCard
                         key={entry.game.igdbId}
                         game={entry.game}
-                        spotlight={entry.spotlight}
+                        random={random}
                         onDecide={(action) => handleDecide(entry.game.igdbId, action)}
                       />
                     ) : (
