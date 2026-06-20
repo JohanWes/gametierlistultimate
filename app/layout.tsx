@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { IBM_Plex_Sans, JetBrains_Mono, Saira_Condensed } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 
 import { Providers } from '@/components/Providers';
 
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="min-h-dvh bg-bg font-sans text-fg">
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );

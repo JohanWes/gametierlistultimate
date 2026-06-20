@@ -14,7 +14,7 @@ describe('HomePage', () => {
   it('mounts and renders the welcome hero', () => {
     renderWithProviders(<HomePage />);
     expect(
-      screen.getByRole('heading', { name: /build your ultimate game tier list/i }),
+      screen.getByRole('heading', { name: /game tier list ultimate/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /press start/i })).toBeInTheDocument();
   });
