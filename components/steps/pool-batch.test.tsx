@@ -31,7 +31,7 @@ describe('PoolStep batches', () => {
       return { ok: true, status: 200, json: async () => ({ games }) };
     }) as unknown as typeof fetch;
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} />);
+    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
 
     // First batch lands — exclude is empty.
     await screen.findAllByRole('button', { name: /pass/i });
@@ -83,7 +83,7 @@ describe('PoolStep batches', () => {
       return { ok: true, status: 200, json: async () => ({ games: makeGames(count, start) }) };
     }) as unknown as typeof fetch;
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} />);
+    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
 
     // First batch has only 3 cards, the other 2 slots show a placeholder — no crash.
     await screen.findAllByRole('button', { name: /pass/i });
@@ -97,7 +97,7 @@ describe('PoolStep batches', () => {
       return { ok: true, status: 200, json: async () => ({ games: [] }) };
     }) as unknown as typeof fetch;
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} />);
+    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
 
     await waitFor(() => {
       expect(screen.getByText(/whole shelf/i)).toBeInTheDocument();
@@ -111,7 +111,7 @@ describe('PoolStep batches', () => {
       return { ok: true, status: 200, json: async () => ({ games: makeGames(5, 1000) }) };
     }) as unknown as typeof fetch;
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} />);
+    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
 
     const retry = await screen.findByRole('button', { name: /retry now/i });
     expect(screen.queryByText(/whole shelf/i)).not.toBeInTheDocument();
@@ -129,7 +129,7 @@ describe('PoolStep batches', () => {
       return { ok: true, status: 200, json: async () => ({ games: makeGames(5, start) }) };
     }) as unknown as typeof fetch;
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} />);
+    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
 
     await screen.findAllByRole('button', { name: /played it/i });
     await waitFor(() => expect(calls).toHaveLength(2));
@@ -162,7 +162,7 @@ describe('PoolStep batches', () => {
       return { ok: true, status: 200, json: async () => ({ games }) };
     }) as unknown as typeof fetch;
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} />);
+    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
 
     await screen.findAllByRole('button', { name: /pass/i });
     await waitFor(() => expect(call).toBe(2));
@@ -183,7 +183,7 @@ describe('PoolStep batches', () => {
       return { ok: true, status: 200, json: async () => ({ games: makeGames(5, start) }) };
     }) as unknown as typeof fetch;
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} />);
+    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
 
     await screen.findAllByRole('button', { name: /pass/i });
     await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));

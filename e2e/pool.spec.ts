@@ -78,7 +78,7 @@ test('build a pool from batches + search, then enter the arcade', async ({ page 
   for (let i = 0; i < 60 && (await poolSize()) < 12; i += 1) {
     const before = await poolSize();
     await page.getByRole('button', { name: /played it/i }).first().click();
-    // Spotlight cards reveal a status picker — pick one to commit the include.
+    // A random spotlight roll on Played it reveals a status picker — pick one to commit the include.
     const finished = page.getByRole('button', { name: /^finished$/i });
     if (await finished.isVisible().catch(() => false)) {
       await finished.click({ force: true }).catch(() => undefined);
