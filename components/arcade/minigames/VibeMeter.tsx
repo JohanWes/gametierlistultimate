@@ -13,36 +13,71 @@ import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
 
+/**
+ * Internal tier list — kept for mapping a 0-100 score onto the engine's 7 tier bands at lock-in.
+ * Not rendered: the visible scale is the 0-100 `SCORE_TICKS` below.
+ */
 const TIERS: Tier[] = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
 
-const TIER_TEXT: Record<Tier, string> = {
-  S: 'text-teal',
-  A: 'text-teal',
-  B: 'text-accent',
-  C: 'text-accent',
-  D: 'text-coin',
-  E: 'text-coin',
-  F: 'text-coin',
-};
+/** Visible tick labels down the meter (top → bottom). */
+const SCORE_TICKS = [100, 75, 50, 25, 0];
+
+/** Internal segment dividers between ticks, as percentage offsets from the top. */
+const TICK_DIVIDERS = [25, 50, 75];
 
 function tierFromPosition(pos: number): Tier {
   const idx = Math.min(TIERS.length - 1, Math.floor(pos * TIERS.length));
   return TIERS[idx];
 }
 
-function positionForTier(tier: Tier): number {
-  const idx = TIERS.indexOf(tier);
-  return (idx + 0.5) / TIERS.length;
+/** Pointer position (0 top → 1 bottom) → 0-100 score (100 top → 0 bottom). */
+function scoreFromPosition(pos: number): number {
+  return Math.round((1 - clamp(pos, 0, 1)) * 100);
+}
+
+/** 0-100 score → pointer position (0 top → 1 bottom). */
+function positionFromScore(score: number): number {
+  return 1 - clamp(score, 0, 100) / 100;
+}
+
+/** Glow color stops: red at 0, yellow at 50, green at 100. */
+const COLOR_STOPS = [
+  { at: 0, rgb: [210, 58, 49] },
+  { at: 50, rgb: [255, 213, 92] },
+  { at: 100, rgb: [130, 224, 122] },
+] as const;
+
+/**
+ * Interpolate a 0-100 score to an `rgb(r g b / alpha)` color across red → yellow → green.
+ * Used for the card glow (`alpha = 0.55`) and the handle text color (`alpha = 1`).
+ */
+function vibeColor(score: number, alpha = 1): string {
+  const s = clamp(score, 0, 100);
+  let lo = COLOR_STOPS[0];
+  let hi = COLOR_STOPS[COLOR_STOPS.length - 1];
+  for (let i = 0; i < COLOR_STOPS.length - 1; i += 1) {
+    if (s >= COLOR_STOPS[i].at && s <= COLOR_STOPS[i + 1].at) {
+      lo = COLOR_STOPS[i];
+      hi = COLOR_STOPS[i + 1];
+      break;
+    }
+  }
+  const span = hi.at - lo.at || 1;
+  const t = (s - lo.at) / span;
+  const r = Math.round(lo.rgb[0] + (hi.rgb[0] - lo.rgb[0]) * t);
+  const g = Math.round(lo.rgb[1] + (hi.rgb[1] - lo.rgb[1]) * t);
+  const b = Math.round(lo.rgb[2] + (hi.rgb[2] - lo.rgb[2]) * t);
+  return `rgb(${r} ${g} ${b}${alpha !== 1 ? ` / ${alpha}` : ''})`;
 }
 
 function VibeRow({
   game,
-  tier,
+  score,
   onChange,
 }: {
   game: Game;
-  tier: Tier | null;
-  onChange: (tier: Tier) => void;
+  score: number | null;
+  onChange: (score: number) => void;
 }) {
   const reduce = useReducedMotion();
   const barRef = useRef<HTMLDivElement>(null);
@@ -56,10 +91,10 @@ function VibeRow({
     return clamp((clientY - rect.top) / rect.height, 0, 1);
   };
 
-  const update = (newTier: Tier) => {
-    if (newTier !== tier) {
+  const update = (newScore: number) => {
+    if (newScore !== score) {
       playSound('blip');
-      onChange(newTier);
+      onChange(newScore);
     }
   };
 
@@ -67,12 +102,12 @@ function VibeRow({
     e.preventDefault();
     draggingRef.current = true;
     e.currentTarget?.setPointerCapture?.(e.pointerId);
-    update(tierFromPosition(positionFromEvent(e.clientY)));
+    update(scoreFromPosition(positionFromEvent(e.clientY)));
   };
 
   const handleMove = (e: React.PointerEvent) => {
     if (!draggingRef.current) return;
-    update(tierFromPosition(positionFromEvent(e.clientY)));
+    update(scoreFromPosition(positionFromEvent(e.clientY)));
   };
 
   const handleUp = (e: React.PointerEvent) => {
@@ -81,11 +116,16 @@ function VibeRow({
     e.currentTarget?.releasePointerCapture?.(e.pointerId);
   };
 
-  const handleTopPct = tier !== null ? positionForTier(tier) * 100 : null;
+  const handleTopPct = score !== null ? positionFromScore(score) * 100 : null;
 
   return (
     <div className="flex items-stretch justify-center gap-3">
-      <ArcadeCard game={game} size="sm" state={tier ? 'win' : 'idle'} />
+      <ArcadeCard
+        game={game}
+        size="sm"
+        state={score != null ? 'win' : 'idle'}
+        glowColor={score != null ? vibeColor(score, 0.55) : undefined}
+      />
 
       <div className="flex flex-1 flex-col">
         <span className="mb-1.5 truncate font-display text-xs font-bold uppercase tracking-wide text-fg">
@@ -93,18 +133,18 @@ function VibeRow({
         </span>
 
         <div className="flex flex-1 items-stretch justify-center gap-1.5">
-          {/* Tier labels */}
+          {/* Score tick labels */}
           <div className="flex flex-col justify-between py-0 text-right">
-            {TIERS.map((t) => (
+            {SCORE_TICKS.map((tick) => (
               <span
-                key={t}
+                key={tick}
                 aria-hidden
                 className={cn(
-                  'font-mono text-[0.6rem] font-bold leading-none transition-colors',
-                  tier === t ? TIER_TEXT[t] : 'text-muted/40',
+                  'font-mono text-[0.6rem] font-bold leading-none tabular-nums transition-colors',
+                  score !== null && Math.abs(score - tick) <= 12 ? 'text-fg' : 'text-muted/40',
                 )}
               >
-                {t}
+                {tick}
               </span>
             ))}
           </div>
@@ -116,9 +156,9 @@ function VibeRow({
             aria-label={`Rate ${game.title}`}
             aria-orientation="vertical"
             aria-valuemin={0}
-            aria-valuemax={6}
-            aria-valuenow={tier ? TIERS.indexOf(tier) : undefined}
-            aria-valuetext={tier ?? 'unrated'}
+            aria-valuemax={100}
+            aria-valuenow={score ?? undefined}
+            aria-valuetext={score != null ? `${score} out of 100` : 'unrated'}
             onPointerDown={handleDown}
             onPointerMove={handleMove}
             onPointerUp={handleUp}
@@ -126,16 +166,16 @@ function VibeRow({
             className="relative min-h-[8.5rem] w-8 cursor-pointer touch-none rounded-hardware border border-border"
             style={{
               background:
-                'linear-gradient(to bottom, rgb(var(--color-teal)), rgb(var(--color-accent)) 50%, rgb(var(--color-coin)))',
+                'linear-gradient(to bottom, rgb(130 224 122), rgb(255 213 92) 50%, rgb(210 58 49))',
             }}
           >
-            {/* Tier segment dividers */}
-            {TIERS.slice(1).map((_, i) => (
+            {/* Tick segment dividers */}
+            {TICK_DIVIDERS.map((pct) => (
               <span
-                key={i}
+                key={pct}
                 aria-hidden
                 className="pointer-events-none absolute left-0 right-0 h-px bg-bg/30"
-                style={{ top: `${((i + 1) / TIERS.length) * 100}%` }}
+                style={{ top: `${pct}%` }}
               />
             ))}
 
@@ -143,14 +183,12 @@ function VibeRow({
             {handleTopPct !== null && (
               <motion.div
                 aria-hidden
-                className={cn(
-                  'pointer-events-none absolute left-1/2 z-10 flex h-7 w-9 -translate-x-1/2 items-center justify-center rounded-hardware border border-border bg-bg font-display text-xs font-black shadow-soft',
-                  TIER_TEXT[tier as Tier],
-                )}
+                className="pointer-events-none absolute left-1/2 z-10 flex h-7 w-9 -translate-x-1/2 items-center justify-center rounded-hardware border border-border bg-bg font-display text-xs font-black tabular-nums shadow-soft"
+                style={{ color: vibeColor(score, 1) }}
                 animate={{ top: `${handleTopPct}%`, y: '-50%' }}
                 transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 30 }}
               >
-                {tier}
+                {score}
               </motion.div>
             )}
           </div>
@@ -162,23 +200,24 @@ function VibeRow({
 
 /**
  * Minigame 11 — "Where do these land for you?" Shows 3–5 covers, each beside its own vertical
- * S–F tier meter. Drag (or tap) a meter to place the game in a tier; the engine nudges each game's
- * ELO toward that tier's representative band via a soft `vibe` outcome (one per game).
+ * 0-100 meter. Drag (or tap) a meter to rate the game; the engine nudges each game's ELO toward
+ * the tier band that corresponds to the score (100 → S, 0 → F) via a soft `vibe` outcome (one per
+ * game). The card backdrop glows green near 100, yellow near 50, red near 0.
  *
  * Mouse + touch are unified through Pointer Events (`touch-none` prevents scroll hijacking on
  * mobile). No keyboard dependency; ARIA labels carry screen-reader context.
  */
 export function VibeMeter({ games, onComplete }: MinigameProps) {
   const complete = useComplete(onComplete);
-  const [tiers, setTiers] = useState<Record<number, Tier | null>>({});
+  const [scores, setScores] = useState<Record<number, number | null>>({});
 
   if (games.length === 0) return null;
 
-  const ratedCount = games.filter((g) => tiers[g.igdbId] != null).length;
+  const ratedCount = games.filter((g) => scores[g.igdbId] != null).length;
   const allRated = ratedCount === games.length;
 
-  const setTier = (gameId: number, tier: Tier) => {
-    setTiers((prev) => ({ ...prev, [gameId]: tier }));
+  const setScore = (gameId: number, score: number) => {
+    setScores((prev) => ({ ...prev, [gameId]: score }));
   };
 
   const lockIn = () => {
@@ -187,7 +226,7 @@ export function VibeMeter({ games, onComplete }: MinigameProps) {
     const outcomes = games.map((g) => ({
       type: 'vibe' as const,
       gameId: g.igdbId,
-      tier: tiers[g.igdbId] as Tier,
+      tier: tierFromPosition(positionFromScore(scores[g.igdbId] as number)),
     }));
     complete(outcomes);
   };
@@ -200,7 +239,7 @@ export function VibeMeter({ games, onComplete }: MinigameProps) {
           Where do these land?
         </h2>
         <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted">
-          Drag each meter — top is S, bottom is F
+          Drag each meter — top is 100, bottom is 0
         </p>
       </header>
 
@@ -209,8 +248,8 @@ export function VibeMeter({ games, onComplete }: MinigameProps) {
           <div key={g.igdbId} className="w-full max-w-xs">
             <VibeRow
               game={g}
-              tier={tiers[g.igdbId] ?? null}
-              onChange={(t) => setTier(g.igdbId, t)}
+              score={scores[g.igdbId] ?? null}
+              onChange={(s) => setScore(g.igdbId, s)}
             />
           </div>
         ))}

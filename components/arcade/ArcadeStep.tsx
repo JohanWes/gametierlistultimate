@@ -75,6 +75,7 @@ export function ArcadeStep() {
     initRanking(pool, useStore.getState().scores),
   );
   const recentRef = useRef<MinigameKind[]>([]);
+  const vibeSeenRef = useRef<Set<number>>(new Set());
   const [roundKey, setRoundKey] = useState(0);
 
   const confidence = useMemo(() => computeConfidence(ranking).global, [ranking]);
@@ -83,7 +84,11 @@ export function ArcadeStep() {
 
   // Resolve the current round's games against the pool. Recomputed whenever the engine advances.
   const view: RoundView | null = useMemo(() => {
-    const round = selectRound(ranking, { phase, recentKinds: recentRef.current });
+    const round = selectRound(ranking, {
+      phase,
+      recentKinds: recentRef.current,
+      vibeSeenIds: [...vibeSeenRef.current],
+    });
     if (!round) return null;
     const games = round.gameIds
       .map((id) => gameMap.get(id))
@@ -106,6 +111,9 @@ export function ArcadeStep() {
       const kind = view?.kind;
       const next = outcomes.reduce((s, o) => applyOutcome(s, o), ranking);
       if (kind) recentRef.current = [kind, ...recentRef.current].slice(0, RECENT_MEMORY);
+      if (kind === 'vibe' && view) {
+        for (const g of view.games) vibeSeenRef.current.add(g.igdbId);
+      }
 
       const nextConfidence = computeConfidence(next).global;
       setRanking(next);

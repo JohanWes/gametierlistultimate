@@ -42,6 +42,12 @@ export interface SelectOptions {
   phase: RankingPhase;
   /** Most-recent-first list of the kinds already played, for variety control. */
   recentKinds?: MinigameKind[];
+  /**
+   * Game ids that have already appeared in a previous vibe-meter round. The vibe builder skips
+   * these so a player never rates the same cover on the S–F slider twice. When too few fresh
+   * games remain to fill a round, the vibe injection is skipped (a normal matchup plays instead).
+   */
+  vibeSeenIds?: number[];
 }
 
 /* ------------------------------------------------------------------ tunables */
@@ -113,7 +119,7 @@ export function canReveal(confidence: number, round: number): boolean {
 export function selectRound(state: RankingState, options: SelectOptions): ArcadeRound | null {
   const recent = options.recentKinds ?? [];
 
-  const injected = injectedRound(state, options.phase, recent[0]);
+  const injected = injectedRound(state, options.phase, recent[0], options.vibeSeenIds);
   if (injected) return injected;
 
   const matchup = nextMatchup(state, options.phase);
@@ -136,6 +142,7 @@ function injectedRound(
   state: RankingState,
   phase: RankingPhase,
   last: MinigameKind | undefined,
+  vibeSeenIds?: number[],
 ): ArcadeRound | null {
   const round = state.round;
   if (round <= 0) return null;
@@ -159,7 +166,7 @@ function injectedRound(
   // fresh absolute reads. Its 5-round cadence sits between replay (6) and gauntlet (8) so the
   // scheduled specials rarely collide.
   if (phase !== 'late' && round % VIBE_EVERY === 0 && last !== 'vibe') {
-    const vibe = buildVibeRound(state);
+    const vibe = buildVibeRound(state, vibeSeenIds);
     if (vibe) return vibe;
   }
 
@@ -244,10 +251,14 @@ export function buildGauntlet(state: RankingState): ArcadeRound | null {
 /**
  * Build a vibe-meter round: gather the `VIBE_POOL_SIZE` least-sampled games so a single round of
  * S–F slider verdicts lifts coverage where it's needed most. Falls back to null below the pool
- * size so small lists don't get a stub round.
+ * size so small lists don't get a stub round. Games whose ids appear in `excludeIds` (i.e. they
+ * have already been rated in a previous vibe round) are skipped, so a player never rates the same
+ * cover twice; returns null when fewer than `VIBE_POOL_SIZE` fresh games remain, in which case the
+ * vibe injection is dropped and a normal matchup plays instead.
  */
-export function buildVibeRound(state: RankingState): ArcadeRound | null {
-  const games = Object.values(state.games);
+export function buildVibeRound(state: RankingState, excludeIds?: number[]): ArcadeRound | null {
+  const exclude = excludeIds && excludeIds.length > 0 ? new Set(excludeIds) : null;
+  const games = Object.values(state.games).filter((g) => !exclude?.has(g.gameId));
   if (games.length < VIBE_POOL_SIZE) return null;
 
   const picked = [...games]

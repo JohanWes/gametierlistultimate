@@ -19,6 +19,13 @@ export interface ArcadeCardProps {
   onSelect?: () => void;
   disabled?: boolean;
   className?: string;
+  /**
+   * Custom glow color (any CSS color string, e.g. `rgb(130 224 122 / 0.55)`). When provided and
+   * `state` is `win`, the highlight overlay uses this color for its boxShadow + ring instead of
+   * the default accent. Used by the vibe-meter to tint the glow from red→yellow→green based on
+   * the player's 0-100 rating. Backward compatible: omitted by all other minigames.
+   */
+  glowColor?: string;
 }
 
 /**
@@ -34,6 +41,7 @@ export function ArcadeCard({
   onSelect,
   disabled = false,
   className,
+  glowColor,
 }: ArcadeCardProps) {
   const reduce = useReducedMotion();
   const interactive = typeof onSelect === 'function' && !disabled;
@@ -51,8 +59,15 @@ export function ArcadeCard({
       {state === 'win' ? (
         <motion.span
           aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-tile ring-2 ring-accent"
-          style={{ boxShadow: '0 0 30px rgb(var(--color-accent) / 0.55)' }}
+          className={cn(
+            'pointer-events-none absolute inset-0 rounded-tile ring-2',
+            glowColor ? 'ring-transparent' : 'ring-accent',
+          )}
+          style={
+            glowColor
+              ? { boxShadow: `0 0 30px ${glowColor}, 0 0 0 2px ${glowColor}` }
+              : { boxShadow: '0 0 30px rgb(var(--color-accent) / 0.55)' }
+          }
           initial={reduce ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
         />

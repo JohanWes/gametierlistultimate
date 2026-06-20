@@ -253,6 +253,54 @@ describe('buildVibeRound', () => {
     const state = createRankingState([1, 2, 3], { seed: 1 });
     expect(buildVibeRound(state)).toBeNull();
   });
+
+  it('returns null when exclusion drops the fresh pool below VIBE_POOL_SIZE', () => {
+    const state = createRankingState([1, 2, 3, 4, 5], { seed: 3 });
+    // Exclude 3 of the 5 games; only 2 remain — below the 4-game pool size.
+    expect(buildVibeRound(state, [1, 2, 3])).toBeNull();
+  });
+
+  it('picks only fresh games when enough remain after exclusion', () => {
+    let state = createRankingState([1, 2, 3, 4, 5, 6, 7, 8], { seed: 4 });
+    for (let i = 0; i < 6; i += 1) {
+      state = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 2 });
+    }
+    // Exclude the four least-sampled (3/4/5/6); the next four (7/8/1/2) should be picked.
+    const vibe = buildVibeRound(state, [3, 4, 5, 6])!;
+    expect(vibe.kind).toBe('vibe');
+    expect(vibe.gameIds).toHaveLength(4);
+    for (const id of [3, 4, 5, 6]) {
+      expect(vibe.gameIds).not.toContain(id);
+    }
+  });
+
+  it('treats an empty excludeIds array as no exclusion', () => {
+    const state = createRankingState([1, 2, 3, 4, 5, 6], { seed: 5 });
+    const vibe = buildVibeRound(state, [])!;
+    expect(vibe.gameIds).toHaveLength(4);
+  });
+});
+
+describe('selectRound — vibe exclusion', () => {
+  it('a vibe-cadence round with vibeSeenIds yields only fresh games', () => {
+    const state = stateAtRound([1, 2, 3, 4, 5, 6, 7, 8], 5);
+    // Exclude the four least-sampled ids; the vibe round must draw from the rest.
+    const round = selectRound(state, { phase: 'early', vibeSeenIds: [3, 4, 5, 6] })!;
+    expect(round.kind).toBe('vibe');
+    for (const id of [3, 4, 5, 6]) {
+      expect(round.gameIds).not.toContain(id);
+    }
+  });
+
+  it('falls through to a non-vibe round when no fresh games fill the pool', () => {
+    const state = stateAtRound([1, 2, 3, 4, 5, 6], 5);
+    // Exclude the entire pool — vibe must be skipped and a normal matchup takes over.
+    const round = selectRound(state, {
+      phase: 'early',
+      vibeSeenIds: [1, 2, 3, 4, 5, 6],
+    })!;
+    expect(round.kind).not.toBe('vibe');
+  });
 });
 
 describe('buildGauntlet', () => {
