@@ -146,7 +146,7 @@ export function DraggableArcadeCard({
     >
       <ArcadeCard
         game={game}
-        size="sm"
+        size="zone"
         state={active ? 'win' : state}
         badge={badge}
         className={active ? 'shadow-[0_18px_40px_rgb(0_0_0/0.5)]' : undefined}

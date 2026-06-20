@@ -122,7 +122,7 @@ function VibeRow({
     <div className="flex items-stretch justify-center gap-3">
       <ArcadeCard
         game={game}
-        size="sm"
+        size="zone"
         state={score != null ? 'win' : 'idle'}
         glowColor={score != null ? vibeColor(score, 0.55) : undefined}
       />
@@ -163,7 +163,7 @@ function VibeRow({
             onPointerMove={handleMove}
             onPointerUp={handleUp}
             onPointerCancel={handleUp}
-            className="relative min-h-[8.5rem] w-8 cursor-pointer touch-none rounded-hardware border border-border"
+            className="relative min-h-[calc(var(--cover-zone)*4/3)] w-8 cursor-pointer touch-none rounded-hardware border border-border"
             style={{
               background:
                 'linear-gradient(to bottom, rgb(130 224 122), rgb(255 213 92) 50%, rgb(210 58 49))',

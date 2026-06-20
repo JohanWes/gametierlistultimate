@@ -182,7 +182,7 @@ export function HigherLower({ games, anchorId, onComplete }: MinigameProps) {
                 animate={pulsed === i ? { scale: [1, 1.03, 1] } : { scale: 1 }}
                 transition={{ duration: 0.36 }}
                 className={cn(
-                  'flex min-h-[156px] flex-col items-center justify-center rounded-tile border p-2 transition-colors',
+                  'flex min-h-[calc(var(--cover-zone)*4/3_+_0.75rem)] flex-col items-center justify-center rounded-tile border p-2 transition-colors',
                   contents.length > 0
                     ? 'border-border/70 bg-surface/15'
                     : 'border-dashed border-border/40',
@@ -202,7 +202,7 @@ export function HigherLower({ games, anchorId, onComplete }: MinigameProps) {
                       }}
                       className="rounded-tile focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     >
-                      <ArcadeCard game={g} size="sm" state={liveState(g)} />
+                      <ArcadeCard game={g} size="zone" state={liveState(g)} />
                     </motion.button>
                   ))}
                 </div>
@@ -237,7 +237,7 @@ export function HigherLower({ games, anchorId, onComplete }: MinigameProps) {
       </p>
 
       {/* Tray of unplaced covers (or a nudge once both are down). */}
-      <div className="mt-4 flex min-h-[120px] w-full max-w-2xl flex-wrap items-center justify-center gap-3 border-t border-border pt-4">
+      <div className="mt-4 flex min-h-[calc(var(--cover-zone)*4/3)] w-full max-w-2xl flex-wrap items-center justify-center gap-3 border-t border-border pt-4">
         {tray.length > 0 ? (
           tray.map((g) => (
             <DraggableArcadeCard

@@ -113,7 +113,7 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
       {/* Buckets — rendered best (Top) on the right, worst (Bottom) on the left. The band *index*
           stays 0 = Top = best so the emitted `buckets` array is still best-first (what the engine
           scores); only the visual order is reversed via `renderOrder`. */}
-      <div className="grid w-full max-w-3xl grid-cols-3 gap-3">
+      <div className="grid w-full max-w-6xl grid-cols-3 gap-3">
         {[...BUCKETS.keys()].reverse().map((i) => {
           const bucket = BUCKETS[i];
           const contents = games.filter((g) => placement[g.igdbId] === i);
@@ -136,7 +136,7 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
               animate={pulsed === i ? { scale: [1, 1.04, 1] } : { scale: 1 }}
               transition={{ duration: 0.36 }}
               className={cn(
-                'flex min-h-[200px] flex-col rounded-tile border-2 border-dashed bg-surface/20 p-2.5 transition-colors',
+                'flex min-h-[calc(var(--cover-zone)*4/3_+_2.75rem)] flex-col rounded-tile border-2 border-dashed bg-surface/20 p-2.5 transition-colors',
                 ACCENT_RING[bucket.accent],
                 picked !== null && 'cursor-pointer border-solid bg-surface/40',
               )}
@@ -162,7 +162,7 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
                     }}
                     className="rounded-tile focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
-                    <ArcadeCard game={g} size="sm" />
+                    <ArcadeCard game={g} size="zone" />
                   </motion.button>
                 ))}
               </div>
@@ -172,7 +172,7 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
       </div>
 
       {/* Tray of unplaced covers */}
-      <div className="mt-6 flex min-h-[160px] w-full max-w-3xl flex-wrap justify-center gap-3 border-t border-border pt-5">
+      <div className="mt-6 flex min-h-[calc(var(--cover-zone)*4/3)] w-full max-w-6xl flex-wrap justify-center gap-3 border-t border-border pt-5">
         {tray.length > 0 ? (
           tray.map((g) => (
             <DraggableArcadeCard

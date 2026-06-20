@@ -62,6 +62,7 @@ export function KeepTwo({ games, onComplete }: MinigameProps) {
             <motion.div key={game.igdbId} layout>
               <ArcadeCard
                 game={game}
+                size="row"
                 state={stateFor(game.igdbId)}
                 badge={order >= 0 ? order + 1 : undefined}
                 onSelect={() => toggle(game.igdbId)}

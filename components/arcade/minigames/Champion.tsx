@@ -35,6 +35,7 @@ export function Champion({ games, onComplete }: MinigameProps) {
           <motion.div key={game.igdbId} layout>
             <ArcadeCard
               game={game}
+              size="row"
               state={stateFor(game.igdbId)}
               badge={winnerId === game.igdbId ? '♛' : undefined}
               onSelect={() => crown(game.igdbId)}

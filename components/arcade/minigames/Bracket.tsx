@@ -90,7 +90,7 @@ export function Bracket({ games, onComplete }: MinigameProps) {
       <motion.div layout className={cn(decided && 'pointer-events-none')}>
         <ArcadeCard
           game={game}
-          size="sm"
+          size="zone"
           state={champion === game.igdbId ? 'win' : decided ? 'dim' : stateFor(game)}
           badge={champion === game.igdbId ? '♛' : undefined}
           onSelect={
@@ -143,7 +143,7 @@ export function Bracket({ games, onComplete }: MinigameProps) {
 
         <div
           className={cn(
-            'flex min-h-[160px] items-center gap-2 rounded-tile border p-2 transition-colors',
+            'flex min-h-[calc(var(--cover-zone)*4/3_+_1rem)] items-center gap-2 rounded-tile border p-2 transition-colors',
             stage === 'final' ? 'border-teal/60 bg-teal/5' : 'border-dashed border-border/70',
           )}
         >
@@ -175,7 +175,7 @@ export function Bracket({ games, onComplete }: MinigameProps) {
 
 function FinalSlot({ label }: { label: string }) {
   return (
-    <div className="flex aspect-[3/4] w-[104px] items-center justify-center rounded-tile border border-dashed border-border/70 bg-surface/20 font-display text-sm font-black uppercase text-muted/40">
+    <div className="flex aspect-[3/4] w-[var(--cover-zone)] items-center justify-center rounded-tile border border-dashed border-border/70 bg-surface/20 font-display text-sm font-black uppercase text-muted/40">
       {label}
     </div>
   );

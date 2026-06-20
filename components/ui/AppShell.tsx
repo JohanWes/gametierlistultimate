@@ -36,10 +36,23 @@ export interface AppShellProps {
    * padding so the active task starts higher in the viewport.
    */
   compact?: boolean;
+  /**
+   * Widen the panel on large screens (the ranking arcade). Lets the cover-forward minigames grow
+   * to fill big/ultrawide monitors instead of being letterboxed inside the default `max-w-7xl`.
+   */
+  wide?: boolean;
 }
 
+/** Wider panel ceiling for the arcade; below `xl` it stays at the default `max-w-7xl`. */
+const WIDE_MAX = 'xl:max-w-[104rem] 2xl:max-w-[120rem]';
+
 /** The frame every screen renders into: header (wordmark + mute) and a responsive main slot. */
-export function AppShell({ children, showProgress = false, compact = false }: AppShellProps) {
+export function AppShell({
+  children,
+  showProgress = false,
+  compact = false,
+  wide = false,
+}: AppShellProps) {
   const step = useStore((s) => s.ui.step);
   const stepIndex = STEP_ORDER.indexOf(step);
   const pct = Math.round(((stepIndex + 1) / STEP_ORDER.length) * 100);
@@ -50,6 +63,7 @@ export function AppShell({ children, showProgress = false, compact = false }: Ap
         <div
           className={cn(
             'mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6',
+            wide && WIDE_MAX,
             compact ? 'py-2' : 'py-2.5 sm:py-3',
           )}
         >
@@ -84,6 +98,7 @@ export function AppShell({ children, showProgress = false, compact = false }: Ap
       <main
         className={cn(
           'mx-auto flex w-full max-w-7xl flex-1 flex-col px-3 sm:px-6',
+          wide && WIDE_MAX,
           compact ? 'py-3 sm:py-4' : 'py-4 sm:py-8',
         )}
       >

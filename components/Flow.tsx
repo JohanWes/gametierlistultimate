@@ -27,7 +27,7 @@ export function Flow() {
   const compact = step === 'pool' || step === 'arcade';
 
   return (
-    <AppShell showProgress={step !== 'welcome'} compact={compact}>
+    <AppShell showProgress={step !== 'welcome'} compact={compact} wide={step === 'arcade'}>
       <AnimatePresence mode="wait">
         <motion.div
           key={step}

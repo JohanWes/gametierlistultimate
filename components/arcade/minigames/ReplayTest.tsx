@@ -37,7 +37,7 @@ export function ReplayTest({ games, onComplete }: MinigameProps) {
     <div className="flex flex-col items-center">
       <MinigameHeader tone="teal" eyebrow="Replay test" title="Would you replay this?" />
 
-      <ArcadeCard game={game} state={chosen === 'immediately' ? 'win' : 'idle'} />
+      <ArcadeCard game={game} size="solo" state={chosen === 'immediately' ? 'win' : 'idle'} />
 
       <div className="mt-7 grid w-full max-w-md grid-cols-2 gap-2.5">
         {ANSWERS.map(({ answer, label, tone }) => (

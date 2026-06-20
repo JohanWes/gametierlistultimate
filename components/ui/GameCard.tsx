@@ -16,14 +16,21 @@ export interface GameCardProps {
   /** When provided the card becomes an interactive button. */
   onSelect?: (game: Game) => void;
   /** Visual size of the card. */
-  size?: 'sm' | 'md' | 'lg';
+  size?: GameCardSize;
   className?: string;
 }
+
+export type GameCardSize = keyof typeof SIZES;
 
 const SIZES = {
   sm: 'w-[104px]',
   md: 'w-[150px]',
   lg: 'w-[220px]',
+  // Arcade tokens: viewport-responsive widths (see --cover-* in app/globals.css).
+  row: 'w-[var(--cover-row)]',
+  duo: 'w-[var(--cover-duo)]',
+  zone: 'w-[var(--cover-zone)]',
+  solo: 'w-[var(--cover-solo)]',
 } as const;
 
 /**

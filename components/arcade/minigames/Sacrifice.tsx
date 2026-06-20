@@ -39,6 +39,7 @@ export function Sacrifice({ games, onComplete }: MinigameProps) {
           >
             <ArcadeCard
               game={game}
+              size="row"
               state={stateFor(game.igdbId)}
               badge={loserId === game.igdbId ? '✕' : undefined}
               onSelect={() => sacrifice(game.igdbId)}

@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import type { Game } from '@/lib/games/types';
 import { cn } from '@/lib/utils';
 
-import { GameCard } from '../../ui/GameCard';
+import { GameCard, type GameCardSize } from '../../ui/GameCard';
 import { tapProps } from '../shared';
 
 export type CardState = 'idle' | 'win' | 'lose' | 'dim' | 'equal';
@@ -13,7 +13,7 @@ export type CardState = 'idle' | 'win' | 'lose' | 'dim' | 'equal';
 export interface ArcadeCardProps {
   game: Game;
   state?: CardState;
-  size?: 'sm' | 'md';
+  size?: GameCardSize;
   /** A rank chip, crown, or other marker pinned to the corner. */
   badge?: React.ReactNode;
   onSelect?: () => void;

@@ -57,7 +57,7 @@ export function Gauntlet({ games, onComplete }: MinigameProps) {
           <span className="rounded-hardware border border-accent/60 bg-accent/10 px-2.5 py-0.5 font-mono text-[0.6rem] font-bold uppercase tracking-[0.18em] text-accent">
             Challenger
           </span>
-          <ArcadeCard game={challenger} state={stopped ? 'idle' : 'win'} />
+          <ArcadeCard game={challenger} size="duo" state={stopped ? 'idle' : 'win'} />
         </div>
 
         <span className="font-display text-2xl font-black text-muted">vs</span>
@@ -74,7 +74,7 @@ export function Gauntlet({ games, onComplete }: MinigameProps) {
               exit={reduce ? { opacity: 0 } : { x: -30, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 320, damping: 26 }}
             >
-              <ArcadeCard game={current} />
+              <ArcadeCard game={current} size="duo" />
             </motion.div>
           </AnimatePresence>
         </div>

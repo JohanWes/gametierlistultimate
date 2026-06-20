@@ -114,7 +114,7 @@ export function Podium({ games, onComplete }: MinigameProps) {
               }}
               className={cn('flex flex-col items-center gap-2', step.order)}
             >
-              <div className="flex h-[148px] items-end">
+              <div className="flex h-[calc(var(--cover-zone)*4/3)] items-end">
                 {game ? (
                   <motion.button
                     type="button"
@@ -126,17 +126,17 @@ export function Podium({ games, onComplete }: MinigameProps) {
                     onClick={() => demote(game)}
                     className="rounded-tile focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
-                    <ArcadeCard game={game} size="sm" state="win" badge={step.medal} />
+                    <ArcadeCard game={game} size="zone" state="win" badge={step.medal} />
                   </motion.button>
                 ) : (
-                  <div className="flex aspect-[3/4] w-[104px] items-center justify-center rounded-tile border border-dashed border-border/70 bg-surface/20 text-2xl">
+                  <div className="flex aspect-[3/4] w-[var(--cover-zone)] items-center justify-center rounded-tile border border-dashed border-border/70 bg-surface/20 text-2xl">
                     {step.medal}
                   </div>
                 )}
               </div>
               <div
                 className={cn(
-                  'flex w-[104px] items-center justify-center rounded-t-tile border border-border bg-surface/40',
+                  'flex w-[var(--cover-zone)] items-center justify-center rounded-t-tile border border-border bg-surface/40',
                   step.height,
                 )}
               >
@@ -150,7 +150,7 @@ export function Podium({ games, onComplete }: MinigameProps) {
       </div>
 
       {/* Pool of remaining covers, or the lock-in once three are chosen. */}
-      <div className="mt-7 flex min-h-[150px] w-full max-w-2xl flex-wrap justify-center gap-3 border-t border-border pt-5">
+      <div className="mt-7 flex min-h-[calc(var(--cover-zone)*4/3)] w-full max-w-5xl flex-wrap justify-center gap-3 border-t border-border pt-5">
         {full ? (
           <Button onClick={lockIn} disabled={!full}>
             Lock in podium →

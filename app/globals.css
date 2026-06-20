@@ -32,6 +32,37 @@
   --font-display: var(--font-saira-condensed), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-ibm-plex-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  /*
+   * Arcade cover-art sizing. The boxart is the decision surface in Step 4, so each token grows the
+   * card with the viewport (`vh`) to fill vertical space, `clamp` bounds it on tiny/huge screens,
+   * and the `min(vw, …)` guard prevents horizontal overflow. The `vw` term is redefined per
+   * breakpoint below where a minigame's column count changes. Card height = width * 4/3
+   * (`aspect-[3/4]`); placeholders and zone min-heights reference these via `calc()`.
+   */
+  --cover-zone: min(24vw, clamp(6rem, 11.5vh, 8.75rem)); /* bucket/higher-lower/podium/lineup/bracket/vibe — kept lean: these stack two card-rows */
+  --cover-row: min(33vw, clamp(6rem, 18vh, 13rem)); /* single row of up to 5: champion/keep-two/sacrifice (mobile: 2-up grid) */
+  --cover-duo: min(34vw, clamp(7rem, 24vh, 14rem)); /* two-up versus: duel/rivalry/promotion, gauntlet */
+  --cover-solo: min(60vw, clamp(7.5rem, 26vh, 14rem)); /* single hero card: replay test */
+}
+
+@media (min-width: 640px) {
+  /* sm: row games go 3-up; the versus board has more room to breathe. */
+  :root {
+    --cover-row: min(28vw, clamp(6.5rem, 24vh, 14rem));
+    --cover-duo: min(40vw, clamp(7rem, 32vh, 18rem));
+  }
+}
+
+@media (min-width: 1024px) {
+  /* lg: row games go 5-up and the arcade panel widens (see AppShell `wide`), so covers can grow
+     to fill big monitors. The `vw` guards keep five/two covers inside the wider panel. */
+  :root {
+    --cover-zone: min(16vw, clamp(6rem, 12.5vh, 11rem));
+    --cover-row: min(17.5vw, clamp(6.5rem, 28vh, 22rem));
+    --cover-duo: min(24vw, clamp(8rem, 32vh, 24rem));
+    --cover-solo: min(40vw, clamp(9rem, 26vh, 22rem));
+  }
 }
 
 html,

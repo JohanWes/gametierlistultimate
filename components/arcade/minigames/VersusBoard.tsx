@@ -52,7 +52,7 @@ export function VersusBoard({ left, right, prompt, eyebrow, seamBadge, onPick }:
           animate={{ x: 0, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 280, damping: 26 }}
         >
-          <ArcadeCard game={left} state={stateFor(left)} onSelect={() => pick(left, right)} />
+          <ArcadeCard game={left} size="duo" state={stateFor(left)} onSelect={() => pick(left, right)} />
         </motion.div>
 
         <Seam badge={seamBadge} settled={winnerId !== null} />
@@ -63,7 +63,7 @@ export function VersusBoard({ left, right, prompt, eyebrow, seamBadge, onPick }:
           animate={{ x: 0, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 280, damping: 26 }}
         >
-          <ArcadeCard game={right} state={stateFor(right)} onSelect={() => pick(right, left)} />
+          <ArcadeCard game={right} size="duo" state={stateFor(right)} onSelect={() => pick(right, left)} />
         </motion.div>
       </div>
 
