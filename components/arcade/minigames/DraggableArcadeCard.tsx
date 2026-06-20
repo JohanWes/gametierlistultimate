@@ -6,7 +6,7 @@ import { useRef, useState } from 'react';
 import type { Game } from '@/lib/games/types';
 import { playSound } from '@/lib/sound';
 
-import { ArcadeCard, type CardState } from './ArcadeCard';
+import { ArcadeCard, type ArcadeCardProps, type CardState } from './ArcadeCard';
 
 /** Movement (px) past which a press becomes a drag rather than a tap. */
 const DRAG_THRESHOLD = 6;
@@ -22,6 +22,7 @@ interface DraggableArcadeCardProps {
   picked?: boolean;
   state?: CardState;
   badge?: React.ReactNode;
+  size?: ArcadeCardProps['size'];
 }
 
 /**
@@ -36,6 +37,7 @@ export function DraggableArcadeCard({
   picked = false,
   state = 'idle',
   badge,
+  size = 'zone',
 }: DraggableArcadeCardProps) {
   const reduce = useReducedMotion();
   const x = useMotionValue(0);
@@ -146,7 +148,7 @@ export function DraggableArcadeCard({
     >
       <ArcadeCard
         game={game}
-        size="zone"
+        size={size}
         state={active ? 'win' : state}
         badge={badge}
         className={active ? 'shadow-[0_18px_40px_rgb(0_0_0/0.5)]' : undefined}

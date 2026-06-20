@@ -30,6 +30,7 @@ const SIZES = {
   row: 'w-[var(--cover-row)]',
   duo: 'w-[var(--cover-duo)]',
   zone: 'w-[var(--cover-zone)]',
+  lineup: 'w-[var(--cover-lineup)]',
   solo: 'w-[var(--cover-solo)]',
 } as const;
 

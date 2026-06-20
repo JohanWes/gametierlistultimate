@@ -44,6 +44,14 @@ function stubRect(
  * numbered slots, then lock it in. These tests exercise that tap fallback exclusively.
  */
 describe('Lineup — tap-to-order fallback', () => {
+  it('uses the lineup-specific cover size', () => {
+    const games = makeGames(5);
+    renderWithProviders(<Lineup games={games} onComplete={vi.fn()} />);
+
+    expect(screen.getByTestId('lineup-slot-1')).toHaveClass('w-[var(--cover-lineup)]');
+    expect(screen.getByTitle('Game 1')).toHaveClass('w-[var(--cover-lineup)]');
+  });
+
   it('orders by tap sequence and emits a lineup outcome', async () => {
     const games = makeGames(5);
     const onComplete = vi.fn();

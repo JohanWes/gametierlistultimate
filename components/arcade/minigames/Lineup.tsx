@@ -63,7 +63,7 @@ export function Lineup({ games, onComplete }: MinigameProps) {
   };
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex min-h-full flex-col items-center justify-center">
       <MinigameHeader
         tone="teal"
         eyebrow="Five-card lineup"
@@ -88,7 +88,7 @@ export function Lineup({ games, onComplete }: MinigameProps) {
               }}
               className="relative cursor-grab touch-none active:cursor-grabbing"
             >
-              <ArcadeCard game={game} size="zone" badge={i + 1} />
+              <ArcadeCard game={game} size="lineup" badge={i + 1} />
               <button
                 type="button"
                 aria-label={`Remove ${game.title}`}
@@ -106,7 +106,7 @@ export function Lineup({ games, onComplete }: MinigameProps) {
               ref={(el) => {
                 slotRefs.current[placed.length + i] = el;
               }}
-              className="flex aspect-[3/4] w-[var(--cover-zone)] items-center justify-center rounded-tile border border-dashed border-border/70 bg-surface/20 font-display text-2xl font-black text-muted/40"
+              className="flex aspect-[3/4] w-[var(--cover-lineup)] items-center justify-center rounded-tile border border-dashed border-border/70 bg-surface/20 font-display text-2xl font-black text-muted/40"
             >
               {placed.length + i + 1}
             </div>
@@ -124,6 +124,7 @@ export function Lineup({ games, onComplete }: MinigameProps) {
                 ariaLabel={game.title}
                 onTap={() => place(game)}
                 onDropAt={(point) => handleDropAt(game, point)}
+                size="lineup"
               />
             </motion.div>
           ))}
