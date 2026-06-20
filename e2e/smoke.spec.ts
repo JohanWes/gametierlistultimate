@@ -6,7 +6,7 @@ test('landing page shows the welcome hero and shell', async ({ page }) => {
     page.getByRole('heading', { name: /game tier list ultimate/i }),
   ).toBeVisible();
   // The persistent shell: wordmark + always-visible mute toggle.
-  await expect(page.getByText('Game Tier List Ultimate')).toBeVisible();
+  await expect(page.getByRole('banner').getByText('Game Tier List Ultimate')).toBeVisible();
   await expect(page.getByRole('switch', { name: /mute sound|unmute sound/i })).toBeVisible();
 });
 
