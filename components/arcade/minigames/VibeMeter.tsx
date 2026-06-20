@@ -12,6 +12,7 @@ import { Button } from '../../ui/Button';
 import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
+import { MinigameHeader } from './MinigameHeader';
 
 /**
  * Internal tier list — kept for mapping a 0-100 score onto the engine's 7 tier bands at lock-in.
@@ -237,15 +238,12 @@ export function VibeMeter({ games, onComplete }: MinigameProps) {
 
   return (
     <div className="flex flex-col items-center">
-      <header className="mb-6 text-center">
-        <p className="mb-2 font-mono text-xs uppercase tracking-[0.28em] text-accent">Vibe-meter</p>
-        <h2 className="font-display text-3xl font-black uppercase tracking-[0.02em] text-fg sm:text-4xl">
-          Where do these land?
-        </h2>
-        <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted">
-          Drag each meter — top is 100, bottom is 0
-        </p>
-      </header>
+      <MinigameHeader
+        tone="accent"
+        eyebrow="Vibe-meter"
+        title="Where do these land?"
+        hint="Drag each meter — top is 100, bottom is 0"
+      />
 
       <div className="grid w-full max-w-2xl grid-cols-1 justify-items-center gap-4 sm:grid-cols-2">
         {games.map((g) => (

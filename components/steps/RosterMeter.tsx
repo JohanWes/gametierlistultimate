@@ -15,6 +15,8 @@ const SCALE_MAX = 100;
 export interface RosterMeterProps {
   count: number;
   className?: string;
+  /** Slim horizontal variant for the step header — keeps count, notched bar, and band in one row. */
+  compact?: boolean;
 }
 
 function bandCopy(count: number): { eyebrow: string; line: string } {
@@ -42,11 +44,74 @@ function bandCopy(count: number): { eyebrow: string; line: string } {
  * you've added, and notches mark the spec's real thresholds (playable / recommended band /
  * power list) so the structure encodes actual gates rather than decoration.
  */
-export function RosterMeter({ count, className }: RosterMeterProps) {
+export function RosterMeter({ count, className, compact = false }: RosterMeterProps) {
   const reduce = useReducedMotion();
   const pct = clamp((count / SCALE_MAX) * 100, 0, 100);
   const { eyebrow, line } = bandCopy(count);
   const unlocked = count >= MIN_POOL;
+
+  if (compact) {
+    return (
+      <div
+        className={cn(
+          'flex flex-col gap-1.5 rounded-tile border-2 border-border bg-bg px-3 py-2 shadow-cabinet sm:w-[19rem]',
+          className,
+        )}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-baseline gap-1.5">
+            <span
+              data-testid="roster-count"
+              className="font-display text-2xl font-black leading-none text-accent tabular-nums"
+            >
+              {count}
+            </span>
+            <span className="font-mono text-[0.58rem] uppercase tracking-[0.16em] text-muted">
+              in roster
+            </span>
+          </div>
+          <span
+            className={cn(
+              'shrink-0 rounded-hardware border px-2 py-0.5 font-mono text-[0.58rem] font-bold uppercase tracking-[0.16em]',
+              unlocked
+                ? 'border-teal/60 bg-teal/12 text-teal'
+                : 'border-border bg-surface text-muted',
+            )}
+          >
+            {eyebrow}
+          </span>
+        </div>
+
+        <div className="relative">
+          <div className="h-2 w-full overflow-hidden rounded-tile border border-border bg-panel">
+            <motion.div
+              className="h-full rounded-tile bg-gradient-to-r from-teal to-accent"
+              initial={false}
+              animate={{ width: `${pct}%` }}
+              transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 120, damping: 22 }}
+            />
+          </div>
+          {MILESTONES.map((m) => {
+            const left = clamp((m / SCALE_MAX) * 100, 0, 100);
+            const reached = count >= m;
+            return (
+              <span
+                key={m}
+                aria-hidden
+                className={cn(
+                  'absolute top-1/2 h-3 w-[2px] -translate-x-1/2 -translate-y-1/2 rounded-full',
+                  reached ? 'bg-bg shadow-[0_0_5px_1px_rgb(var(--color-accent)/0.6)]' : 'bg-border',
+                )}
+                style={{ left: `${left}%` }}
+              />
+            );
+          })}
+        </div>
+
+        <p className="text-[0.62rem] leading-snug text-muted">{line}</p>
+      </div>
+    );
+  }
 
   return (
     <div

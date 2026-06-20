@@ -8,6 +8,7 @@ import { playSound } from '@/lib/sound';
 import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard, type CardState } from './ArcadeCard';
+import { MinigameHeader } from './MinigameHeader';
 
 /** Minigame 4 — "One has to go." Pick the weakest of five; it drops out with a playful fall. */
 export function Sacrifice({ games, onComplete }: MinigameProps) {
@@ -27,12 +28,7 @@ export function Sacrifice({ games, onComplete }: MinigameProps) {
 
   return (
     <div className="flex flex-col items-center">
-      <header className="mb-6 text-center">
-        <p className="mb-2 font-mono text-xs uppercase tracking-[0.28em] text-coin">Sacrifice one</p>
-        <h2 className="font-display text-3xl font-black uppercase tracking-[0.02em] text-fg sm:text-4xl">
-          One has to go.
-        </h2>
-      </header>
+      <MinigameHeader tone="coin" eyebrow="Sacrifice one" title="One has to go." />
 
       <div className="grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {games.map((game) => (

@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { tapProps, useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
+import { MinigameHeader } from './MinigameHeader';
 
 type Answer = 'immediately' | 'maybe' | 'probably-not' | 'never';
 
@@ -34,12 +35,7 @@ export function ReplayTest({ games, onComplete }: MinigameProps) {
 
   return (
     <div className="flex flex-col items-center">
-      <header className="mb-6 text-center">
-        <p className="mb-2 font-mono text-xs uppercase tracking-[0.28em] text-teal">Replay test</p>
-        <h2 className="font-display text-3xl font-black uppercase tracking-[0.02em] text-fg sm:text-4xl">
-          Would you replay this?
-        </h2>
-      </header>
+      <MinigameHeader tone="teal" eyebrow="Replay test" title="Would you replay this?" />
 
       <ArcadeCard game={game} state={chosen === 'immediately' ? 'win' : 'idle'} />
 

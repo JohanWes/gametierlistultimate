@@ -12,6 +12,7 @@ import { tapProps, useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
 import { DraggableArcadeCard } from './DraggableArcadeCard';
+import { MinigameHeader } from './MinigameHeader';
 
 /**
  * Minigame 2 — "Rank these from favorite to least." The primary, touch-first interaction is
@@ -63,15 +64,12 @@ export function Lineup({ games, onComplete }: MinigameProps) {
 
   return (
     <div className="flex flex-col items-center">
-      <header className="mb-6 text-center">
-        <p className="mb-2 font-mono text-xs uppercase tracking-[0.28em] text-teal">Five-card lineup</p>
-        <h2 className="font-display text-3xl font-black uppercase tracking-[0.02em] text-fg sm:text-4xl">
-          Favorite to least.
-        </h2>
-        <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted">
-          {full ? 'Drag to adjust, then lock it in' : 'Tap in order — best first'}
-        </p>
-      </header>
+      <MinigameHeader
+        tone="teal"
+        eyebrow="Five-card lineup"
+        title="Favorite to least."
+        hint={full ? 'Drag to adjust, then lock it in' : 'Tap in order — best first'}
+      />
 
       {/* Ranking ladder: placed cards (draggable) + numbered empty slots. */}
       <div className="mb-6 w-full">

@@ -12,6 +12,7 @@ import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
 import { DraggableArcadeCard } from './DraggableArcadeCard';
+import { MinigameHeader } from './MinigameHeader';
 
 /** The three buckets, ordered best → worst (this order is the ranking the engine scores). */
 const BUCKETS = [
@@ -102,15 +103,12 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
 
   return (
     <div className="flex flex-col items-center">
-      <header className="mb-6 text-center">
-        <p className="mb-2 font-mono text-xs uppercase tracking-[0.28em] text-accent">Tier drop</p>
-        <h2 className="font-display text-3xl font-black uppercase tracking-[0.02em] text-fg sm:text-4xl">
-          Sort them into buckets.
-        </h2>
-        <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted">
-          {picked !== null ? 'Now tap a bucket' : 'Drag a cover — or tap it, then a bucket'}
-        </p>
-      </header>
+      <MinigameHeader
+        tone="accent"
+        eyebrow="Tier drop"
+        title="Sort them into buckets."
+        hint={picked !== null ? 'Now tap a bucket' : 'Drag a cover — or tap it, then a bucket'}
+      />
 
       {/* Buckets — rendered best (Top) on the right, worst (Bottom) on the left. The band *index*
           stays 0 = Top = best so the emitted `buckets` array is still best-first (what the engine

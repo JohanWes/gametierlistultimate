@@ -295,16 +295,18 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
 
   return (
     <StepScaffold
+      compact
       eyebrow="Step 3 · Your games"
       title="Add the games you've played."
-      description="Wave through a few at a time, or search for anything. Aim for 20+ to get a sharp list — your list stays yours, so include only what you've actually played."
+      description="Wave through suggestions or search for anything — aim for 20+ games you've actually played."
       nextLabel="Enter the arcade →"
       nextDisabled={poolCount < MIN_POOL}
+      headerAside={<RosterMeter compact count={poolCount} />}
     >
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-1 flex-col gap-4">
         <ManualSearch fetchImpl={fetchImpl} />
 
-        <div className="min-h-[20rem]">
+        <div className="flex min-h-[18rem] flex-1 flex-col justify-center">
           {showSkeletons ? (
             <div className="grid grid-cols-1 justify-items-center gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {Array.from({ length: VISIBLE_SLOTS }).map((_, i) => (
@@ -376,8 +378,6 @@ export function PoolStep({ fetchImpl }: PoolStepProps = {}) {
             </div>
           )}
         </div>
-
-        <RosterMeter count={poolCount} />
       </div>
     </StepScaffold>
   );

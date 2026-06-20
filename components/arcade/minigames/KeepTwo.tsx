@@ -8,6 +8,7 @@ import { playSound } from '@/lib/sound';
 import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard, type CardState } from './ArcadeCard';
+import { MinigameHeader } from './MinigameHeader';
 
 const KEEP = 2;
 
@@ -47,15 +48,12 @@ export function KeepTwo({ games, onComplete }: MinigameProps) {
 
   return (
     <div className="flex flex-col items-center">
-      <header className="mb-6 text-center">
-        <p className="mb-2 font-mono text-xs uppercase tracking-[0.28em] text-teal">Keep 2, kill 3</p>
-        <h2 className="font-display text-3xl font-black uppercase tracking-[0.02em] text-fg sm:text-4xl">
-          Only two survive.
-        </h2>
-        <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted">
-          {done ? 'Locked in' : `Choose ${remaining} more`}
-        </p>
-      </header>
+      <MinigameHeader
+        tone="teal"
+        eyebrow="Keep 2, kill 3"
+        title="Only two survive."
+        hint={done ? 'Locked in' : `Choose ${remaining} more`}
+      />
 
       <div className="grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {games.map((game) => {

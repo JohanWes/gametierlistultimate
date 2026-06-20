@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { tapProps, useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
+import { MinigameHeader } from './MinigameHeader';
 
 /**
  * Minigame 7 — "How far does this game climb?" One challenger faces progressively stronger
@@ -49,12 +50,7 @@ export function Gauntlet({ games, onComplete }: MinigameProps) {
 
   return (
     <div className="flex flex-col items-center">
-      <header className="mb-6 text-center">
-        <p className="mb-2 font-mono text-xs uppercase tracking-[0.28em] text-accent">The gauntlet</p>
-        <h2 className="font-display text-3xl font-black uppercase tracking-[0.02em] text-fg sm:text-4xl">
-          How far does it climb?
-        </h2>
-      </header>
+      <MinigameHeader tone="accent" eyebrow="The gauntlet" title="How far does it climb?" />
 
       <div className="flex items-center gap-4 sm:gap-7">
         <div className="flex flex-col items-center gap-2">

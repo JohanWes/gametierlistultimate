@@ -14,6 +14,7 @@ import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard, type CardState } from './ArcadeCard';
 import { DraggableArcadeCard } from './DraggableArcadeCard';
+import { MinigameHeader } from './MinigameHeader';
 
 /**
  * The scale's bands, left (worst) → right (best). The band *index* is the ranking signal: a higher
@@ -150,15 +151,12 @@ export function HigherLower({ games, anchorId, onComplete }: MinigameProps) {
 
   return (
     <div className="flex flex-col items-center">
-      <header className="mb-5 text-center">
-        <p className="mb-2 font-mono text-xs uppercase tracking-[0.28em] text-teal">The scale</p>
-        <h2 className="font-display text-3xl font-black uppercase tracking-[0.02em] text-fg sm:text-4xl">
-          Where do these land?
-        </h2>
-        <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted">
-          Drag both covers onto the scale — left is bad, right is great
-        </p>
-      </header>
+      <MinigameHeader
+        tone="teal"
+        eyebrow="The scale"
+        title="Where do these land?"
+        hint="Drag both covers onto the scale — left is bad, right is great"
+      />
 
       {/* The scale: 3 drop zones in a row, with the ruler bar + labels directly beneath. */}
       <div className="w-full max-w-2xl">

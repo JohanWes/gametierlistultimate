@@ -70,8 +70,8 @@ export function ManualSearch({ fetchImpl }: ManualSearchProps) {
   const added = new Set(pool.map((e) => e.game.igdbId));
 
   return (
-    <div className="rounded-card border border-border bg-surface/70 p-3 shadow-soft">
-      <label className="flex items-center gap-2.5 rounded-tile border border-border bg-bg px-3 py-2.5 focus-within:border-teal/70">
+    <div>
+      <label className="flex items-center gap-2.5 rounded-tile border border-border bg-bg px-3 py-2 shadow-soft focus-within:border-teal/70">
         <span aria-hidden className="font-mono text-sm text-muted">
           ⌕
         </span>

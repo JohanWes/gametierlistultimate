@@ -14,6 +14,7 @@ import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
 import { DraggableArcadeCard } from './DraggableArcadeCard';
+import { MinigameHeader } from './MinigameHeader';
 
 /** Podium steps: 1st in the middle and tallest, then 2nd, then 3rd. Rendered left→right as 2/1/3. */
 const STEPS = [
@@ -93,15 +94,12 @@ export function Podium({ games, onComplete }: MinigameProps) {
 
   return (
     <div className="flex flex-col items-center">
-      <header className="mb-6 text-center">
-        <p className="mb-2 font-mono text-xs uppercase tracking-[0.28em] text-coin">Podium</p>
-        <h2 className="font-display text-3xl font-black uppercase tracking-[0.02em] text-fg sm:text-4xl">
-          Crown your top three.
-        </h2>
-        <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted">
-          {full ? 'Tap a card to redo — or lock it in' : 'Tap in order — gold first'}
-        </p>
-      </header>
+      <MinigameHeader
+        tone="coin"
+        eyebrow="Podium"
+        title="Crown your top three."
+        hint={full ? 'Tap a card to redo — or lock it in' : 'Tap in order — gold first'}
+      />
 
       {/* Podium */}
       <div className="flex items-end justify-center gap-3">

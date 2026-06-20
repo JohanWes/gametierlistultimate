@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard, type CardState } from './ArcadeCard';
+import { MinigameHeader } from './MinigameHeader';
 
 type Stage = 'semi1' | 'semi2' | 'final' | 'done';
 
@@ -107,15 +108,12 @@ export function Bracket({ games, onComplete }: MinigameProps) {
 
   return (
     <div className="flex flex-col items-center">
-      <header className="mb-6 text-center">
-        <p className="mb-2 font-mono text-xs uppercase tracking-[0.28em] text-accent">Showdown</p>
-        <h2 className="font-display text-3xl font-black uppercase tracking-[0.02em] text-fg sm:text-4xl">
-          {stage === 'done' ? 'We have a winner.' : 'Tap the winner.'}
-        </h2>
-        <p className="mt-2 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted">
-          {STAGE_LABEL[stage]}
-        </p>
-      </header>
+      <MinigameHeader
+        tone="accent"
+        eyebrow="Showdown"
+        title={stage === 'done' ? 'We have a winner.' : 'Tap the winner.'}
+        hint={STAGE_LABEL[stage]}
+      />
 
       {/* Bracket: two semis on the left feed the final on the right. */}
       <div className="flex items-center gap-3 sm:gap-6">

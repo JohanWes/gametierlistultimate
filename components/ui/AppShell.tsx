@@ -31,10 +31,15 @@ export interface AppShellProps {
   children: React.ReactNode;
   /** Show the step progress rail under the header. */
   showProgress?: boolean;
+  /**
+   * Compact chrome for work surfaces (Steps 3 & 4): a slimmer brand bar and tighter outer
+   * padding so the active task starts higher in the viewport.
+   */
+  compact?: boolean;
 }
 
 /** The frame every screen renders into: header (wordmark + mute) and a responsive main slot. */
-export function AppShell({ children, showProgress = false }: AppShellProps) {
+export function AppShell({ children, showProgress = false, compact = false }: AppShellProps) {
   const step = useStore((s) => s.ui.step);
   const stepIndex = STEP_ORDER.indexOf(step);
   const pct = Math.round(((stepIndex + 1) / STEP_ORDER.length) * 100);
@@ -42,10 +47,25 @@ export function AppShell({ children, showProgress = false }: AppShellProps) {
   return (
     <div className="relative z-10 flex min-h-dvh flex-col">
       <header className="sticky top-0 z-20 border-b-2 border-black/60 bg-panel/95 shadow-cabinet backdrop-blur-sm">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-3 rounded-tile border border-border bg-bg/80 px-3 py-2 shadow-soft">
+        <div
+          className={cn(
+            'mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6',
+            compact ? 'py-2' : 'py-2.5 sm:py-3',
+          )}
+        >
+          <div
+            className={cn(
+              'flex items-center gap-2.5 rounded-tile border border-border bg-bg/80 shadow-soft',
+              compact ? 'px-2.5 py-1.5' : 'px-3 py-2',
+            )}
+          >
             <TierSpectrum />
-            <span className="font-display text-base font-black uppercase tracking-[0.18em] text-accent sm:text-lg">
+            <span
+              className={cn(
+                'whitespace-nowrap font-display font-black uppercase tracking-[0.16em] text-accent',
+                compact ? 'text-sm sm:text-base' : 'text-base sm:text-lg',
+              )}
+            >
               Ultimate Tier List
             </span>
           </div>
@@ -61,8 +81,18 @@ export function AppShell({ children, showProgress = false }: AppShellProps) {
         ) : null}
       </header>
 
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-3 py-4 sm:px-6 sm:py-8">
-        <div className="flex flex-1 flex-col rounded-card border-2 border-border bg-panel/86 p-3 shadow-cabinet sm:p-5">
+      <main
+        className={cn(
+          'mx-auto flex w-full max-w-7xl flex-1 flex-col px-3 sm:px-6',
+          compact ? 'py-3 sm:py-4' : 'py-4 sm:py-8',
+        )}
+      >
+        <div
+          className={cn(
+            'flex flex-1 flex-col rounded-card border-2 border-border bg-panel/86 shadow-cabinet',
+            compact ? 'p-3 sm:p-4' : 'p-3 sm:p-5',
+          )}
+        >
           {children}
         </div>
       </main>

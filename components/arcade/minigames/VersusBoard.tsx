@@ -8,6 +8,7 @@ import { playSound } from '@/lib/sound';
 import { cn } from '@/lib/utils';
 
 import { ArcadeCard, type CardState } from './ArcadeCard';
+import { MinigameHeader } from './MinigameHeader';
 
 export interface VersusBoardProps {
   left: Game;
@@ -42,14 +43,7 @@ export function VersusBoard({ left, right, prompt, eyebrow, seamBadge, onPick }:
 
   return (
     <div className="flex flex-col items-center">
-      <header className="mb-6 text-center">
-        {eyebrow ? (
-          <p className="mb-2 font-mono text-xs uppercase tracking-[0.28em] text-teal">{eyebrow}</p>
-        ) : null}
-        <h2 className="font-display text-3xl font-black uppercase tracking-[0.02em] text-fg sm:text-4xl">
-          {prompt}
-        </h2>
-      </header>
+      <MinigameHeader tone="teal" eyebrow={eyebrow} title={prompt} />
 
       <div className="grid w-full max-w-2xl grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-5">
         <motion.div

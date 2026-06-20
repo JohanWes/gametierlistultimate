@@ -133,23 +133,19 @@ export function ArcadeStep() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="mb-2 font-mono text-xs uppercase tracking-[0.22em] text-teal">
+      <div className="flex flex-col gap-3 border-b border-border/70 pb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+        <div className="flex items-center gap-3">
+          <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-teal">
             Step 4 · Ranking arcade
           </p>
-          <p className="max-w-md text-sm leading-6 text-muted">
-            Make quick calls. Each one sharpens your list — reveal whenever it feels right.
-          </p>
+          <PhaseBadge phase={phase} round={ranking.round} />
         </div>
-        <PhaseBadge phase={phase} round={ranking.round} />
+        <div className="w-full sm:max-w-xs">
+          <ConfidenceMeter value={confidence} ready={ready} compact />
+        </div>
       </div>
 
-      <div className="mt-5">
-        <ConfidenceMeter value={confidence} ready={ready} />
-      </div>
-
-      <div className="relative mt-8 flex flex-1 items-center justify-center">
+      <div className="relative mt-5 flex flex-1 items-center justify-center">
         <AnimatePresence mode="wait">
           {Minigame && view ? (
             <motion.div
@@ -173,7 +169,7 @@ export function ArcadeStep() {
         </AnimatePresence>
       </div>
 
-      <div className="mt-8 flex items-center justify-between gap-3 border-t border-border pt-6">
+      <div className="mt-5 flex items-center justify-between gap-3 border-t border-border/70 pt-4">
         <Button variant="ghost" onClick={goBack}>
           ← Games
         </Button>
@@ -199,12 +195,17 @@ export function ArcadeStep() {
 function PhaseBadge({ phase, round }: { phase: string; round: number }) {
   const label = phase === 'early' ? 'Building tiers' : 'Fine-tuning';
   return (
-    <div className="flex shrink-0 items-center gap-3 rounded-tile border border-border bg-surface/60 px-3 py-2 shadow-soft">
-      <span className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-muted">Round</span>
-      <span data-testid="arcade-round" className="font-display text-xl font-black tabular-nums text-fg">
+    <div className="flex shrink-0 items-center gap-2 rounded-tile border border-border bg-surface/60 px-2.5 py-1 shadow-soft">
+      <span className="font-mono text-[0.58rem] uppercase tracking-[0.16em] text-muted">Round</span>
+      <span
+        data-testid="arcade-round"
+        className="font-display text-base font-black tabular-nums text-fg"
+      >
         {round}
       </span>
-      <span className="font-mono text-[0.62rem] uppercase tracking-[0.16em] text-teal">{label}</span>
+      <span className="hidden font-mono text-[0.58rem] uppercase tracking-[0.14em] text-teal sm:inline">
+        {label}
+      </span>
     </div>
   );
 }

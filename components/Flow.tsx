@@ -24,9 +24,10 @@ export function Flow() {
   const step = useStore((s) => s.ui.step);
   const reduce = useReducedMotion();
   const Screen = SCREENS[step];
+  const compact = step === 'pool' || step === 'arcade';
 
   return (
-    <AppShell showProgress={step !== 'welcome'}>
+    <AppShell showProgress={step !== 'welcome'} compact={compact}>
       <AnimatePresence mode="wait">
         <motion.div
           key={step}
