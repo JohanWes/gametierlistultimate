@@ -44,9 +44,3 @@ Unit, API, and e2e tests use in-memory Mongo + mocked IGDB, so they don't need r
 | `npm run lint`        | ESLint (`next lint`)                                  |
 | `npm run test`        | Vitest run (unit + component + API)                   |
 | `npm run test:e2e`    | Playwright e2e (`npx playwright install` on first run)|
-
-## Deploy on Vercel
-
-The app is a standard Next.js project, so Vercel auto-detects the framework — no extra config needed.
-Just import the repository and set the three required environment variables
-(`MONGODB_URI`, `IGDB_CLIENT_ID`, `IGDB_CLIENT_SECRET`) in the project settings.
