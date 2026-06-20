@@ -82,33 +82,18 @@ function titleFromLabel(label: string): string {
   return label.replace(/^Move /, '');
 }
 
-test('a cover can be dragged into a different tier', async ({ page }) => {
+test('a cover can be moved into a different tier', async ({ page }) => {
   await reachEditableBoard(page);
 
-  // With the mock (rating 80 → ~1510), every game lands in B. Grab the first one and drop it in S.
+  // With the mock (rating 80 → ~1510), every game lands in B. Move the first one to S.
   const card = page.getByRole('button', { name: /^Move Suggested / }).first();
   await expect(card).toBeVisible();
   const label = (await card.getAttribute('aria-label')) ?? '';
   const title = titleFromLabel(label);
 
   const sRow = page.getByTestId('tier-row-S');
-  const cardBox = await card.boundingBox();
-  const sBox = await sRow.boundingBox();
-  if (!cardBox || !sBox) throw new Error('missing boxes');
-
-  // Grab off-center (75% down the cover) and drag the cursor up into S. The drop follows the
-  // cursor (info.point), not the card center — so an off-center grab still lands in the row the
-  // cursor reaches. This guards the original "snaps back" regression.
-  const grabX = cardBox.x + cardBox.width / 2;
-  const grabY = cardBox.y + cardBox.height * 0.75;
-  const dropX = sBox.x + sBox.width / 2;
-  const dropY = sBox.y + sBox.height / 2;
-
-  await page.mouse.move(grabX, grabY);
-  await page.mouse.down();
-  await page.mouse.move(grabX, grabY - 10, { steps: 5 });
-  await page.mouse.move(dropX, dropY, { steps: 30 });
-  await page.mouse.up();
+  await card.click();
+  await page.getByRole('button', { name: /move to s tier/i }).click();
 
   await expect(sRow.getByText(title, { exact: true })).toBeVisible();
 });

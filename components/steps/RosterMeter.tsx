@@ -2,10 +2,10 @@
 
 import { motion, useReducedMotion } from 'framer-motion';
 
+import { MIN_POOL } from '@/lib/flow';
 import { clamp, cn } from '@/lib/utils';
 
-/** Smallest pool that unlocks the arcade. Below this the Continue button stays gated. */
-export const MIN_POOL = 12;
+export { MIN_POOL } from '@/lib/flow';
 /** Milestone notches along the meter, matching the spec's pool-size tiers. */
 export const MILESTONES = [MIN_POOL, 40, 80, 100] as const;
 

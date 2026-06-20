@@ -1,6 +1,7 @@
 import { COLLECTIONS, getDb } from './mongo';
 import { updatePoolPatternAggregates } from './pool-patterns-repo';
 
+import type { Step } from './flow';
 import { getStarterSet } from './games/repo';
 import { getStarterSetIds, setResolvedStarterIds } from './games/starter-set';
 
@@ -9,6 +10,7 @@ export interface SessionState {
   prefs?: Record<string, unknown>;
   pool?: number[];
   scores?: Record<string, unknown>;
+  step?: Step;
 }
 
 export interface SessionDoc extends SessionState {
@@ -92,6 +94,7 @@ export async function saveSession(sessionId: string, state: SessionState): Promi
   if (state.prefs !== undefined) set.prefs = state.prefs;
   if (state.pool !== undefined) set.pool = state.pool;
   if (state.scores !== undefined) set.scores = state.scores;
+  if (state.step !== undefined) set.step = state.step;
 
   await coll.updateOne(
     { sessionId },

@@ -67,7 +67,7 @@ describe('PUT + GET /api/session', () => {
     await PUT(
       makeReq('PUT', {
         cookie: sessionId,
-        body: { prefs: { genres: ['RPG'] }, pool: [1, 2, 3] },
+        body: { prefs: { genres: ['RPG'] }, pool: [1, 2, 3], step: 'pool' },
       }),
     );
 
@@ -76,6 +76,18 @@ describe('PUT + GET /api/session', () => {
     expect(session.sessionId).toBe(sessionId);
     expect(session.prefs).toEqual({ genres: ['RPG'] });
     expect(session.pool).toEqual([1, 2, 3]);
+    expect(session.step).toBe('pool');
+  });
+
+  it('ignores invalid saved steps', async () => {
+    const created = await POST(makeReq('POST'));
+    const { sessionId } = await created.json();
+
+    await PUT(makeReq('PUT', { cookie: sessionId, body: { step: 'not-a-step' } }));
+
+    const res = await GET(makeReq('GET', { cookie: sessionId }));
+    const { session } = await res.json();
+    expect(session.step).toBeUndefined();
   });
 
   it('updates anonymous pool-pattern aggregates from saved pool changes', async () => {

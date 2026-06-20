@@ -2,18 +2,11 @@
 
 import { create } from 'zustand';
 
+import { resolveResumeStep, STEP_ORDER, type Step } from '@/lib/flow';
 import type { Game } from '@/lib/games/types';
 import { debounce } from '@/lib/utils';
 
-/* ------------------------------------------------------------------ flow machine */
-
-export type Step = 'welcome' | 'onboarding' | 'pool' | 'arcade' | 'reveal';
-
-/**
- * Linear order of the flow. `goNext`/`goBack` walk this array. `reveal` is terminal: it hosts the
- * animated reveal, the editable tier list (manual correction), and the share action on one screen.
- */
-export const STEP_ORDER: Step[] = ['welcome', 'onboarding', 'pool', 'arcade', 'reveal'];
+export { MIN_POOL, STEP_ORDER, type Step } from '@/lib/flow';
 
 /* ------------------------------------------------------------------ slice shapes */
 
@@ -80,7 +73,13 @@ export interface StoreState {
   setHydrated: (hydrated: boolean) => void;
 
   // persistence
-  hydrate: (saved: { prefs?: unknown; pool?: unknown; scores?: unknown }) => void;
+  hydrate: (saved: {
+    prefs?: unknown;
+    pool?: unknown;
+    poolGames?: unknown;
+    scores?: unknown;
+    step?: unknown;
+  }) => void;
 }
 
 const SOUND_KEY = 'gtl_sound';
@@ -189,10 +188,24 @@ export const useStore = create<StoreState>((set, get) => ({
     if (Array.isArray(saved.pool)) {
       patch.poolIds = (saved.pool as unknown[]).filter((n): n is number => typeof n === 'number');
     }
+    if (Array.isArray(saved.poolGames)) {
+      const pool: PoolEntry[] = (saved.poolGames as unknown[])
+        .filter(
+          (game): game is Game =>
+            Boolean(game) && typeof game === 'object' && typeof (game as Game).igdbId === 'number',
+        )
+        .map((game) => ({ game, status: 'finished' }));
+      if (pool.length > 0) {
+        patch.pool = pool;
+        patch.poolIds = pool.map((e) => e.game.igdbId);
+      }
+    }
     if (saved.scores && typeof saved.scores === 'object') {
       patch.scores = saved.scores as Record<string, unknown>;
     }
-    set({ ...patch, ui: { ...get().ui, hydrated: true } });
+    const poolCount = patch.pool?.length ?? get().pool.length;
+    const step = resolveResumeStep(saved.step, poolCount);
+    set({ ...patch, ui: { ...get().ui, step, hydrated: true } });
   },
 }));
 
@@ -222,6 +235,7 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
         prefs: s.prefs,
         pool: poolIdsForSave(s),
         scores: s.scores,
+        step: s.ui.step,
       }),
     }).catch(() => {
       /* autosave is best-effort */
@@ -229,9 +243,20 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
   }, waitMs);
 
   let prev = pickPersisted(useStore.getState());
+  let wasHydrated = useStore.getState().ui.hydrated;
   const unsub = useStore.subscribe((state) => {
     const next = pickPersisted(state);
-    if (next.prefs !== prev.prefs || next.pool !== prev.pool || next.scores !== prev.scores) {
+    if (!wasHydrated && state.ui.hydrated) {
+      wasHydrated = true;
+      prev = next;
+      return;
+    }
+    if (
+      next.prefs !== prev.prefs ||
+      next.pool !== prev.pool ||
+      next.scores !== prev.scores ||
+      next.step !== prev.step
+    ) {
       prev = next;
       if (state.ui.hydrated) save();
     }
@@ -244,7 +269,7 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
 }
 
 function pickPersisted(s: StoreState) {
-  return { prefs: s.prefs, pool: s.pool, scores: s.scores };
+  return { prefs: s.prefs, pool: s.pool, scores: s.scores, step: s.ui.step };
 }
 
 /** Test-only: reset the store's data slices to initial values (actions are preserved). */

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { parseStep } from '@/lib/flow';
 import { getSessionId, newSessionId, setSessionCookie } from '@/lib/session';
 import { ensureSession, getSession, saveSession, type SessionState } from '@/lib/sessions-repo';
 
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ session });
 }
 
-/** PUT /api/session — autosave partial prefs/pool/scores (debounced from the client). */
+/** PUT /api/session — autosave partial in-progress state (debounced from the client). */
 export async function PUT(req: NextRequest) {
   let sessionId = getSessionId(req);
   const issuedNew = !sessionId;
@@ -35,6 +36,8 @@ export async function PUT(req: NextRequest) {
     pool: body.pool,
     scores: body.scores,
   };
+  const step = parseStep(body.step);
+  if (step) state.step = step;
   await saveSession(sessionId, state);
 
   const res = NextResponse.json({ ok: true, sessionId });

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 
+import { fetchGamesByIds } from '@/lib/games/client';
 import { initAudio, setMuted } from '@/lib/sound';
 import { startAutosave, useStore } from '@/lib/store';
 
@@ -17,12 +18,18 @@ export function StoreHydrator() {
     // Ensure a session cookie, then load any saved in-progress state.
     void (async () => {
       try {
-        await fetch('/api/session', { method: 'POST' });
-        const res = await fetch('/api/session');
+        await fetch('/api/session', { method: 'POST', credentials: 'same-origin' });
+        const res = await fetch('/api/session', { credentials: 'same-origin' });
         const data = (await res.json()) as { session?: unknown };
         if (cancelled) return;
         if (data?.session && typeof data.session === 'object') {
-          useStore.getState().hydrate(data.session as Record<string, unknown>);
+          const session = data.session as Record<string, unknown>;
+          const poolIds = Array.isArray(session.pool)
+            ? session.pool.filter((n): n is number => typeof n === 'number')
+            : [];
+          const poolGames = poolIds.length ? await fetchGamesByIds(poolIds) : [];
+          if (cancelled) return;
+          useStore.getState().hydrate({ ...session, poolGames });
         } else {
           useStore.getState().setHydrated(true);
         }

@@ -88,6 +88,32 @@ describe('store', () => {
       stop();
     });
 
+    it('autosaves the current step after hydration', () => {
+      const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
+      const stop = startAutosave({ waitMs: 500, fetchImpl });
+
+      useStore.getState().setHydrated(true);
+      useStore.getState().goNext();
+      vi.advanceTimersByTime(500);
+
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      const [, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(JSON.parse(init.body).step).toBe('onboarding');
+
+      stop();
+    });
+
+    it('does not autosave the hydration patch itself', () => {
+      const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
+      const stop = startAutosave({ waitMs: 500, fetchImpl });
+
+      useStore.getState().hydrate({ prefs: { genres: ['RPG'] }, step: 'pool' });
+      vi.advanceTimersByTime(500);
+
+      expect(fetchImpl).not.toHaveBeenCalled();
+      stop();
+    });
+
     it('does not autosave before hydration', () => {
       const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
       const stop = startAutosave({ waitMs: 500, fetchImpl });
@@ -97,6 +123,34 @@ describe('store', () => {
 
       expect(fetchImpl).not.toHaveBeenCalled();
       stop();
+    });
+  });
+
+  describe('hydration', () => {
+    it('restores a saved step when it is valid', () => {
+      useStore.getState().hydrate({ step: 'pool' });
+      expect(useStore.getState().ui.step).toBe('pool');
+    });
+
+    it('ignores an invalid saved step', () => {
+      useStore.getState().hydrate({ step: 'bogus' });
+      expect(useStore.getState().ui.step).toBe('welcome');
+    });
+
+    it('falls advanced steps back to pool without a restored live pool', () => {
+      useStore.getState().hydrate({ pool: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], step: 'arcade' });
+      expect(useStore.getState().ui.step).toBe('pool');
+    });
+
+    it('resumes an advanced step after live pool games are restored', () => {
+      useStore.getState().hydrate({
+        pool: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        poolGames: Array.from({ length: 12 }, (_, i) => makeGame(i + 1)),
+        step: 'arcade',
+      });
+
+      expect(useStore.getState().ui.step).toBe('arcade');
+      expect(useStore.getState().pool).toHaveLength(12);
     });
   });
 });

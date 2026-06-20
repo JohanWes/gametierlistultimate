@@ -19,7 +19,7 @@ const TIER_DOT: Record<string, string> = {
 /** The rainbow tier spectrum — the product's signature mark. */
 function TierSpectrum() {
   return (
-    <span aria-hidden className="flex items-center gap-1">
+    <span aria-hidden className="hidden items-center gap-1 min-[420px]:flex">
       {TIER_ORDER.map((t) => (
         <span key={t} className={cn('h-2.5 w-4 rounded-[2px] shadow-soft', TIER_DOT[t])} />
       ))}
