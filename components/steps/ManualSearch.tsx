@@ -7,6 +7,7 @@ import { searchGames } from '@/lib/games/client';
 import type { GameResult } from '@/lib/games/types';
 import { playSound } from '@/lib/sound';
 import { useStore } from '@/lib/store';
+import { tapProps } from '@/lib/tap';
 import { cn } from '@/lib/utils';
 
 const DEBOUNCE_MS = 300;
@@ -114,11 +115,9 @@ export function ManualSearch({ fetchImpl }: ManualSearchProps) {
                       <button
                         type="button"
                         disabled={isAdded}
-                        onClick={() => add(game)}
-                        onTouchEnd={(e) => {
-                          e.preventDefault();
+                        {...tapProps(() => {
                           if (!isAdded) add(game);
-                        }}
+                        })}
                         className={cn(
                           'flex w-full items-center gap-3 rounded-tile border px-3 py-2 text-left transition-colors duration-150 focus-visible:outline-none',
                           isAdded

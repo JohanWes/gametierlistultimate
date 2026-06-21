@@ -5,19 +5,11 @@ import { useCallback, useRef } from 'react';
 
 import type { RankingOutcome } from '@/lib/ranking';
 
+/** Re-exported so arcade call sites keep importing tap handling from a single place. */
+export { tapProps } from '@/lib/tap';
+
 /** The beat we hold after a decision so the win/eliminate animation can land. */
 export const RESOLVE_MS = 560;
-
-/** Fire a handler on both mouse click and touch, without the synthesized double-fire. */
-export function tapProps(handler: () => void) {
-  return {
-    onClick: handler,
-    onTouchEnd: (e: React.TouchEvent) => {
-      e.preventDefault();
-      handler();
-    },
-  };
-}
 
 /**
  * Returns a `complete` callback that forwards outcomes to `onComplete` exactly once, after a

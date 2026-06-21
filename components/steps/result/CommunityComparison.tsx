@@ -8,6 +8,7 @@ import type { SnapshotGame } from '@/lib/lists-repo';
 import { type Tier, type TierMap } from '@/lib/ranking';
 import { playSound } from '@/lib/sound';
 import { useStore } from '@/lib/store';
+import { tapProps } from '@/lib/tap';
 import { cn } from '@/lib/utils';
 
 /** Minimal cover/title metadata the outlier rows need. */
@@ -240,11 +241,7 @@ export function CommunityComparison({
     <div className={cn('relative w-full sm:w-[15.5rem]', className)}>
       <motion.button
         type="button"
-        onClick={toggle}
-        onTouchEnd={(e) => {
-          e.preventDefault();
-          toggle();
-        }}
+        {...tapProps(toggle)}
         aria-expanded={hasOutliers ? expanded : undefined}
         aria-label={`You match ${p}% of players${hasOutliers ? '. Show your hot takes.' : ''}`}
         initial={reduce ? false : { opacity: 0, y: 6 }}

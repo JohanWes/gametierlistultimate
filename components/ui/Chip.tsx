@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from 'framer-motion';
 
 import { playSound } from '@/lib/sound';
+import { tapProps } from '@/lib/tap';
 import { cn } from '@/lib/utils';
 
 export interface ChipProps {
@@ -28,11 +29,7 @@ export function Chip({ label, selected = false, onToggle, className }: ChipProps
       aria-checked={selected}
       whileTap={reduce ? undefined : { scale: 0.94 }}
       transition={{ type: 'spring', stiffness: 600, damping: 28 }}
-      onClick={toggle}
-      onTouchEnd={(e) => {
-        e.preventDefault();
-        toggle();
-      }}
+      {...tapProps(toggle)}
       className={cn(
         'select-none rounded-tile border px-4 py-2 text-sm font-semibold transition-colors duration-150',
         'focus-visible:outline-none',

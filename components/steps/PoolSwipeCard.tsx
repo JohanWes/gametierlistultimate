@@ -13,6 +13,7 @@ import { useRef } from 'react';
 
 import type { Game } from '@/lib/games/types';
 import { type PoolDecision, STATUS_OPTIONS, usePoolDecision } from '@/lib/pool-decision';
+import { tapProps } from '@/lib/tap';
 import { cn } from '@/lib/utils';
 
 import { GameCard } from '../ui/GameCard';
@@ -29,17 +30,6 @@ export interface PoolSwipeCardProps {
   /** Injected RNG in [0, 1); defaults to Math.random. */
   random?: () => number;
   onDecide: (action: PoolDecision) => void;
-}
-
-/** Fire a handler on both mouse click and touch, without the synthesized double-fire. */
-function tapProps(handler: () => void) {
-  return {
-    onClick: handler,
-    onTouchEnd: (e: React.TouchEvent) => {
-      e.preventDefault();
-      handler();
-    },
-  };
 }
 
 /**

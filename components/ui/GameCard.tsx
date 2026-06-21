@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { sharpenIgdbCoverUrl } from '@/lib/games/normalize';
 import type { Game } from '@/lib/games/types';
 import { playSound } from '@/lib/sound';
+import { tapProps } from '@/lib/tap';
 import { cn } from '@/lib/utils';
 
 export interface GameCardProps {
@@ -138,12 +139,7 @@ export function GameCard({
       whileHover={reduce ? undefined : { y: -4 }}
       whileTap={reduce ? undefined : { scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-      onClick={select}
-      onTouchEnd={(e) => {
-        // Prevent the synthesized click so a real touch doesn't fire onSelect twice.
-        e.preventDefault();
-        select();
-      }}
+      {...tapProps(select)}
       className={cn(classes, 'cursor-pointer hover:border-teal/70 focus-visible:outline-none')}
     >
       {inner}

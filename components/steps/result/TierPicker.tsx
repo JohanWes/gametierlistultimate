@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
 import type { Game } from '@/lib/games/types';
 import { TIER_ORDER, type Tier } from '@/lib/ranking';
+import { tapProps } from '@/lib/tap';
 import { cn } from '@/lib/utils';
 
 // Static class maps keep Tailwind's scanner happy (no dynamic class strings).
@@ -76,11 +77,7 @@ export function TierPicker({ game, current, onPick, onClose }: TierPickerProps) 
                     type="button"
                     aria-label={`Move to ${tier} tier`}
                     aria-current={isCurrent ? 'true' : undefined}
-                    onClick={() => onPick(tier)}
-                    onTouchEnd={(e) => {
-                      e.preventDefault();
-                      onPick(tier);
-                    }}
+                    {...tapProps(() => onPick(tier))}
                     className={cn(
                       'flex aspect-square items-center justify-center rounded-tile font-display text-xl font-extrabold text-black/85 shadow-soft transition-transform duration-150 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-95',
                       TIER_BG[tier],

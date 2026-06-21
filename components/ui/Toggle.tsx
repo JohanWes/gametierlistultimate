@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from 'framer-motion';
 
 import { playSound } from '@/lib/sound';
+import { tapProps } from '@/lib/tap';
 import { cn } from '@/lib/utils';
 
 export interface ToggleProps {
@@ -27,11 +28,7 @@ export function Toggle({ label, description, checked = false, onChange, classNam
       type="button"
       role="switch"
       aria-checked={checked}
-      onClick={flip}
-      onTouchEnd={(e) => {
-        e.preventDefault();
-        flip();
-      }}
+      {...tapProps(flip)}
       className={cn(
         'flex w-full select-none items-center justify-between gap-4 rounded-tile border border-border',
         'bg-surface px-4 py-3 text-left shadow-soft transition-colors duration-150 hover:border-teal/50',
