@@ -6,12 +6,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchSuggestions } from '@/lib/games/client';
 import type { Game } from '@/lib/games/types';
 import { STARTER_GAME_NAMES } from '@/lib/games/starter-set';
+import { useIsMobile } from '@/lib/use-is-mobile';
 import { useStore } from '@/lib/store';
 
 import { Button } from '../ui/Button';
 import { GameCard } from '../ui/GameCard';
 import { ManualSearch } from './ManualSearch';
 import { PoolCard, type PoolDecision } from './PoolCard';
+import { PoolSwipeDeck } from './PoolSwipeDeck';
 import { MIN_POOL, RosterMeter } from './RosterMeter';
 import { StepScaffold } from './StepScaffold';
 
@@ -47,6 +49,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
   const prefs = useStore((s) => s.prefs);
   const poolCount = useStore((s) => s.pool.length);
   const reduce = useReducedMotion();
+  const isMobile = useIsMobile();
 
   const [slots, setSlots] = useState<(SlotEntry | null)[]>(() =>
     Array.from({ length: VISIBLE_SLOTS }, () => null),
@@ -248,20 +251,56 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** Record the decision for prefetch/handoff bookkeeping. Shared by both layouts. */
+  const recordDecision = (id: number, action: PoolDecision) => {
+    decidedRef.current.add(id);
+    if (action === 'reject') rejectedRef.current.add(id);
+    if (action === 'include') acceptsRef.current += 1;
+  };
+
+  /**
+   * Desktop grid: replace the decided card *in place* with a backlog card so the other four slots
+   * never reflow.
+   */
   const handleDecide = (id: number, action: PoolDecision) => {
     if (decidedRef.current.has(id)) return;
     const idx = slotsRef.current.findIndex((s) => s?.game.igdbId === id);
     if (idx === -1) return;
 
-    decidedRef.current.add(id);
-    if (action === 'reject') rejectedRef.current.add(id);
-    if (action === 'include') acceptsRef.current += 1;
+    recordDecision(id, action);
 
     // Pop one from the backlog (mutate ref + batch state) so ensureBacklog below
     // reads the latest count and refills proactively.
     const [replacement, ...rest] = backlogRef.current;
     const nextSlots = [...slotsRef.current];
     nextSlots[idx] = replacement ?? null;
+    slotsRef.current = nextSlots;
+    backlogRef.current = rest;
+    setBacklog(rest);
+    setSlots(nextSlots);
+
+    void ensureBacklog();
+  };
+
+  /**
+   * Mobile swipe deck: treat the slots as a FIFO queue. Deciding the front card drops it, shifts
+   * the rest forward (so the card that was peeking becomes the next active one), and appends a
+   * fresh backlog card to the tail — nothing gets skipped.
+   */
+  const handleSwipeDecide = (id: number, action: PoolDecision) => {
+    if (decidedRef.current.has(id)) return;
+    if (!slotsRef.current.some((s) => s?.game.igdbId === id)) return;
+
+    recordDecision(id, action);
+
+    const kept = slotsRef.current.filter(
+      (s): s is SlotEntry => s !== null && s.game.igdbId !== id,
+    );
+    const [replacement, ...rest] = backlogRef.current;
+    const nextSlots: (SlotEntry | null)[] = [...kept];
+    if (replacement) nextSlots.push(replacement);
+    while (nextSlots.length < VISIBLE_SLOTS) nextSlots.push(null);
+
     slotsRef.current = nextSlots;
     backlogRef.current = rest;
     setBacklog(rest);
@@ -288,7 +327,16 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
         <ManualSearch fetchImpl={fetchImpl} />
 
         <div className="flex min-h-[18rem] flex-1 flex-col justify-center">
-          {showSkeletons ? (
+          {isMobile ? (
+            <PoolSwipeDeck
+              slots={slots}
+              error={error}
+              exhausted={exhausted && backlog.length === 0}
+              onDecide={handleSwipeDecide}
+              onRetry={() => void ensureBacklog()}
+              random={random}
+            />
+          ) : showSkeletons ? (
             <div className="grid grid-cols-1 justify-items-center gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {Array.from({ length: VISIBLE_SLOTS }).map((_, i) => (
                 <div

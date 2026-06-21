@@ -13,7 +13,7 @@ session and your final list is shareable via a short link.
 - **Zustand** for client flow state
 - **MongoDB** for the game catalog, sessions, and shared lists
 - **IGDB** as a fallback search + enrichment source
-- **Vitest** (unit/component/API) and **Playwright** (e2e)
+- **Vitest** for unit, component, and API tests
 
 ## Getting started
 
@@ -32,7 +32,7 @@ npm run dev            # http://localhost:3000
 | `IGDB_CLIENT_SECRET` | yes      | IGDB (Twitch) client secret               |
 | `MONGODB_DB`         | no       | Database name (default `guessthegame`)    |
 
-Unit, API, and e2e tests use in-memory Mongo + mocked IGDB, so they don't need real credentials.
+Unit and API tests use in-memory Mongo + mocked IGDB, so they don't need real credentials.
 
 ## Scripts
 
@@ -43,4 +43,3 @@ Unit, API, and e2e tests use in-memory Mongo + mocked IGDB, so they don't need r
 | `npm run start`       | Run the production build                              |
 | `npm run lint`        | ESLint (`next lint`)                                  |
 | `npm run test`        | Vitest run (unit + component + API)                   |
-| `npm run test:e2e`    | Playwright e2e (`npx playwright install` on first run)|

@@ -1,23 +1,14 @@
 'use client';
 
 import { motion, useReducedMotion } from 'framer-motion';
-import { useState } from 'react';
 
 import type { Game } from '@/lib/games/types';
-import { playSound } from '@/lib/sound';
-import { type PlayedStatus, useStore } from '@/lib/store';
+import { type PoolDecision, STATUS_OPTIONS, usePoolDecision } from '@/lib/pool-decision';
 import { cn } from '@/lib/utils';
 
 import { GameCard } from '../ui/GameCard';
 
-export type PoolDecision = 'include' | 'reject';
-
-/**
- * Chance that tapping "Played it" triggers the spotlight picker instead of including immediately.
- * The picker only ever fires on a game the user has confirmed they played, so a spotlight is never
- * wasted on a passed game. Inject `random` for deterministic tests.
- */
-const SPOTLIGHT_CHANCE = 1 / 5;
+export type { PoolDecision } from '@/lib/pool-decision';
 
 export interface PoolCardProps {
   game: Game;
@@ -37,12 +28,6 @@ function tapProps(handler: () => void) {
   };
 }
 
-const STATUS_OPTIONS: { status: PlayedStatus; label: string }[] = [
-  { status: 'tried', label: 'Tried briefly' },
-  { status: 'finished', label: 'Finished' },
-  { status: 'played-a-lot', label: 'Played a lot' },
-];
-
 /**
  * One candidate game in the pool-building batch: the cover is the whole decision surface,
  * with compact actions docked over the art. Most "Played it" taps include immediately; a random
@@ -53,23 +38,15 @@ const STATUS_OPTIONS: { status: PlayedStatus; label: string }[] = [
  */
 export function PoolCard({ game, random = Math.random, onDecide }: PoolCardProps) {
   const reduce = useReducedMotion();
-  const addToPool = useStore((s) => s.addToPool);
-  const [picking, setPicking] = useState(false);
+  const { picking, playedRollHits, reject, chooseStatus } = usePoolDecision({
+    game,
+    random,
+    onDecide,
+  });
   const hasCover = game.hasCover && !!game.coverUrl;
 
-  const include = (status: PlayedStatus) => {
-    addToPool(game, status);
-    playSound(status === 'played-a-lot' ? 'reveal' : 'success');
-    onDecide('include');
-  };
-
   const onPlayed = () => {
-    if (random() < SPOTLIGHT_CHANCE) {
-      playSound('blip');
-      setPicking(true);
-      return;
-    }
-    include('finished');
+    if (!playedRollHits()) chooseStatus('finished');
   };
 
   return (
@@ -117,7 +94,7 @@ export function PoolCard({ game, random = Math.random, onDecide }: PoolCardProps
             <button
               key={opt.status}
               type="button"
-              {...tapProps(() => include(opt.status))}
+              {...tapProps(() => chooseStatus(opt.status))}
               className={cn(
                 'select-none rounded-tile border px-3 py-1.5 text-sm font-semibold shadow-soft transition-colors duration-150 focus-visible:outline-none',
                 opt.status === 'played-a-lot'
@@ -134,10 +111,7 @@ export function PoolCard({ game, random = Math.random, onDecide }: PoolCardProps
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              {...tapProps(() => {
-                playSound('click');
-                onDecide('reject');
-              })}
+              {...tapProps(reject)}
               className="flex select-none items-center justify-center gap-2 rounded-tile border border-border bg-surface-elevated px-3 py-2 font-display text-sm font-black uppercase tracking-[0.1em] text-muted shadow-soft transition-colors duration-150 hover:border-coin/70 hover:text-fg focus-visible:outline-none"
             >
               <span aria-hidden className="text-xl leading-none text-coin">
