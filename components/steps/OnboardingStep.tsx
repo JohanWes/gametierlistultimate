@@ -48,7 +48,7 @@ function GenreMarquee({ genres }: { genres: string[] }) {
   const empty = genres.length === 0;
 
   return (
-    <div className="relative flex items-center gap-3 overflow-hidden rounded-card border-2 border-border bg-bg px-3 py-2.5 shadow-cabinet">
+    <div className="relative flex items-center gap-3 overflow-hidden rounded-card border-2 border-border bg-bg px-3 py-2 shadow-cabinet sm:py-2.5">
       <span
         aria-hidden
         className={cn(
@@ -101,13 +101,13 @@ export function OnboardingStep() {
     >
       <GenreMarquee genres={genres} />
 
-      <div className="mt-5 flex flex-wrap gap-2.5">
+      <div className="mt-3 flex flex-wrap gap-2 sm:mt-5 sm:gap-2.5">
         {GENRES.map((g) => (
           <Chip key={g} label={g} selected={genres.includes(g)} onToggle={() => toggleGenre(g)} />
         ))}
       </div>
 
-      <p className="mb-3 mt-8 font-mono text-xs uppercase tracking-[0.22em] text-muted">
+      <p className="mb-2 mt-5 font-mono text-xs uppercase tracking-[0.22em] text-muted sm:mb-3 sm:mt-8">
         Tune the vibe
       </p>
       <div className="grid gap-2.5 sm:grid-cols-2">

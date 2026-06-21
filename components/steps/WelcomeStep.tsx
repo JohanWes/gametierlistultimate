@@ -50,7 +50,7 @@ function HowItWorks({ itemVariants }: { itemVariants: Variants }) {
         <motion.li
           key={step.label}
           variants={itemVariants}
-          className="flex items-start gap-2.5 rounded-card border border-border bg-surface/70 px-3 py-2.5 shadow-soft"
+          className="flex items-start gap-2.5 rounded-card border border-border bg-surface/70 px-2.5 py-2 shadow-soft sm:px-3 sm:py-2.5"
         >
           <span className="font-mono text-sm font-bold tabular-nums text-accent">0{i + 1}</span>
           <span>
@@ -85,17 +85,17 @@ export function WelcomeStep() {
       variants={container}
       initial="hidden"
       animate="show"
-      className="grid flex-1 items-center gap-8 py-2 text-center lg:grid-cols-2 lg:gap-12 lg:text-left"
+      className="grid flex-1 items-center gap-4 py-1 text-center sm:gap-8 sm:py-2 lg:grid-cols-2 lg:gap-12 lg:text-left"
     >
       {/* Headline — row 1, left column on desktop; first on mobile. */}
       <motion.div
         variants={item}
         className="flex flex-col items-center lg:col-start-1 lg:row-start-1 lg:items-start"
       >
-        <h1 className="font-display text-5xl font-black uppercase leading-[0.9] tracking-[0.02em] text-fg sm:text-6xl">
+        <h1 className="font-display text-4xl font-black uppercase leading-[0.9] tracking-[0.02em] text-fg sm:text-6xl">
           Game Tier List Ultimate
         </h1>
-        <p className="mt-3 max-w-xl text-balance text-sm uppercase tracking-[0.18em] text-muted sm:text-base">
+        <p className="mt-2 max-w-xl text-balance text-sm uppercase tracking-[0.18em] text-muted sm:mt-3 sm:text-base">
           Rank the best games you&rsquo;ve played — through quick matchups, not drag-and-drop.
         </p>
         <SpectrumRule />
@@ -110,7 +110,7 @@ export function WelcomeStep() {
       </motion.div>
 
       {/* How it works + CTA — row 2, left column on desktop; last on mobile. */}
-      <div className="flex flex-col items-center gap-6 lg:col-start-1 lg:row-start-2 lg:items-start">
+      <div className="flex flex-col items-center gap-4 sm:gap-6 lg:col-start-1 lg:row-start-2 lg:items-start">
         <motion.div variants={item} className="w-full max-w-xl">
           <HowItWorks itemVariants={item} />
         </motion.div>

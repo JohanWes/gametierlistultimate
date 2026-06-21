@@ -172,7 +172,7 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
       </div>
 
       {/* Tray of unplaced covers */}
-      <div className="mt-6 flex min-h-[calc(var(--cover-zone)*4/3)] w-full max-w-6xl flex-wrap justify-center gap-3 border-t border-border pt-5">
+      <div className="mt-4 flex min-h-[calc(var(--cover-zone)*4/3)] w-full max-w-6xl flex-wrap justify-center gap-3 border-t border-border pt-4 sm:mt-6 sm:pt-5">
         {tray.length > 0 ? (
           tray.map((g) => (
             <DraggableArcadeCard

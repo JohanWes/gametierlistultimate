@@ -8,6 +8,7 @@ import { playSound } from '@/lib/sound';
 import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard, type CardState } from './ArcadeCard';
+import { CoverRail } from './CoverRail';
 import { MinigameHeader } from './MinigameHeader';
 
 const KEEP = 2;
@@ -55,7 +56,7 @@ export function KeepTwo({ games, onComplete }: MinigameProps) {
         hint={done ? 'Locked in' : `Choose ${remaining} more`}
       />
 
-      <div className="grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      <CoverRail gridClassName="grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {games.map((game) => {
           const order = picked.indexOf(game.igdbId);
           return (
@@ -70,7 +71,7 @@ export function KeepTwo({ games, onComplete }: MinigameProps) {
             </motion.div>
           );
         })}
-      </div>
+      </CoverRail>
     </div>
   );
 }

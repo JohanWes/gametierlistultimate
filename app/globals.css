@@ -42,7 +42,7 @@
    */
   --cover-zone: min(24vw, clamp(6rem, 11.5vh, 8.75rem)); /* bucket/higher-lower/podium/bracket/vibe — kept lean: these stack dense zones */
   --cover-lineup: min(24vw, clamp(6rem, 12.5vh, 9rem)); /* lineup: two rows of exactly five covers, so it can breathe more than dense zones */
-  --cover-row: min(33vw, clamp(6rem, 18vh, 13rem)); /* single row of up to 5: champion/keep-two/sacrifice (mobile: 2-up grid) */
+  --cover-row: min(44vw, clamp(6rem, 18vh, 13rem)); /* champion/keep-two/sacrifice — on phones these render as a swipe rail (CoverRail), so the wider vw shows ~2 covers + a peek; sm/lg below revert to grid widths */
   --cover-duo: min(34vw, clamp(7rem, 24vh, 14rem)); /* two-up versus: duel/rivalry/promotion, gauntlet */
   --cover-solo: min(60vw, clamp(7.5rem, 26vh, 14rem)); /* single hero card: replay test */
 

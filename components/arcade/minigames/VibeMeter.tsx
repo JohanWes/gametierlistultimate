@@ -12,6 +12,7 @@ import { Button } from '../../ui/Button';
 import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
+import { CoverRail } from './CoverRail';
 import { MinigameHeader } from './MinigameHeader';
 
 /**
@@ -245,7 +246,11 @@ export function VibeMeter({ games, onComplete }: MinigameProps) {
         hint="Drag each meter — top is 100, bottom is 0"
       />
 
-      <div className="grid w-full max-w-2xl grid-cols-1 justify-items-center gap-4 sm:grid-cols-2">
+      <CoverRail
+        gridClassName="grid w-full max-w-2xl grid-cols-1 justify-items-center gap-4 sm:grid-cols-2"
+        itemClassName="w-[min(82vw,20rem)]"
+        hint="Swipe to rate each"
+      >
         {games.map((g) => (
           <div key={g.igdbId} className="w-full max-w-xs">
             <VibeRow
@@ -255,7 +260,7 @@ export function VibeMeter({ games, onComplete }: MinigameProps) {
             />
           </div>
         ))}
-      </div>
+      </CoverRail>
 
       <div className="mt-6 flex flex-col items-center gap-2">
         <span className="font-mono text-xs uppercase tracking-[0.2em] text-muted">

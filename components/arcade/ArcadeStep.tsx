@@ -154,10 +154,11 @@ export function ArcadeStep() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex flex-col gap-3 border-b border-border/70 pb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <div className="flex flex-col gap-2 border-b border-border/70 pb-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:pb-3">
         <div className="flex items-center gap-3">
           <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-teal">
-            Step 4 · Ranking arcade
+            <span className="sm:hidden">Arcade</span>
+            <span className="hidden sm:inline">Step 4 · Ranking arcade</span>
           </p>
           <PhaseBadge phase={phase} round={ranking.round} />
         </div>
@@ -166,7 +167,7 @@ export function ArcadeStep() {
         </div>
       </div>
 
-      <div className="relative mt-5 flex flex-1 items-center justify-center">
+      <div className="relative mt-3 flex flex-1 items-center justify-center sm:mt-5">
         <RemoveGameProvider value={setPendingRemoval}>
           <AnimatePresence mode="wait">
             {Minigame && view ? (
@@ -192,7 +193,7 @@ export function ArcadeStep() {
         </RemoveGameProvider>
       </div>
 
-      <div className="mt-5 flex items-center justify-between gap-3 border-t border-border/70 pt-4">
+      <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/70 pt-3 sm:mt-5 sm:pt-4">
         <Button variant="ghost" onClick={goBack}>
           ← Games
         </Button>

@@ -25,7 +25,7 @@ export interface MinigameHeaderProps {
  */
 export function MinigameHeader({ eyebrow, title, hint, tone = 'teal' }: MinigameHeaderProps) {
   return (
-    <header className="mb-4 text-center">
+    <header className="mb-2.5 text-center sm:mb-4">
       {eyebrow ? (
         <p
           className={cn(

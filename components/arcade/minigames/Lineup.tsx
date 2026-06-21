@@ -72,7 +72,7 @@ export function Lineup({ games, onComplete }: MinigameProps) {
       />
 
       {/* Ranking ladder: placed cards (draggable) + numbered empty slots. */}
-      <div className="mb-6 w-full">
+      <div className="mb-4 w-full sm:mb-6">
         <Reorder.Group
           axis="x"
           values={placed}
@@ -116,7 +116,7 @@ export function Lineup({ games, onComplete }: MinigameProps) {
 
       {/* Unplaced pool. */}
       {remaining.length > 0 ? (
-        <div className="flex flex-wrap justify-center gap-3 border-t border-border pt-5">
+        <div className="flex flex-wrap justify-center gap-3 border-t border-border pt-4 sm:pt-5">
           {remaining.map((game) => (
             <motion.div key={game.igdbId} layout>
               <DraggableArcadeCard

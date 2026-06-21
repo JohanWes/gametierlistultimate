@@ -150,7 +150,7 @@ export function Podium({ games, onComplete }: MinigameProps) {
       </div>
 
       {/* Pool of remaining covers, or the lock-in once three are chosen. */}
-      <div className="mt-7 flex min-h-[calc(var(--cover-zone)*4/3)] w-full max-w-5xl flex-wrap justify-center gap-3 border-t border-border pt-5">
+      <div className="mt-4 flex min-h-[calc(var(--cover-zone)*4/3)] w-full max-w-5xl flex-wrap justify-center gap-3 border-t border-border pt-4 sm:mt-7 sm:pt-5">
         {full ? (
           <Button onClick={lockIn} disabled={!full}>
             Lock in podium →
