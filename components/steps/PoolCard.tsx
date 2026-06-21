@@ -54,22 +54,23 @@ export function PoolCard({ game, random = Math.random, onDecide }: PoolCardProps
       initial={reduce ? false : { opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
+      whileHover={reduce ? undefined : { y: -5 }}
       transition={reduce ? { duration: 0 } : { duration: 0.18, ease: [0.33, 1, 0.68, 1] }}
       className={cn(
-        'relative mx-auto w-full max-w-[22rem] overflow-hidden rounded-card border bg-surface shadow-cabinet',
-        'border-border',
+        'group relative mx-auto w-[var(--cover-pool)] overflow-hidden rounded-card border-2 bg-surface shadow-cabinet',
+        'border-border transition-[border-color,box-shadow] duration-200 hover:border-accent/40 hover:shadow-lift',
       )}
     >
       <div className="relative">
-        <GameCard game={game} showTitle={false} size="lg" className="w-full rounded-none border-0 shadow-none" />
+        <GameCard game={game} showTitle={false} size="pool" className="w-full rounded-none border-0 shadow-none" />
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-[36%] bg-gradient-to-t from-black/95 via-black/72 via-45% to-transparent"
         />
 
         {hasCover ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 px-3 text-center">
-            <p className="line-clamp-2 text-xs font-semibold leading-tight text-fg drop-shadow-[0_2px_3px_rgb(0_0_0/0.95)]">
+          <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 px-4 text-center">
+            <p className="line-clamp-2 text-sm font-semibold leading-tight text-fg drop-shadow-[0_2px_3px_rgb(0_0_0/0.95)]">
               {game.title}
             </p>
           </div>
@@ -107,14 +108,17 @@ export function PoolCard({ game, random = Math.random, onDecide }: PoolCardProps
           ))}
         </motion.div>
       ) : (
-        <div className="border-t border-border/70 bg-surface px-3 py-3">
-          <div className="grid grid-cols-2 gap-2">
+        <div className="border-t-2 border-black/50 bg-panel px-3 py-3 shadow-[inset_0_1px_0_rgb(var(--color-fg)/0.05)]">
+          <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
               {...tapProps(reject)}
-              className="flex select-none items-center justify-center gap-2 rounded-tile border border-border bg-surface-elevated px-3 py-2 font-display text-sm font-black uppercase tracking-[0.1em] text-muted shadow-soft transition-colors duration-150 hover:border-coin/70 hover:text-fg focus-visible:outline-none"
+              className="group/btn flex select-none items-center justify-center gap-2 rounded-control border-2 border-border bg-surface-elevated px-3 py-2.5 font-display text-sm font-black uppercase tracking-[0.1em] text-muted shadow-soft transition-colors duration-150 hover:border-coin/70 hover:bg-coin/15 hover:text-fg focus-visible:outline-none active:translate-y-px"
             >
-              <span aria-hidden className="text-xl leading-none text-coin">
+              <span
+                aria-hidden
+                className="flex h-6 w-6 items-center justify-center rounded-hardware border border-coin/60 bg-coin/15 text-base leading-none text-coin transition-colors duration-150 group-hover/btn:bg-coin/25"
+              >
                 ✕
               </span>
               <span>Pass</span>
@@ -122,9 +126,12 @@ export function PoolCard({ game, random = Math.random, onDecide }: PoolCardProps
             <button
               type="button"
               {...tapProps(onPlayed)}
-              className="flex select-none items-center justify-center gap-2 rounded-tile border border-teal/65 bg-teal/12 px-3 py-2 font-display text-sm font-black uppercase tracking-[0.1em] text-fg shadow-soft transition-colors duration-150 hover:bg-teal/20 focus-visible:outline-none"
+              className="group/btn flex select-none items-center justify-center gap-2 rounded-control border-2 border-teal/65 bg-teal/12 px-3 py-2.5 font-display text-sm font-black uppercase tracking-[0.1em] text-fg shadow-soft transition-colors duration-150 hover:border-teal hover:bg-teal/22 focus-visible:outline-none active:translate-y-px"
             >
-              <span aria-hidden className="text-xl leading-none text-tier-c">
+              <span
+                aria-hidden
+                className="flex h-6 w-6 items-center justify-center rounded-hardware border border-teal/60 bg-teal/15 text-base leading-none text-tier-c transition-colors duration-150 group-hover/btn:bg-teal/25"
+              >
                 ✓
               </span>
               <span>Played it</span>

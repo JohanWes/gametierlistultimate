@@ -30,6 +30,20 @@ describe('GameCard', () => {
     expect(screen.getAllByText('Hollow Knight').length).toBeGreaterThan(0);
   });
 
+  it('upgrades stale IGDB cover URLs at render time', () => {
+    renderWithProviders(
+      <GameCard
+        game={makeGame({
+          coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co1r7f.jpg',
+        })}
+      />,
+    );
+    expect(screen.getByRole('img', { name: 'Hollow Knight' })).toHaveAttribute(
+      'src',
+      'https://images.igdb.com/igdb/image/upload/t_cover_big_2x/co1r7f.jpg',
+    );
+  });
+
   it('shows a title fallback when there is no cover', () => {
     renderWithProviders(<GameCard game={makeGame({ hasCover: false, coverUrl: null })} />);
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
@@ -44,7 +58,9 @@ describe('GameCard', () => {
 
   it('fires onSelect on click', () => {
     const onSelect = vi.fn();
-    renderWithProviders(<GameCard game={makeGame({ hasCover: false, coverUrl: null })} onSelect={onSelect} />);
+    renderWithProviders(
+      <GameCard game={makeGame({ hasCover: false, coverUrl: null })} onSelect={onSelect} />,
+    );
     fireEvent.click(screen.getByRole('button'));
     expect(onSelect).toHaveBeenCalledTimes(1);
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ igdbId: 42 }));
@@ -52,7 +68,9 @@ describe('GameCard', () => {
 
   it('fires onSelect on touch', () => {
     const onSelect = vi.fn();
-    renderWithProviders(<GameCard game={makeGame({ hasCover: false, coverUrl: null })} onSelect={onSelect} />);
+    renderWithProviders(
+      <GameCard game={makeGame({ hasCover: false, coverUrl: null })} onSelect={onSelect} />,
+    );
     fireEvent.touchEnd(screen.getByRole('button'));
     expect(onSelect).toHaveBeenCalledTimes(1);
   });

@@ -20,7 +20,7 @@ describe('normalizeMongoDoc', () => {
     expect(game).toEqual({
       igdbId: 1942,
       title: 'The Witcher 3: Wild Hunt',
-      coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/coaarl.jpg',
+      coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big_2x/coaarl.jpg',
       genres: ['Role-playing (RPG)'],
       platforms: ['PC (Microsoft Windows)'],
       releaseYear: 2015,
@@ -39,7 +39,11 @@ describe('normalizeMongoDoc', () => {
   });
 
   it('handles array-valued genre/platform too', () => {
-    const game = normalizeMongoDoc({ ...doc, genre: ['RPG', 'Adventure'], platform: ['PC', 'PS4'] });
+    const game = normalizeMongoDoc({
+      ...doc,
+      genre: ['RPG', 'Adventure'],
+      platform: ['PC', 'PS4'],
+    });
     expect(game.genres).toEqual(['RPG', 'Adventure']);
     expect(game.platforms).toEqual(['PC', 'PS4']);
   });
@@ -81,7 +85,9 @@ describe('normalizeIgdb', () => {
   it('maps a raw IGDB response and resolves the cover URL', () => {
     const game = normalizeIgdb(raw);
     expect(game.igdbId).toBe(1942);
-    expect(game.coverUrl).toBe('https://images.igdb.com/igdb/image/upload/t_cover_big/coaarl.jpg');
+    expect(game.coverUrl).toBe(
+      'https://images.igdb.com/igdb/image/upload/t_cover_big_2x/coaarl.jpg',
+    );
     expect(game.genres).toEqual(['Role-playing (RPG)', 'Adventure']);
     expect(game.platforms).toEqual(['PC (Microsoft Windows)']);
     expect(game.releaseYear).toBe(2015);
@@ -107,6 +113,6 @@ describe('normalizeIgdb', () => {
 describe('igdbCoverUrl', () => {
   it('returns null for missing image id', () => {
     expect(igdbCoverUrl(undefined)).toBeNull();
-    expect(igdbCoverUrl('abc')).toContain('/t_cover_big/abc.jpg');
+    expect(igdbCoverUrl('abc')).toContain('/t_cover_big_2x/abc.jpg');
   });
 });

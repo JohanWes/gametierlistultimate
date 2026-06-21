@@ -1,7 +1,8 @@
 import type { Game } from './types';
 
-/** IGDB image CDN — `t_cover_big` is a good balance of quality and size for thumbnails. */
+/** IGDB image CDN — `t_cover_big_2x` keeps enlarged cover cards crisp without client filters. */
 export const IGDB_IMAGE_BASE = 'https://images.igdb.com/igdb/image/upload';
+const IGDB_COVER_SIZE = 't_cover_big_2x';
 
 /**
  * IGDB game categories that are NOT standalone main games and should be kept out of
@@ -32,6 +33,10 @@ function buildGame(partial: Omit<Game, 'hasCover'>): Game {
   return { ...partial, hasCover: !!partial.coverUrl };
 }
 
+export function sharpenIgdbCoverUrl(url: string): string {
+  return url.replace('/t_cover_big/', `/${IGDB_COVER_SIZE}/`);
+}
+
 /**
  * Normalize a MongoDB games document. The legacy dataset stores: `id` (IGDB id), `name`,
  * `year`, `platform` (single string), `genre` (single string), `rating` (0–100), `cover`
@@ -41,7 +46,10 @@ function buildGame(partial: Omit<Game, 'hasCover'>): Game {
  * `synopsis`; we read `synopsis` first and fall back to `summary` so both shapes round-trip.
  */
 export function normalizeMongoDoc(doc: Record<string, unknown>): Game {
-  const cover = typeof doc.cover === 'string' && doc.cover.trim() !== '' ? doc.cover : null;
+  const cover =
+    typeof doc.cover === 'string' && doc.cover.trim() !== ''
+      ? sharpenIgdbCoverUrl(doc.cover)
+      : null;
   const summaryRaw = doc.synopsis ?? doc.summary;
   return buildGame({
     igdbId: Number(doc.id),
@@ -73,7 +81,7 @@ interface IgdbRawGame {
 
 /** Build a cover URL from an IGDB `image_id`. */
 export function igdbCoverUrl(imageId: string | undefined | null): string | null {
-  return imageId ? `${IGDB_IMAGE_BASE}/t_cover_big/${imageId}.jpg` : null;
+  return imageId ? `${IGDB_IMAGE_BASE}/${IGDB_COVER_SIZE}/${imageId}.jpg` : null;
 }
 
 /** Normalize a raw IGDB `/games` API response object. */

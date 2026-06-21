@@ -17,12 +17,12 @@ import { PoolSwipeDeck } from './PoolSwipeDeck';
 import { MIN_POOL, RosterMeter } from './RosterMeter';
 import { StepScaffold } from './StepScaffold';
 
-const VISIBLE_SLOTS = 5;
+const VISIBLE_SLOTS = 3;
 const REFILL_AT = 2;
 /**
  * Curated starter shelf handoff. The first few batches pull the preset shelf so the user's
  * accepts can branch into the pre-seeded persona co-occurrence clusters. We stop asking for the
- * preset once the shelf is drained (36 games / 5 per batch ≈ 8 batches) OR the user has accepted
+ * preset once the shelf is drained (36 games / 3 per batch ≈ 12 batches) OR the user has accepted
  * 3 games — at that point personalization has enough signal to take over. The server also
  * ignores `preset` once `seedIds` is non-empty, so this is a defense-in-depth toggle.
  */
@@ -40,10 +40,10 @@ interface SlotEntry {
 }
 
 /**
- * Step 3 — build the pool of games you've played. Five fixed slots always stay on screen.
+ * Step 3 — build the pool of games you've played. Three large fixed slots always stay on screen.
  * Deciding a card fades it out and a fresh one from a hidden backlog fades into the same slot;
- * the other four never move. The backlog is prefetched in the background so replacements
- * appear instantly.
+ * the other two never move. The backlog is prefetched in the background so replacements
+ * appear instantly. (Mobile uses a separate single-card swipe deck — see PoolSwipeDeck.)
  */
 export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
   const prefs = useStore((s) => s.prefs);
@@ -337,16 +337,16 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
               random={random}
             />
           ) : showSkeletons ? (
-            <div className="grid grid-cols-1 justify-items-center gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="mx-auto grid w-fit grid-cols-3 gap-6 lg:gap-8">
               {Array.from({ length: VISIBLE_SLOTS }).map((_, i) => (
                 <div
                   key={i}
-                  className="relative mx-auto w-full max-w-[22rem] overflow-hidden rounded-card border border-border bg-surface shadow-cabinet"
+                  className="relative mx-auto w-[var(--cover-pool)] overflow-hidden rounded-card border-2 border-border bg-surface shadow-cabinet"
                 >
-                  <GameCard loading size="lg" className="w-full rounded-none" />
-                  <div className="grid grid-cols-2 gap-2 border-t border-border/70 bg-surface px-3 py-3">
-                    <div className="h-9 rounded-tile border border-border bg-surface-elevated" />
-                    <div className="h-9 rounded-tile border border-teal/40 bg-teal/10" />
+                  <GameCard loading size="pool" className="w-full rounded-none" />
+                  <div className="grid grid-cols-2 gap-2.5 border-t-2 border-black/50 bg-panel px-3 py-3">
+                    <div className="h-10 rounded-control border-2 border-border bg-surface-elevated" />
+                    <div className="h-10 rounded-control border-2 border-teal/40 bg-teal/10" />
                   </div>
                 </div>
               ))}
@@ -375,9 +375,13 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 justify-items-center gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="mx-auto grid w-fit grid-cols-3 gap-6 lg:gap-8">
               {slots.map((entry, i) => (
-                <div key={i} className="relative w-full" style={{ minHeight: '21rem' }}>
+                <div
+                  key={i}
+                  className="relative flex w-[var(--cover-pool)] justify-center"
+                  style={{ minHeight: 'calc(var(--cover-pool) * 4 / 3 + 4rem)' }}
+                >
                   <AnimatePresence mode="wait">
                     {entry ? (
                       <PoolCard
@@ -392,10 +396,10 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
                         initial={reduce ? false : { opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={reduce ? { opacity: 0 } : { opacity: 0 }}
-                        className="mx-auto flex min-h-[21rem] w-full max-w-[22rem] items-center justify-center rounded-card border border-dashed border-border bg-surface/30 p-4"
+                        className="mx-auto flex w-[var(--cover-pool)] items-center justify-center self-stretch rounded-card border-2 border-dashed border-border bg-surface/30 p-4"
                       >
                         {loading ? (
-                          <GameCard loading size="lg" className="w-full" />
+                          <GameCard loading size="pool" className="w-full" />
                         ) : (
                           <p className="py-8 text-center text-xs text-muted">No more suggestions</p>
                         )}

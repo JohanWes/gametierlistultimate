@@ -54,7 +54,7 @@ describe('searchIgdb', () => {
     expect(tokenCalls).toBe(1); // token cached between calls
     expect(first[0].title).toBe('The Witcher 3');
     expect(first[0].coverUrl).toBe(
-      'https://images.igdb.com/igdb/image/upload/t_cover_big/coaarl.jpg',
+      'https://images.igdb.com/igdb/image/upload/t_cover_big_2x/coaarl.jpg',
     );
     expect(first[0].rating).toBe(92);
     expect(second).toHaveLength(1);

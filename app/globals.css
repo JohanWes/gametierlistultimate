@@ -45,6 +45,11 @@
   --cover-row: min(33vw, clamp(6rem, 18vh, 13rem)); /* single row of up to 5: champion/keep-two/sacrifice (mobile: 2-up grid) */
   --cover-duo: min(34vw, clamp(7rem, 24vh, 14rem)); /* two-up versus: duel/rivalry/promotion, gauntlet */
   --cover-solo: min(60vw, clamp(7.5rem, 26vh, 14rem)); /* single hero card: replay test */
+
+  /* Step 3 pool builder: three large boxart cards. Bounded by width (vw guard, so 3 + gaps stay
+     inside the panel with breathing room) and height (clamp `vh`, so the card + chrome fits the
+     vertical space on a 16:9 screen without overflow). */
+  --cover-pool: min(27vw, clamp(7rem, 34vh, 15rem));
 }
 
 @media (min-width: 640px) {
@@ -64,6 +69,7 @@
     --cover-row: min(17.5vw, clamp(6.5rem, 28vh, 22rem));
     --cover-duo: min(24vw, clamp(8rem, 32vh, 24rem));
     --cover-solo: min(40vw, clamp(9rem, 26vh, 22rem));
+    --cover-pool: min(19vw, clamp(8rem, 38vh, 18rem));
   }
 }
 

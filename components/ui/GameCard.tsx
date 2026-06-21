@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from 'framer-motion';
 
+import { sharpenIgdbCoverUrl } from '@/lib/games/normalize';
 import type { Game } from '@/lib/games/types';
 import { playSound } from '@/lib/sound';
 import { cn } from '@/lib/utils';
@@ -26,6 +27,8 @@ const SIZES = {
   sm: 'w-[104px]',
   md: 'w-[150px]',
   lg: 'w-[220px]',
+  // Pool builder (Step 3): viewport-responsive large boxart (see --cover-pool in app/globals.css).
+  pool: 'w-[var(--cover-pool)]',
   // Arcade tokens: viewport-responsive widths (see --cover-* in app/globals.css).
   row: 'w-[var(--cover-row)]',
   duo: 'w-[var(--cover-duo)]',
@@ -68,6 +71,7 @@ export function GameCard({
 
   const interactive = typeof onSelect === 'function';
   const showCover = game.hasCover && !!game.coverUrl;
+  const coverUrl = game.coverUrl ? sharpenIgdbCoverUrl(game.coverUrl) : null;
 
   const select = () => {
     if (!interactive) return;
@@ -81,7 +85,7 @@ export function GameCard({
         // Covers come from many IGDB hosts; a plain img avoids per-domain next/image config.
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={game.coverUrl ?? undefined}
+          src={coverUrl ?? undefined}
           alt={game.title}
           draggable={false}
           onDragStart={(e) => e.preventDefault()}
@@ -96,17 +100,23 @@ export function GameCard({
         </div>
       )}
       {showCover && showTitle ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 min-h-[28%] bg-gradient-to-t from-black/95 via-black/70 via-45% to-transparent p-2 pt-8">
-          <span className="line-clamp-2 text-xs font-semibold leading-tight text-fg drop-shadow-[0_2px_3px_rgb(0_0_0/0.95)]">
-            {game.title}
-          </span>
-        </div>
+        <>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-[36%] bg-gradient-to-t from-black/95 via-black/72 via-45% to-transparent"
+          />
+          <div className="pointer-events-none absolute inset-x-0 bottom-[clamp(0.45rem,5.5cqw,1rem)] z-20 px-[clamp(0.55rem,7cqw,1rem)] text-center">
+            <span className="line-clamp-2 text-[clamp(0.75rem,5.2cqw,0.875rem)] font-semibold leading-tight text-fg drop-shadow-[0_2px_3px_rgb(0_0_0/0.95)]">
+              {game.title}
+            </span>
+          </div>
+        </>
       ) : null}
     </>
   );
 
   const classes = cn(
-    'group relative block aspect-[3/4] shrink-0 overflow-hidden rounded-tile bg-surface',
+    'group relative block aspect-[3/4] shrink-0 overflow-hidden rounded-tile bg-surface [container-type:inline-size]',
     'border transition-colors duration-150',
     selected ? 'border-accent shadow-cabinet' : 'border-border shadow-soft',
     SIZES[size],
