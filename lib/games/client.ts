@@ -73,24 +73,3 @@ export async function searchGames(
     return [];
   }
 }
-
-/** GET /api/games/by-ids — rebuild a saved pool from persisted IGDB ids. */
-export async function fetchGamesByIds(
-  ids: number[],
-  fetchImpl: typeof fetch = fetch,
-): Promise<Game[]> {
-  const valid = [...new Set(ids.filter((id) => Number.isFinite(id)))];
-  if (valid.length === 0) return [];
-
-  try {
-    const params = new URLSearchParams({ ids: valid.join(',') });
-    const res = await fetchImpl(`/api/games/by-ids?${params.toString()}`, {
-      credentials: 'same-origin',
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { games?: Game[] };
-    return Array.isArray(data.games) ? data.games : [];
-  } catch {
-    return [];
-  }
-}

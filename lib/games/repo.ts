@@ -440,7 +440,7 @@ export async function getByNames(names: string[]): Promise<Game[]> {
  * order. Used by `getSuggestions` when `context.preset === true` and the pool is cold
  * (no seed ids). Unresolved names are skipped, so a missing game shortens the shelf without
  * crashing. Side effect: caches the resolved IGDB ids via `setResolvedStarterIds` so the
- * predictor guardrail in `lib/sessions-repo.ts` can exclude them from co-occurrence writes.
+ * predictor guardrail in `lib/pool-stats-service.ts` can exclude them from co-occurrence writes.
  *
  * DLC/expansions are filtered out defensively — the curated list is hand-picked main games,
  * but a fuzzy substring match could theoretically pull in an edition variant.

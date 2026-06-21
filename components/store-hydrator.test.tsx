@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Game } from '@/lib/games/types';
+import { LOCAL_SESSION_KEY, type LocalSessionState } from '@/lib/session-local';
 import { resetStore, useStore } from '@/lib/store';
 import { renderWithProviders, waitFor } from '@/test/helpers/render';
 
@@ -22,11 +23,8 @@ function game(igdbId: number): Game {
   };
 }
 
-function jsonResponse(body: unknown) {
-  return {
-    ok: true,
-    json: async () => body,
-  } as Response;
+function seedLocalSession(state: LocalSessionState) {
+  window.localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(state));
 }
 
 describe('StoreHydrator', () => {
@@ -39,61 +37,44 @@ describe('StoreHydrator', () => {
     vi.restoreAllMocks();
   });
 
-  it('restores saved pool games before resuming an advanced step', async () => {
-    const games = Array.from({ length: 12 }, (_, i) => game(i + 1));
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url === '/api/session') {
-        return jsonResponse({
-          session: {
-            pool: games.map((g) => g.igdbId),
-            step: 'arcade',
-          },
-        });
-      }
-      if (url.startsWith('/api/games/by-ids?')) {
-        return jsonResponse({ games });
-      }
-      return jsonResponse({ ok: true });
-    }) as unknown as typeof fetch;
+  it('restores the saved pool (with statuses) and step from localStorage without any network', async () => {
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
     vi.stubGlobal('fetch', fetchImpl);
+
+    const pool = Array.from({ length: 12 }, (_, i) => ({
+      game: game(i + 1),
+      status: 'played-a-lot' as const,
+    }));
+    seedLocalSession({ prefs: { genres: [], platforms: [], flags: {} }, pool, scores: {}, step: 'arcade' });
 
     renderWithProviders(<StoreHydrator />);
 
     await waitFor(() => expect(useStore.getState().ui.hydrated).toBe(true));
 
-    expect(useStore.getState().pool.map((entry) => entry.game.igdbId)).toEqual(
-      games.map((g) => g.igdbId),
-    );
+    expect(useStore.getState().pool.map((e) => e.game.igdbId)).toEqual(pool.map((e) => e.game.igdbId));
+    expect(useStore.getState().pool.every((e) => e.status === 'played-a-lot')).toBe(true);
     expect(useStore.getState().ui.step).toBe('arcade');
-    expect(fetchImpl).toHaveBeenCalledWith(
-      '/api/games/by-ids?ids=1%2C2%2C3%2C4%2C5%2C6%2C7%2C8%2C9%2C10%2C11%2C12',
-      { credentials: 'same-origin' },
-    );
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('falls back to the pool step when advanced resume games cannot be restored', async () => {
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url === '/api/session') {
-        return jsonResponse({
-          session: {
-            pool: [1, 2, 3],
-            step: 'reveal',
-          },
-        });
-      }
-      if (url.startsWith('/api/games/by-ids?')) return jsonResponse({ games: [] });
-      return jsonResponse({ ok: true });
-    }) as unknown as typeof fetch;
-    vi.stubGlobal('fetch', fetchImpl);
+  it('falls back to the pool step when the saved pool is too small for an advanced step', async () => {
+    const pool = [1, 2, 3].map((id) => ({ game: game(id), status: 'finished' as const }));
+    seedLocalSession({ prefs: { genres: [], platforms: [], flags: {} }, pool, scores: {}, step: 'reveal' });
 
+    renderWithProviders(<StoreHydrator />);
+
+    await waitFor(() => expect(useStore.getState().ui.hydrated).toBe(true));
+
+    expect(useStore.getState().pool.map((e) => e.game.igdbId)).toEqual([1, 2, 3]);
+    expect(useStore.getState().ui.step).toBe('pool');
+  });
+
+  it('stays on the welcome step when there is no saved local session', async () => {
     renderWithProviders(<StoreHydrator />);
 
     await waitFor(() => expect(useStore.getState().ui.hydrated).toBe(true));
 
     expect(useStore.getState().pool).toEqual([]);
-    expect(useStore.getState().poolIds).toEqual([1, 2, 3]);
-    expect(useStore.getState().ui.step).toBe('pool');
+    expect(useStore.getState().ui.step).toBe('welcome');
   });
 });

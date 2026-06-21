@@ -18,7 +18,7 @@
  * missing game is silently skipped rather than crashing the shelf.
  *
  * Predictor guardrail: `getStarterSetIds()` returns the resolved IGDB ids and is used by
- * `lib/sessions-repo.ts` to exclude starter games from `updatePoolPatternAggregates` writes —
+ * `lib/pool-stats-service.ts` to exclude starter games from `updatePoolPatternAggregates` writes —
  * real users can't inflate Witcher 3 et al. into universal popularity hubs. Starter edges stay
  * anchored by the curated persona data only.
  */
@@ -109,7 +109,7 @@ export const STARTER_GAME_NAMES: readonly string[] = STARTER_ENTRIES.map((e) => 
 
 /**
  * Cache of resolved IGDB ids, populated by `getStarterSet` in `lib/games/repo.ts` on first
- * resolution. Used by the predictor guardrail in `lib/sessions-repo.ts` to keep starter games
+ * resolution. Used by the predictor guardrail in `lib/pool-stats-service.ts` to keep starter games
  * out of `updatePoolPatternAggregates` writes. Empty until `getStarterSet` has run.
  */
 const resolvedStarterIds = new Set<number>();

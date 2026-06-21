@@ -1,12 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { LOCAL_SESSION_KEY } from '@/lib/session-local';
 import { resetStore, startAutosave, useStore } from '@/lib/store';
 import { fireEvent, renderWithProviders, screen } from '@/test/helpers/render';
 
 import { OnboardingStep } from './OnboardingStep';
 
 describe('OnboardingStep', () => {
-  beforeEach(() => resetStore());
+  beforeEach(() => {
+    resetStore();
+    window.localStorage.clear();
+  });
 
   it('renders all 16 genres and 6 preference toggles', () => {
     renderWithProviders(<OnboardingStep />);
@@ -36,7 +40,7 @@ describe('OnboardingStep', () => {
     beforeEach(() => vi.useFakeTimers());
     afterEach(() => vi.useRealTimers());
 
-    it('advances to the pool step and autosaves the selected prefs', () => {
+    it('advances to the pool step and persists the selected prefs locally', () => {
       const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
       const stop = startAutosave({ waitMs: 500, fetchImpl });
       useStore.getState().setStep('onboarding'); // the screen is reached from welcome in real flow
@@ -49,11 +53,10 @@ describe('OnboardingStep', () => {
       expect(useStore.getState().ui.step).toBe('pool');
 
       vi.advanceTimersByTime(500);
-      expect(fetchImpl).toHaveBeenCalledTimes(1);
-      const [url, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
-      expect(url).toBe('/api/session');
-      expect(init).toMatchObject({ method: 'PUT' });
-      expect(JSON.parse(init.body).prefs.genres).toContain('Strategy');
+      const saved = JSON.parse(window.localStorage.getItem(LOCAL_SESSION_KEY) as string);
+      expect(saved.prefs.genres).toContain('Strategy');
+      expect(saved.step).toBe('pool');
+      expect(fetchImpl).not.toHaveBeenCalled(); // pref/step changes are local-only
 
       stop();
     });

@@ -6,6 +6,7 @@ import {
   parseRankingState,
   serializeRankingState,
 } from '@/lib/ranking';
+import { LOCAL_SESSION_KEY } from '@/lib/session-local';
 import { resetStore, startAutosave, useStore } from '@/lib/store';
 import { makeGames } from '@/test/helpers/games';
 import { fireEvent, renderWithProviders, screen, waitFor, within } from '@/test/helpers/render';
@@ -22,10 +23,11 @@ function seedPool(count = 6) {
 describe('ArcadeStep', () => {
   beforeEach(() => resetStore());
 
-  it('a completed round updates the hidden ranking and autosaves', async () => {
+  it('a completed round updates the hidden ranking and persists it locally', async () => {
     const fetchSpy = vi.fn(
       async () => ({ ok: true, status: 200, json: async () => ({}) }) as Response,
     );
+    window.localStorage.clear();
     seedPool(6);
     useStore.getState().setHydrated(true);
     const stop = startAutosave({ waitMs: 0, fetchImpl: fetchSpy as unknown as typeof fetch });
@@ -39,7 +41,11 @@ describe('ArcadeStep', () => {
     await waitFor(() => {
       expect(parseRankingState(useStore.getState().scores)?.round).toBe(1);
     });
-    await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+    await waitFor(() => {
+      const saved = JSON.parse(window.localStorage.getItem(LOCAL_SESSION_KEY) as string);
+      expect(parseRankingState(saved.scores)?.round).toBe(1);
+    });
+    expect(fetchSpy).not.toHaveBeenCalled(); // a score change is local-only
 
     stop();
   });

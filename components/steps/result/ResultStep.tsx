@@ -98,7 +98,7 @@ export function ResultStep() {
       if (to !== from) {
         const updated = assignTier(rankingRef.current as RankingState, gameId, to);
         rankingRef.current = updated;
-        // Persist via the existing autosave (scores change → debounced PUT /api/session).
+        // Persist via the existing autosave (scores change → debounced localStorage write).
         setScores(serializeRankingState(updated) as unknown as Record<string, unknown>);
       }
       if (soundOn) playSound('blip');

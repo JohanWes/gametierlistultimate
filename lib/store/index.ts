@@ -4,6 +4,7 @@ import { create } from 'zustand';
 
 import { resolveResumeStep, STEP_ORDER, type Step } from '@/lib/flow';
 import type { Game } from '@/lib/games/types';
+import { saveLocalSession } from '@/lib/session-local';
 import { debounce } from '@/lib/utils';
 
 export { MIN_POOL, STEP_ORDER, type Step } from '@/lib/flow';
@@ -43,8 +44,6 @@ export interface StoreState {
   prefs: PrefsState;
   /** Games the user has added, with played status. Live UI source of truth. */
   pool: PoolEntry[];
-  /** Saved pool ids from a prior session, before full game objects are re-fetched (Phase 5). */
-  poolIds: number[];
   /** Opaque hidden ranking state (filled by the Phase 6 engine). */
   scores: Record<string, unknown>;
   arcade: ArcadeState;
@@ -76,7 +75,6 @@ export interface StoreState {
   hydrate: (saved: {
     prefs?: unknown;
     pool?: unknown;
-    poolGames?: unknown;
     scores?: unknown;
     step?: unknown;
   }) => void;
@@ -93,14 +91,10 @@ function persistSoundPref(on: boolean): void {
   }
 }
 
-function initialState(): Pick<
-  StoreState,
-  'prefs' | 'pool' | 'poolIds' | 'scores' | 'arcade' | 'ui'
-> {
+function initialState(): Pick<StoreState, 'prefs' | 'pool' | 'scores' | 'arcade' | 'ui'> {
   return {
     prefs: { genres: [], platforms: [], flags: {} },
     pool: [],
-    poolIds: [],
     scores: {},
     arcade: { phase: 'early', round: 0 },
     ui: { soundOn: true, step: 'welcome', hydrated: false },
@@ -186,19 +180,15 @@ export const useStore = create<StoreState>((set, get) => ({
       };
     }
     if (Array.isArray(saved.pool)) {
-      patch.poolIds = (saved.pool as unknown[]).filter((n): n is number => typeof n === 'number');
-    }
-    if (Array.isArray(saved.poolGames)) {
-      const pool: PoolEntry[] = (saved.poolGames as unknown[])
-        .filter(
-          (game): game is Game =>
-            Boolean(game) && typeof game === 'object' && typeof (game as Game).igdbId === 'number',
-        )
-        .map((game) => ({ game, status: 'finished' }));
-      if (pool.length > 0) {
-        patch.pool = pool;
-        patch.poolIds = pool.map((e) => e.game.igdbId);
-      }
+      // Full pool entries (game + played status) are stored locally, so resume restores both
+      // without any network round-trip.
+      const pool: PoolEntry[] = (saved.pool as unknown[]).filter(
+        (entry): entry is PoolEntry =>
+          Boolean(entry) &&
+          typeof entry === 'object' &&
+          typeof (entry as PoolEntry).game?.igdbId === 'number',
+      );
+      patch.pool = pool;
     }
     if (saved.scores && typeof saved.scores === 'object') {
       patch.scores = saved.scores as Record<string, unknown>;
@@ -211,44 +201,57 @@ export const useStore = create<StoreState>((set, get) => ({
 
 /* ------------------------------------------------------------------ autosave */
 
-/** The ids we persist for the pool: live entries if present, else the saved ids. */
-function poolIdsForSave(s: StoreState): number[] {
-  return s.pool.length ? s.pool.map((e) => e.game.igdbId) : s.poolIds;
+function poolEntryIds(s: StoreState): number[] {
+  return s.pool.map((e) => e.game.igdbId);
 }
 
 /**
- * Subscribe to prefs/pool/scores changes and debounce a PUT /api/session. Returns an
- * unsubscribe function. Only saves after hydration so we never clobber a restored session
- * with empty defaults. Accepts injectable `fetchImpl`/`waitMs` for testing.
+ * Subscribe to prefs/pool/scores/step changes and persist them. On any change we debounce a
+ * write of the full state to localStorage (instant, offline resume). When the pool *ids* change
+ * we also debounce a fire-and-forget POST /api/pool-stats carrying the previous→next delta — the
+ * only remaining server write, feeding the community co-occurrence aggregates.
+ *
+ * Only persists after hydration so we never clobber restored state with empty defaults. The pool
+ * delta baseline is reset to the restored pool at hydration, so resuming never re-counts games
+ * already recorded in a prior visit. Accepts injectable `fetchImpl`/`waitMs` for testing.
  */
 export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch }): () => void {
   const waitMs = opts?.waitMs ?? 600;
   const doFetch = opts?.fetchImpl ?? fetch;
 
-  const save = debounce(() => {
+  const persist = debounce(() => {
     const s = useStore.getState();
-    void doFetch('/api/session', {
-      method: 'PUT',
+    saveLocalSession({ prefs: s.prefs, pool: s.pool, scores: s.scores, step: s.ui.step });
+  }, waitMs);
+
+  // Baseline of pool ids already recorded in the community aggregates; sent as `previous` and
+  // advanced only when a sync actually fires.
+  let syncedPoolIds = poolEntryIds(useStore.getState());
+  const syncPool = debounce(() => {
+    const next = poolEntryIds(useStore.getState());
+    const previous = syncedPoolIds;
+    syncedPoolIds = next;
+    void doFetch('/api/pool-stats', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({
-        prefs: s.prefs,
-        pool: poolIdsForSave(s),
-        scores: s.scores,
-        step: s.ui.step,
-      }),
+      body: JSON.stringify({ previous, next }),
     }).catch(() => {
-      /* autosave is best-effort */
+      /* best-effort community signal */
     });
   }, waitMs);
 
   let prev = pickPersisted(useStore.getState());
+  let prevPoolKey = poolEntryIds(useStore.getState()).join(',');
   let wasHydrated = useStore.getState().ui.hydrated;
   const unsub = useStore.subscribe((state) => {
     const next = pickPersisted(state);
+    const nextPoolKey = poolEntryIds(state).join(',');
     if (!wasHydrated && state.ui.hydrated) {
       wasHydrated = true;
       prev = next;
+      prevPoolKey = nextPoolKey;
+      syncedPoolIds = poolEntryIds(state);
       return;
     }
     if (
@@ -257,13 +260,19 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
       next.scores !== prev.scores ||
       next.step !== prev.step
     ) {
+      const poolIdsChanged = nextPoolKey !== prevPoolKey;
       prev = next;
-      if (state.ui.hydrated) save();
+      prevPoolKey = nextPoolKey;
+      if (state.ui.hydrated) {
+        persist();
+        if (poolIdsChanged) syncPool();
+      }
     }
   });
 
   return () => {
-    save.cancel();
+    persist.cancel();
+    syncPool.cancel();
     unsub();
   };
 }

@@ -33,7 +33,6 @@ export const DEFAULT_DB_NAME = process.env.MONGODB_DB?.trim() || 'guessthegame';
 /** Collection names used across the app. */
 export const COLLECTIONS = {
   games: 'games',
-  sessions: 'sessions',
   lists: 'lists',
   gameStats: 'gameStats',
   gamePoolStats: 'gamePoolStats',

@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Game } from '@/lib/games/types';
+import { LOCAL_SESSION_KEY } from '@/lib/session-local';
 
-import { resetStore, startAutosave, useStore } from './index';
+import { resetStore, startAutosave, useStore, type PoolEntry } from './index';
 
 function makeGame(igdbId: number): Game {
   return {
@@ -18,6 +19,15 @@ function makeGame(igdbId: number): Game {
     hasCover: false,
     category: null,
   };
+}
+
+function poolEntries(count: number): PoolEntry[] {
+  return Array.from({ length: count }, (_, i) => ({ game: makeGame(i + 1), status: 'finished' }));
+}
+
+function readLocalSession() {
+  const raw = window.localStorage.getItem(LOCAL_SESSION_KEY);
+  return raw ? JSON.parse(raw) : null;
 }
 
 describe('store', () => {
@@ -65,30 +75,48 @@ describe('store', () => {
   });
 
   describe('autosave', () => {
-    beforeEach(() => vi.useFakeTimers());
+    beforeEach(() => {
+      vi.useFakeTimers();
+      window.localStorage.clear();
+    });
     afterEach(() => vi.useRealTimers());
 
-    it('debounces a PUT /api/session after persisted state changes', () => {
+    it('debounces a localStorage write after persisted state changes (no network)', () => {
       const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
       const stop = startAutosave({ waitMs: 500, fetchImpl });
 
       useStore.getState().setHydrated(true); // ui-only change must NOT trigger a save
       useStore.getState().toggleGenre('RPG');
-      useStore.getState().toggleGenre('Action'); // rapid changes collapse into one PUT
+      useStore.getState().toggleGenre('Action'); // rapid changes collapse into one write
 
-      expect(fetchImpl).not.toHaveBeenCalled(); // still within debounce window
+      expect(readLocalSession()).toBeNull(); // still within debounce window
+      vi.advanceTimersByTime(500);
+
+      expect(readLocalSession().prefs.genres).toEqual(['RPG', 'Action']);
+      expect(fetchImpl).not.toHaveBeenCalled(); // a pref change is local-only
+      stop();
+    });
+
+    it('posts a pool delta to /api/pool-stats when the pool ids change', () => {
+      const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
+      const stop = startAutosave({ waitMs: 500, fetchImpl });
+
+      useStore.getState().setHydrated(true);
+      useStore.getState().addToPool(makeGame(1));
+      useStore.getState().addToPool(makeGame(2));
       vi.advanceTimersByTime(500);
 
       expect(fetchImpl).toHaveBeenCalledTimes(1);
       const [url, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
-      expect(url).toBe('/api/session');
-      expect(init).toMatchObject({ method: 'PUT' });
-      expect(JSON.parse(init.body).prefs.genres).toEqual(['RPG', 'Action']);
-
+      expect(url).toBe('/api/pool-stats');
+      expect(init).toMatchObject({ method: 'POST' });
+      expect(JSON.parse(init.body)).toEqual({ previous: [], next: [1, 2] });
+      // The pool is also persisted locally.
+      expect(readLocalSession().pool.map((e: PoolEntry) => e.game.igdbId)).toEqual([1, 2]);
       stop();
     });
 
-    it('autosaves the current step after hydration', () => {
+    it('persists the current step after hydration', () => {
       const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
       const stop = startAutosave({ waitMs: 500, fetchImpl });
 
@@ -96,32 +124,30 @@ describe('store', () => {
       useStore.getState().goNext();
       vi.advanceTimersByTime(500);
 
-      expect(fetchImpl).toHaveBeenCalledTimes(1);
-      const [, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
-      expect(JSON.parse(init.body).step).toBe('onboarding');
-
+      expect(readLocalSession().step).toBe('onboarding');
       stop();
     });
 
-    it('does not autosave the hydration patch itself', () => {
+    it('does not persist the hydration patch itself', () => {
       const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
       const stop = startAutosave({ waitMs: 500, fetchImpl });
 
       useStore.getState().hydrate({ prefs: { genres: ['RPG'] }, step: 'pool' });
       vi.advanceTimersByTime(500);
 
+      expect(readLocalSession()).toBeNull();
       expect(fetchImpl).not.toHaveBeenCalled();
       stop();
     });
 
-    it('does not autosave before hydration', () => {
+    it('does not persist before hydration', () => {
       const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
       const stop = startAutosave({ waitMs: 500, fetchImpl });
 
       useStore.getState().toggleGenre('RPG'); // hydrated is still false
       vi.advanceTimersByTime(500);
 
-      expect(fetchImpl).not.toHaveBeenCalled();
+      expect(readLocalSession()).toBeNull();
       stop();
     });
   });
@@ -137,20 +163,18 @@ describe('store', () => {
       expect(useStore.getState().ui.step).toBe('welcome');
     });
 
-    it('falls advanced steps back to pool without a restored live pool', () => {
-      useStore.getState().hydrate({ pool: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], step: 'arcade' });
+    it('falls advanced steps back to pool when the restored pool is too small', () => {
+      useStore.getState().hydrate({ pool: poolEntries(3), step: 'arcade' });
       expect(useStore.getState().ui.step).toBe('pool');
     });
 
-    it('resumes an advanced step after live pool games are restored', () => {
-      useStore.getState().hydrate({
-        pool: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-        poolGames: Array.from({ length: 12 }, (_, i) => makeGame(i + 1)),
-        step: 'arcade',
-      });
+    it('resumes an advanced step and restores pool entries with their statuses', () => {
+      const pool = poolEntries(12).map((e) => ({ ...e, status: 'played-a-lot' as const }));
+      useStore.getState().hydrate({ pool, step: 'arcade' });
 
       expect(useStore.getState().ui.step).toBe('arcade');
       expect(useStore.getState().pool).toHaveLength(12);
+      expect(useStore.getState().pool.every((e) => e.status === 'played-a-lot')).toBe(true);
     });
   });
 });

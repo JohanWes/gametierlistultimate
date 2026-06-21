@@ -9,6 +9,7 @@ import {
   TIER_ORDER,
   type Tier,
 } from '@/lib/ranking';
+import { LOCAL_SESSION_KEY } from '@/lib/session-local';
 import { resetStore, startAutosave, useStore } from '@/lib/store';
 import { makeGames } from '@/test/helpers/games';
 import { fireEvent, renderWithProviders, screen, waitFor, within } from '@/test/helpers/render';
@@ -96,10 +97,11 @@ describe('manual correction (tap-to-move)', () => {
     expect(useStore.getState().pool.some((e) => e.game.igdbId === 7)).toBe(true);
   });
 
-  it('autosaves a manual move (PUT /api/session)', async () => {
+  it('persists a manual move locally (localStorage, no network)', async () => {
     const fetchSpy = vi.fn(
       async () => ({ ok: true, status: 200, json: async () => ({}) }) as Response,
     );
+    window.localStorage.clear();
     seed();
     useStore.getState().setHydrated(true);
     const stop = startAutosave({ waitMs: 0, fetchImpl: fetchSpy as unknown as typeof fetch });
@@ -109,9 +111,12 @@ describe('manual correction (tap-to-move)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Move Game 7' }));
     fireEvent.click(screen.getByRole('button', { name: 'Move to S tier' }));
 
-    await waitFor(() =>
-      expect(fetchSpy).toHaveBeenCalledWith('/api/session', expect.objectContaining({ method: 'PUT' })),
-    );
+    await waitFor(() => {
+      const saved = JSON.parse(window.localStorage.getItem(LOCAL_SESSION_KEY) as string);
+      const state = parseRankingState(saved.scores);
+      expect(tierForRating(state!.games[7].rating)).toBe('S');
+    });
+    expect(fetchSpy).not.toHaveBeenCalled(); // a tier move is local-only
     stop();
   });
 });

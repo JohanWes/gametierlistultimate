@@ -2,41 +2,24 @@
 
 import { useEffect } from 'react';
 
-import { fetchGamesByIds } from '@/lib/games/client';
+import { loadLocalSession } from '@/lib/session-local';
 import { initAudio, setMuted } from '@/lib/sound';
 import { startAutosave, useStore } from '@/lib/store';
 
 /**
- * Side-effect-only component: ensures an anonymous session exists, hydrates the store from it,
+ * Side-effect-only component: restores in-progress state from localStorage (no network),
  * restores the mute preference, starts debounced autosave, syncs mute into the sound module,
  * and lazily initializes Web Audio on the first user gesture. Renders nothing.
  */
 export function StoreHydrator() {
   useEffect(() => {
-    let cancelled = false;
-
-    // Ensure a session cookie, then load any saved in-progress state.
-    void (async () => {
-      try {
-        await fetch('/api/session', { method: 'POST', credentials: 'same-origin' });
-        const res = await fetch('/api/session', { credentials: 'same-origin' });
-        const data = (await res.json()) as { session?: unknown };
-        if (cancelled) return;
-        if (data?.session && typeof data.session === 'object') {
-          const session = data.session as Record<string, unknown>;
-          const poolIds = Array.isArray(session.pool)
-            ? session.pool.filter((n): n is number => typeof n === 'number')
-            : [];
-          const poolGames = poolIds.length ? await fetchGamesByIds(poolIds) : [];
-          if (cancelled) return;
-          useStore.getState().hydrate({ ...session, poolGames });
-        } else {
-          useStore.getState().setHydrated(true);
-        }
-      } catch {
-        if (!cancelled) useStore.getState().setHydrated(true);
-      }
-    })();
+    // Resume saved in-progress state straight from localStorage — fully local, zero round-trips.
+    const saved = loadLocalSession();
+    if (saved) {
+      useStore.getState().hydrate(saved);
+    } else {
+      useStore.getState().setHydrated(true);
+    }
 
     // Restore the persisted mute preference (defaults to on).
     try {
@@ -68,7 +51,6 @@ export function StoreHydrator() {
     const stopAutosave = startAutosave();
 
     return () => {
-      cancelled = true;
       unsubSound();
       removeGestureListeners();
       stopAutosave();

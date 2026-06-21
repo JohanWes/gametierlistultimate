@@ -9,7 +9,6 @@ import { withMemoryMongo, type MemoryMongo } from '@/test/helpers/mongo';
 
 import { GET as searchGET } from './search/route';
 import { GET as suggestionsGET } from './suggestions/route';
-import { GET as byIdsGET } from './by-ids/route';
 
 let mongo: MemoryMongo;
 
@@ -95,18 +94,5 @@ describe('GET /api/games/suggestions', () => {
     const res = await suggestionsGET(req('/api/games/suggestions?genres=rpg&limit=3'));
     const body = await res.json();
     expect(body.games[0].genres).toContain('RPG');
-  });
-});
-
-describe('GET /api/games/by-ids', () => {
-  it('hydrates the requested ids in order', async () => {
-    const res = await byIdsGET(req('/api/games/by-ids?ids=4,1'));
-    const body = await res.json();
-    expect(body.games.map((g: { igdbId: number }) => g.igdbId)).toEqual([4, 1]);
-  });
-
-  it('returns empty for missing/blank ids param', async () => {
-    const res = await byIdsGET(req('/api/games/by-ids'));
-    expect(await res.json()).toEqual({ games: [] });
   });
 });
