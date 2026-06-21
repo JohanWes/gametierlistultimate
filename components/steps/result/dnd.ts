@@ -99,3 +99,15 @@ export function moveInTierMap(
   next[to].splice(idx, 0, gameId);
   return next;
 }
+
+/** Drop a game from every tier (used when the player deletes it from the pool). */
+export function removeFromTierMap(
+  tiers: Record<Tier, number[]>,
+  gameId: number,
+): Record<Tier, number[]> {
+  const next = {} as Record<Tier, number[]>;
+  for (const tier of Object.keys(tiers) as Tier[]) {
+    next[tier] = tiers[tier].filter((id) => id !== gameId);
+  }
+  return next;
+}

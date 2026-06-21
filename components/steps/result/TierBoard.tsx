@@ -8,6 +8,7 @@ import { TIER_ORDER, type Tier, type TierMap } from '@/lib/ranking';
 import { cn } from '@/lib/utils';
 
 import { GameCard } from '../../ui/GameCard';
+import { RemoveButton } from '../../ui/RemoveButton';
 import { Row } from '../../ui/Row';
 import { insertionIndex, pageRectOf, tierAtPoint, type DropTarget, type TierRect } from './dnd';
 
@@ -45,6 +46,8 @@ export interface TierBoardProps {
   onMove?: (gameId: number, from: Tier, to: Tier, toIndex: number) => void;
   /** Tap a cover to open the tier picker (the touch-first move path). */
   onPick?: (game: Game, from: Tier) => void;
+  /** When provided, each movable cover shows a delete-X that removes the game from the pool. */
+  onRemove?: (game: Game, from: Tier) => void;
   className?: string;
 }
 
@@ -60,6 +63,7 @@ export function TierBoard({
   visibleTiers,
   onMove,
   onPick,
+  onRemove,
   className,
 }: TierBoardProps) {
   const revealing = visibleTiers !== undefined;
@@ -147,6 +151,7 @@ export function TierBoard({
                           resolveDrop={resolveDrop}
                           onMove={onMove}
                           onPick={onPick}
+                          onRemove={onRemove}
                         />
                       );
                     })}
@@ -214,6 +219,7 @@ function MovableCard({
   resolveDrop,
   onMove,
   onPick,
+  onRemove,
 }: {
   game: Game;
   from: Tier;
@@ -221,6 +227,7 @@ function MovableCard({
   resolveDrop: (point: { x: number; y: number }, excludeId: number) => DropTarget | null;
   onMove: (gameId: number, from: Tier, to: Tier, toIndex: number) => void;
   onPick?: (game: Game, from: Tier) => void;
+  onRemove?: (game: Game, from: Tier) => void;
 }) {
   const reduce = useReducedMotion();
   const x = useMotionValue(0);
@@ -295,6 +302,7 @@ function MovableCard({
       className="relative cursor-grab touch-none rounded-tile focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
     >
       <GameCard game={game} size="sm" />
+      {onRemove ? <RemoveButton onClick={() => onRemove(game, from)} title={game.title} /> : null}
     </motion.div>
   );
 }

@@ -6,6 +6,8 @@ import type { Game } from '@/lib/games/types';
 import { cn } from '@/lib/utils';
 
 import { GameCard, type GameCardSize } from '../../ui/GameCard';
+import { RemoveButton } from '../../ui/RemoveButton';
+import { useRemoveGame } from '../RemoveGameContext';
 import { tapProps } from '../shared';
 
 export type CardState = 'idle' | 'win' | 'lose' | 'dim' | 'equal';
@@ -45,6 +47,7 @@ export function ArcadeCard({
 }: ArcadeCardProps) {
   const reduce = useReducedMotion();
   const interactive = typeof onSelect === 'function' && !disabled;
+  const onRemove = useRemoveGame();
 
   const frame = (
     <span
@@ -94,22 +97,34 @@ export function ArcadeCard({
     </span>
   );
 
+  const removeX = onRemove ? (
+    <RemoveButton onClick={() => onRemove(game)} title={game.title} />
+  ) : null;
+
   if (!interactive) {
-    return <div className={cn('inline-flex', className)}>{frame}</div>;
+    return (
+      <div className={cn('relative inline-flex', className)}>
+        {frame}
+        {removeX}
+      </div>
+    );
   }
 
   return (
-    <motion.button
-      type="button"
-      title={game.title}
-      {...tapProps(onSelect)}
-      whileHover={reduce ? undefined : { y: -6 }}
-      whileTap={reduce ? undefined : { scale: 0.94 }}
-      animate={state === 'win' && !reduce ? { scale: 1.05 } : { scale: 1 }}
-      transition={{ type: 'spring', stiffness: 460, damping: 26 }}
-      className={cn('inline-flex cursor-pointer focus-visible:outline-none', className)}
-    >
-      {frame}
-    </motion.button>
+    <div className={cn('relative inline-flex', className)}>
+      <motion.button
+        type="button"
+        title={game.title}
+        {...tapProps(onSelect)}
+        whileHover={reduce ? undefined : { y: -6 }}
+        whileTap={reduce ? undefined : { scale: 0.94 }}
+        animate={state === 'win' && !reduce ? { scale: 1.05 } : { scale: 1 }}
+        transition={{ type: 'spring', stiffness: 460, damping: 26 }}
+        className="inline-flex cursor-pointer focus-visible:outline-none"
+      >
+        {frame}
+      </motion.button>
+      {removeX}
+    </div>
   );
 }

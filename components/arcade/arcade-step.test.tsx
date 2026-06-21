@@ -8,7 +8,7 @@ import {
 } from '@/lib/ranking';
 import { resetStore, startAutosave, useStore } from '@/lib/store';
 import { makeGames } from '@/test/helpers/games';
-import { fireEvent, renderWithProviders, screen, waitFor } from '@/test/helpers/render';
+import { fireEvent, renderWithProviders, screen, waitFor, within } from '@/test/helpers/render';
 
 import { ArcadeStep } from './ArcadeStep';
 
@@ -42,6 +42,40 @@ describe('ArcadeStep', () => {
     await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
 
     stop();
+  });
+
+  it('deletes a game from the pool and resets the round after confirming', () => {
+    seedPool(6);
+    renderWithProviders(<ArcadeStep />);
+
+    const roundBefore = screen.getByTestId('arcade-round').textContent;
+
+    // Each visible cover carries a delete-X ("Remove Game N").
+    const removeBtn = screen.getAllByRole('button', { name: /^Remove Game \d+$/i })[0];
+    const id = Number(/Game (\d+)/.exec(removeBtn.getAttribute('aria-label') ?? '')?.[1]);
+    expect(Number.isFinite(id)).toBe(true);
+
+    fireEvent.click(removeBtn);
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /delete/i }));
+
+    expect(useStore.getState().pool.some((e) => e.game.igdbId === id)).toBe(false);
+    expect(useStore.getState().pool).toHaveLength(5);
+    expect(parseRankingState(useStore.getState().scores)?.games[id]).toBeUndefined();
+    // The current round was discarded, not completed — the round counter does not advance.
+    expect(screen.getByTestId('arcade-round').textContent).toBe(roundBefore);
+    // A fresh round still renders.
+    expect(screen.getAllByRole('button', { name: /^Game \d+$/i }).length).toBeGreaterThan(0);
+  });
+
+  it('keeps the game when the deletion is cancelled', () => {
+    seedPool(6);
+    renderWithProviders(<ArcadeStep />);
+
+    const removeBtn = screen.getAllByRole('button', { name: /^Remove Game \d+$/i })[0];
+    fireEvent.click(removeBtn);
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /cancel/i }));
+
+    expect(useStore.getState().pool).toHaveLength(6);
   });
 
   it('hides the reveal until the list is good enough', () => {

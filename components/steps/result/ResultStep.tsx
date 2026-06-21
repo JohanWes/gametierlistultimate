@@ -9,6 +9,7 @@ import {
   computeTiers,
   createRankingState,
   parseRankingState,
+  removeGameFromState,
   serializeRankingState,
   TIER_ORDER,
   type RankingState,
@@ -19,8 +20,9 @@ import { playSound } from '@/lib/sound';
 import { useStore } from '@/lib/store';
 
 import { Button } from '../../ui/Button';
+import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { CommunityComparison } from './CommunityComparison';
-import { moveInTierMap } from './dnd';
+import { moveInTierMap, removeFromTierMap } from './dnd';
 import { ShareBar } from './ShareBar';
 import { TierBoard } from './TierBoard';
 import { TierPicker } from './TierPicker';
@@ -43,6 +45,7 @@ export function ResultStep() {
   const reduce = useReducedMotion();
   const pool = useStore((s) => s.pool);
   const setScores = useStore((s) => s.setScores);
+  const removeFromPool = useStore((s) => s.removeFromPool);
   const goBack = useStore((s) => s.goBack);
   const soundOn = useStore((s) => s.ui.soundOn);
 
@@ -65,6 +68,7 @@ export function ResultStep() {
 
   const [tiers, setTiers] = useState<TierMap>(() => computeTiers(rankingRef.current as RankingState));
   const [picking, setPicking] = useState<{ game: Game; from: Tier } | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<Game | null>(null);
 
   const ding = useCallback(
     (_tier: Tier, isLast: boolean) => {
@@ -111,6 +115,16 @@ export function ResultStep() {
     [picking, move],
   );
 
+  const confirmRemoval = useCallback(() => {
+    if (!pendingRemoval) return;
+    const id = pendingRemoval.igdbId;
+    removeFromPool(id);
+    rankingRef.current = removeGameFromState(rankingRef.current as RankingState, id);
+    setScores(serializeRankingState(rankingRef.current) as unknown as Record<string, unknown>);
+    setTiers((prev) => removeFromTierMap(prev, id));
+    setPendingRemoval(null);
+  }, [pendingRemoval, removeFromPool, setScores]);
+
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
@@ -155,6 +169,7 @@ export function ResultStep() {
           visibleTiers={done ? undefined : revealed}
           onMove={done ? move : undefined}
           onPick={done ? (game, from) => setPicking({ game, from }) : undefined}
+          onRemove={done ? (game) => setPendingRemoval(game) : undefined}
         />
       </motion.div>
 
@@ -165,6 +180,16 @@ export function ResultStep() {
         current={picking ? tierOf(tiers, picking.game.igdbId) : null}
         onPick={handlePick}
         onClose={() => setPicking(null)}
+      />
+
+      <ConfirmDialog
+        open={pendingRemoval !== null}
+        title="Delete this game?"
+        body="It’ll be removed from your tier list. You can re-add it later from the games step."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={confirmRemoval}
+        onCancel={() => setPendingRemoval(null)}
       />
     </div>
   );

@@ -67,6 +67,35 @@ describe('manual correction (tap-to-move)', () => {
     expect(within(screen.getByTestId('tier-row-S')).getByText('Game 7')).toBeInTheDocument();
   });
 
+  it('deletes a game from the board and the pool after confirming', () => {
+    seed();
+    renderWithProviders(<ResultStep />);
+    revealAll();
+
+    expect(screen.getByText('Game 7')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Game 7' }));
+    // Confirm in the dialog.
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /delete/i }));
+
+    expect(screen.queryByText('Game 7')).not.toBeInTheDocument();
+    expect(useStore.getState().pool.some((e) => e.game.igdbId === 7)).toBe(false);
+    const state = parseRankingState(useStore.getState().scores);
+    expect(state!.games[7]).toBeUndefined();
+  });
+
+  it('keeps the game when the deletion is cancelled', () => {
+    seed();
+    renderWithProviders(<ResultStep />);
+    revealAll();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Game 7' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /cancel/i }));
+
+    expect(screen.getByText('Game 7')).toBeInTheDocument();
+    expect(useStore.getState().pool.some((e) => e.game.igdbId === 7)).toBe(true);
+  });
+
   it('autosaves a manual move (PUT /api/session)', async () => {
     const fetchSpy = vi.fn(
       async () => ({ ok: true, status: 200, json: async () => ({}) }) as Response,

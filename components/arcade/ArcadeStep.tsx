@@ -10,6 +10,7 @@ import {
   computeConfidence,
   createRankingState,
   parseRankingState,
+  removeGameFromState,
   serializeRankingState,
   type RankingOutcome,
   type RankingState,
@@ -19,8 +20,10 @@ import { canReveal, derivePhase, selectRound, type MinigameKind } from '@/lib/ra
 import { type PoolEntry, useStore } from '@/lib/store';
 
 import { Button } from '../ui/Button';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConfidenceMeter } from './ConfidenceMeter';
 import { MINIGAMES } from './minigames';
+import { RemoveGameProvider } from './RemoveGameContext';
 import { tapProps } from './shared';
 
 const RECENT_MEMORY = 6;
@@ -63,6 +66,7 @@ export function ArcadeStep() {
   const pool = useStore((s) => s.pool);
   const setScores = useStore((s) => s.setScores);
   const setArcade = useStore((s) => s.setArcade);
+  const removeFromPool = useStore((s) => s.removeFromPool);
   const goNext = useStore((s) => s.goNext);
   const goBack = useStore((s) => s.goBack);
 
@@ -77,6 +81,7 @@ export function ArcadeStep() {
   const recentRef = useRef<MinigameKind[]>([]);
   const vibeSeenRef = useRef<Set<number>>(new Set());
   const [roundKey, setRoundKey] = useState(0);
+  const [pendingRemoval, setPendingRemoval] = useState<Game | null>(null);
 
   const confidence = useMemo(() => computeConfidence(ranking).global, [ranking]);
   const phase = derivePhase(ranking, confidence);
@@ -124,6 +129,22 @@ export function ArcadeStep() {
     [ranking, view, setScores, setArcade],
   );
 
+  // Delete a game mid-arcade: drop it from the pool and the engine state, then discard the current
+  // round (bump roundKey, keep `round`) so it's as if this round never happened.
+  const confirmRemoval = useCallback(() => {
+    if (!pendingRemoval) return;
+    const id = pendingRemoval.igdbId;
+    removeFromPool(id);
+    vibeSeenRef.current.delete(id);
+    const next = removeGameFromState(ranking, id);
+    const nextConfidence = computeConfidence(next).global;
+    setRanking(next);
+    setScores(toScores(next));
+    setArcade({ phase: derivePhase(next, nextConfidence), round: next.round });
+    setRoundKey((k) => k + 1);
+    setPendingRemoval(null);
+  }, [pendingRemoval, ranking, removeFromPool, setScores, setArcade]);
+
   const reveal = () => {
     playSound('reveal');
     goNext();
@@ -146,27 +167,29 @@ export function ArcadeStep() {
       </div>
 
       <div className="relative mt-5 flex flex-1 items-center justify-center">
-        <AnimatePresence mode="wait">
-          {Minigame && view ? (
-            <motion.div
-              key={roundKey}
-              className="w-full"
-              initial={reduce ? false : { opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 1.02 }}
-              transition={{ duration: 0.24, ease: 'easeOut' }}
-            >
-              <Minigame
-                games={view.games}
-                anchorId={view.anchorId}
-                boundary={view.boundary}
-                onComplete={advance}
-              />
-            </motion.div>
-          ) : (
-            <EmptyState onBack={goBack} />
-          )}
-        </AnimatePresence>
+        <RemoveGameProvider value={setPendingRemoval}>
+          <AnimatePresence mode="wait">
+            {Minigame && view ? (
+              <motion.div
+                key={roundKey}
+                className="w-full"
+                initial={reduce ? false : { opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 1.02 }}
+                transition={{ duration: 0.24, ease: 'easeOut' }}
+              >
+                <Minigame
+                  games={view.games}
+                  anchorId={view.anchorId}
+                  boundary={view.boundary}
+                  onComplete={advance}
+                />
+              </motion.div>
+            ) : (
+              <EmptyState onBack={goBack} />
+            )}
+          </AnimatePresence>
+        </RemoveGameProvider>
       </div>
 
       <div className="mt-5 flex items-center justify-between gap-3 border-t border-border/70 pt-4">
@@ -188,6 +211,16 @@ export function ArcadeStep() {
 
         <RevealCta ready={ready} onReveal={reveal} />
       </div>
+
+      <ConfirmDialog
+        open={pendingRemoval !== null}
+        title="Delete this game?"
+        body="It’ll be removed from your ranking. You can re-add it later from the games step."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={confirmRemoval}
+        onCancel={() => setPendingRemoval(null)}
+      />
     </div>
   );
 }

@@ -183,6 +183,18 @@ export function serializeRankingState(state: RankingState): RankingState {
   return cloneState(state);
 }
 
+/**
+ * Drop a game from the ranking entirely: removes its rating entry and any recent-matchup history
+ * that references it. Leaves `round`/`seed` untouched so the next `selectRound` deterministically
+ * yields a fresh round minus this game. Used when the player deletes a game from the pool.
+ */
+export function removeGameFromState(state: RankingState, gameId: number): RankingState {
+  const next = cloneState(state);
+  delete next.games[String(gameId)];
+  next.recentMatchups = next.recentMatchups.filter((m) => !m.gameIds.includes(gameId));
+  return next;
+}
+
 export function applyOutcome(state: RankingState, outcome: RankingOutcome): RankingState {
   const next = cloneState(state);
   const beforeRound = next.round;
