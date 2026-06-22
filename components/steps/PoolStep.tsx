@@ -394,7 +394,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
               {slots.map((entry, i) => (
                 <div
                   key={i}
-                  className="relative flex w-[var(--cover-pool)] justify-center"
+                  className="relative flex w-[var(--cover-pool)] items-start justify-center"
                   style={{ minHeight: 'calc(var(--cover-pool) * 4 / 3 + 4rem)' }}
                 >
                   <AnimatePresence mode="wait">
