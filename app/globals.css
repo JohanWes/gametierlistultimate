@@ -84,6 +84,12 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Reserve the scrollbar gutter so the centered frame doesn't shift sideways
+   between a step that scrolls (e.g. the tall reveal) and one that doesn't. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body::before {
   background:
     linear-gradient(rgb(var(--color-fg) / 0.025) 1px, transparent 1px),

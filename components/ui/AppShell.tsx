@@ -32,13 +32,9 @@ export interface AppShellProps {
   /** Show the step progress rail under the header. */
   showProgress?: boolean;
   /**
-   * Compact chrome for work surfaces (Steps 3 & 4): a slimmer brand bar and tighter outer
-   * padding so the active task starts higher in the viewport.
-   */
-  compact?: boolean;
-  /**
    * Widen the panel on large screens (the ranking arcade). Lets the cover-forward minigames grow
    * to fill big/ultrawide monitors instead of being letterboxed inside the default `max-w-7xl`.
+   * Width is the only perimeter dimension allowed to vary between steps.
    */
   wide?: boolean;
 }
@@ -47,12 +43,7 @@ export interface AppShellProps {
 const WIDE_MAX = 'xl:max-w-[104rem] 2xl:max-w-[120rem]';
 
 /** The frame every screen renders into: header (wordmark + mute) and a responsive main slot. */
-export function AppShell({
-  children,
-  showProgress = false,
-  compact = false,
-  wide = false,
-}: AppShellProps) {
+export function AppShell({ children, showProgress = false, wide = false }: AppShellProps) {
   const step = useStore((s) => s.ui.step);
   const stepIndex = STEP_ORDER.indexOf(step);
   const pct = Math.round(((stepIndex + 1) / STEP_ORDER.length) * 100);
@@ -62,52 +53,37 @@ export function AppShell({
       <header className="sticky top-0 z-20 border-b-2 border-black/60 bg-panel/95 shadow-cabinet backdrop-blur-sm">
         <div
           className={cn(
-            'mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6',
+            'mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-2.5 sm:px-6 sm:py-3',
             wide && WIDE_MAX,
-            compact ? 'py-2' : 'py-2.5 sm:py-3',
           )}
         >
-          <div
-            className={cn(
-              'flex items-center gap-2.5 rounded-tile border border-border bg-bg/80 shadow-soft',
-              compact ? 'px-2.5 py-1.5' : 'px-3 py-2',
-            )}
-          >
+          <div className="flex items-center gap-2.5 rounded-tile border border-border bg-bg/80 px-3 py-2 shadow-soft">
             <TierSpectrum />
-            <span
-              className={cn(
-                'whitespace-nowrap font-display font-black uppercase tracking-[0.16em] text-accent',
-                compact ? 'text-sm sm:text-base' : 'text-base sm:text-lg',
-              )}
-            >
+            <span className="whitespace-nowrap font-display text-base font-black uppercase tracking-[0.16em] text-accent sm:text-lg">
               Game Tier List Ultimate
             </span>
           </div>
           <MuteButton />
         </div>
-        {showProgress ? (
-          <div className="h-1.5 w-full border-t border-border bg-bg">
+        {/* Always reserve the rail's height so the header never grows between steps;
+            the teal fill only appears once the flow is past the welcome screen. */}
+        <div className="h-1.5 w-full border-t border-border bg-bg">
+          {showProgress ? (
             <div
               className="h-full bg-teal transition-[width] duration-500"
               style={{ width: `${pct}%` }}
             />
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </header>
 
       <main
         className={cn(
-          'mx-auto flex w-full max-w-7xl flex-1 flex-col px-3 sm:px-6',
+          'mx-auto flex w-full max-w-7xl flex-1 flex-col px-3 py-4 sm:px-6 sm:py-8',
           wide && WIDE_MAX,
-          compact ? 'py-3 sm:py-4' : 'py-4 sm:py-8',
         )}
       >
-        <div
-          className={cn(
-            'flex flex-1 flex-col rounded-card border-2 border-border bg-panel/86 shadow-cabinet',
-            compact ? 'p-3 sm:p-4' : 'p-3 sm:p-5',
-          )}
-        >
+        <div className="flex flex-1 flex-col rounded-card border-2 border-border bg-panel/86 p-3 shadow-cabinet sm:p-5">
           {children}
         </div>
       </main>

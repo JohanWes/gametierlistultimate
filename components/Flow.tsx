@@ -25,7 +25,6 @@ export function Flow() {
   const hydrated = useStore((s) => s.ui.hydrated);
   const reduce = useReducedMotion();
   const Screen = SCREENS[step];
-  const compact = step === 'pool' || step === 'arcade';
 
   if (!hydrated) {
     return (
@@ -40,7 +39,7 @@ export function Flow() {
   }
 
   return (
-    <AppShell showProgress={step !== 'welcome'} compact={compact} wide={step === 'arcade'}>
+    <AppShell showProgress={step !== 'welcome'} wide={step === 'arcade'}>
       <AnimatePresence mode="wait">
         <motion.div
           key={step}
