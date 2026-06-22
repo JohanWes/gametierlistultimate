@@ -11,6 +11,7 @@ import {
   useVelocity,
 } from 'framer-motion';
 import { useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 import type { Game } from '@/lib/games/types';
 import { type PoolDecision, STATUS_OPTIONS, usePoolDecision } from '@/lib/pool-decision';
@@ -226,49 +227,53 @@ export function PoolSwipeCard({ game, random = Math.random, onDecide }: PoolSwip
         </div>
       )}
 
-      <AnimatePresence>
-        {picking ? (
-          <>
-            <motion.div
-              key="spotlight-backdrop"
-              initial={reduce ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-            />
-            <motion.div
-              key="spotlight-sheet"
-              initial={reduce ? false : { y: '100%' }}
-              animate={{ y: 0 }}
-              exit={reduce ? { opacity: 0 } : { y: '100%' }}
-              transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 34 }}
-              className="fixed inset-x-0 bottom-0 z-50 flex flex-col gap-2.5 rounded-t-card border-t-2 border-accent/50 bg-panel px-5 pb-8 pt-5 shadow-[0_-18px_40px_-24px_rgb(0_0_0/0.9)]"
-            >
-              <span className="self-center rounded-hardware border border-accent/70 bg-black/70 px-3 py-0.5 font-mono text-[0.62rem] font-bold uppercase tracking-[0.18em] text-accent shadow-soft">
-                ★ Spotlight
-              </span>
-              <p className="text-center font-mono text-[0.7rem] uppercase tracking-[0.18em] text-teal">
-                How much did you play it?
-              </p>
-              {STATUS_OPTIONS.map((opt) => (
-                <button
-                  key={opt.status}
-                  type="button"
-                  {...tapProps(() => chooseStatus(opt.status))}
-                  className={cn(
-                    'select-none rounded-tile border px-4 py-3 text-base font-semibold shadow-soft transition-colors duration-150 focus-visible:outline-none',
-                    opt.status === 'played-a-lot'
-                      ? 'border-accent/70 bg-accent/12 text-accent hover:bg-accent/20'
-                      : 'border-border bg-surface-elevated text-fg hover:border-teal/60',
-                  )}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <AnimatePresence>
+            {picking ? (
+              <>
+                <motion.div
+                  key="spotlight-backdrop"
+                  initial={reduce ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+                />
+                <motion.div
+                  key="spotlight-sheet"
+                  initial={reduce ? false : { y: '100%' }}
+                  animate={{ y: 0 }}
+                  exit={reduce ? { opacity: 0 } : { y: '100%' }}
+                  transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 34 }}
+                  className="fixed inset-x-0 bottom-0 z-50 flex flex-col gap-2.5 rounded-t-card border-t-2 border-accent/50 bg-panel px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 shadow-[0_-18px_40px_-24px_rgb(0_0_0/0.9)]"
                 >
-                  {opt.label}
-                </button>
-              ))}
-            </motion.div>
-          </>
-        ) : null}
-      </AnimatePresence>
+                  <span className="self-center rounded-hardware border border-accent/70 bg-black/70 px-3 py-0.5 font-mono text-[0.62rem] font-bold uppercase tracking-[0.18em] text-accent shadow-soft">
+                    ★ Spotlight
+                  </span>
+                  <p className="text-center font-mono text-[0.7rem] uppercase tracking-[0.18em] text-teal">
+                    How much did you play it?
+                  </p>
+                  {STATUS_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.status}
+                      type="button"
+                      {...tapProps(() => chooseStatus(opt.status))}
+                      className={cn(
+                        'select-none rounded-tile border px-4 py-3 text-base font-semibold shadow-soft transition-colors duration-150 focus-visible:outline-none',
+                        opt.status === 'played-a-lot'
+                          ? 'border-accent/70 bg-accent/12 text-accent hover:bg-accent/20'
+                          : 'border-border bg-surface-elevated text-fg hover:border-teal/60',
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </motion.div>
+              </>
+            ) : null}
+          </AnimatePresence>,
+          document.body,
+        )}
     </div>
   );
 }
