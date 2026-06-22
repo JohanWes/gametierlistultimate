@@ -115,8 +115,9 @@ export function Bracket({ games, onComplete }: MinigameProps) {
         hint={STAGE_LABEL[stage]}
       />
 
-      {/* Bracket: two semis on the left feed the final on the right. */}
-      <div className="flex items-center gap-3 sm:gap-6">
+      {/* Bracket: two semis on the left feed the final on the right. On phones the final stacks
+          below the semis so the board stays ~2 covers wide instead of overflowing. */}
+      <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-6">
         <div className="flex flex-col gap-6">
           <div
             className={cn(
@@ -139,7 +140,7 @@ export function Bracket({ games, onComplete }: MinigameProps) {
         </div>
 
         {/* Connector + final */}
-        <div aria-hidden className="h-px w-4 bg-border sm:w-8" />
+        <div aria-hidden className="h-4 w-px bg-border sm:h-px sm:w-8" />
 
         <div
           className={cn(

@@ -120,7 +120,8 @@ function VibeRow({
   };
 
   return (
-    <div className="flex items-stretch justify-center gap-3">
+    // Cover + meter packed as one unit; the boxart already carries the title, so no label here.
+    <div className="flex items-stretch justify-center gap-2">
       <ArcadeCard
         game={game}
         size="zone"
@@ -128,72 +129,64 @@ function VibeRow({
         glowColor={score != null ? vibeColor(score, 0.55) : undefined}
       />
 
-      <div className="flex flex-1 flex-col">
-        <span className="mb-1.5 truncate font-display text-xs font-bold uppercase tracking-wide text-fg">
-          {game.title}
-        </span>
-
-        <div className="flex flex-1 items-stretch justify-center gap-1.5">
-          {/* Score tick labels */}
-          <div className="flex flex-col justify-between py-0 text-right">
-            {SCORE_TICKS.map((tick) => (
-              <span
-                key={tick}
-                aria-hidden
-                className={cn(
-                  'font-mono text-[0.6rem] font-bold leading-none tabular-nums transition-colors',
-                  score !== null && Math.abs(score - tick) <= 12 ? 'text-fg' : 'text-muted/40',
-                )}
-              >
-                {tick}
-              </span>
-            ))}
-          </div>
-
-          {/* Meter bar */}
-          <div
-            ref={barRef}
-            role="slider"
-            aria-label={`Rate ${game.title}`}
-            aria-orientation="vertical"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={score ?? undefined}
-            aria-valuetext={score != null ? `${score} out of 100` : 'unrated'}
-            onPointerDown={handleDown}
-            onPointerMove={handleMove}
-            onPointerUp={handleUp}
-            onPointerCancel={handleUp}
-            className="relative min-h-[calc(var(--cover-zone)*4/3)] w-8 cursor-pointer touch-none rounded-hardware border border-border"
-            style={{
-              background:
-                'linear-gradient(to bottom, rgb(130 224 122), rgb(255 213 92) 50%, rgb(210 58 49))',
-            }}
-          >
-            {/* Tick segment dividers */}
-            {TICK_DIVIDERS.map((pct) => (
-              <span
-                key={pct}
-                aria-hidden
-                className="pointer-events-none absolute left-0 right-0 h-px bg-bg/30"
-                style={{ top: `${pct}%` }}
-              />
-            ))}
-
-            {/* Handle */}
-            {score !== null && (
-              <motion.div
-                aria-hidden
-                className="pointer-events-none absolute left-1/2 z-10 flex h-7 w-9 -translate-x-1/2 items-center justify-center rounded-hardware border border-border bg-bg font-display text-xs font-black tabular-nums shadow-soft"
-                style={{ color: vibeColor(score, 1) }}
-                animate={{ top: `${positionFromScore(score) * 100}%`, y: '-50%' }}
-                transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 30 }}
-              >
-                {score}
-              </motion.div>
+      {/* Score tick labels */}
+      <div className="flex flex-col justify-between py-0 text-right">
+        {SCORE_TICKS.map((tick) => (
+          <span
+            key={tick}
+            aria-hidden
+            className={cn(
+              'font-mono text-[0.6rem] font-bold leading-none tabular-nums transition-colors',
+              score !== null && Math.abs(score - tick) <= 12 ? 'text-fg' : 'text-muted/40',
             )}
-          </div>
-        </div>
+          >
+            {tick}
+          </span>
+        ))}
+      </div>
+
+      {/* Meter bar */}
+      <div
+        ref={barRef}
+        role="slider"
+        aria-label={`Rate ${game.title}`}
+        aria-orientation="vertical"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={score ?? undefined}
+        aria-valuetext={score != null ? `${score} out of 100` : 'unrated'}
+        onPointerDown={handleDown}
+        onPointerMove={handleMove}
+        onPointerUp={handleUp}
+        onPointerCancel={handleUp}
+        className="relative min-h-[calc(var(--cover-zone)*4/3)] w-8 cursor-pointer touch-none rounded-hardware border border-border"
+        style={{
+          background:
+            'linear-gradient(to bottom, rgb(130 224 122), rgb(255 213 92) 50%, rgb(210 58 49))',
+        }}
+      >
+        {/* Tick segment dividers */}
+        {TICK_DIVIDERS.map((pct) => (
+          <span
+            key={pct}
+            aria-hidden
+            className="pointer-events-none absolute left-0 right-0 h-px bg-bg/30"
+            style={{ top: `${pct}%` }}
+          />
+        ))}
+
+        {/* Handle */}
+        {score !== null && (
+          <motion.div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 z-10 flex h-7 w-9 -translate-x-1/2 items-center justify-center rounded-hardware border border-border bg-bg font-display text-xs font-black tabular-nums shadow-soft"
+            style={{ color: vibeColor(score, 1) }}
+            animate={{ top: `${positionFromScore(score) * 100}%`, y: '-50%' }}
+            transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 30 }}
+          >
+            {score}
+          </motion.div>
+        )}
       </div>
     </div>
   );
@@ -248,11 +241,11 @@ export function VibeMeter({ games, onComplete }: MinigameProps) {
 
       <CoverRail
         gridClassName="grid w-full max-w-2xl grid-cols-1 justify-items-center gap-4 sm:grid-cols-2"
-        itemClassName="w-[min(82vw,20rem)]"
+        itemClassName="w-[min(60vw,16rem)]"
         hint="Swipe to rate each"
       >
         {games.map((g) => (
-          <div key={g.igdbId} className="w-full max-w-xs">
+          <div key={g.igdbId} className="w-full max-w-[16rem]">
             <VibeRow
               game={g}
               score={scores[g.igdbId] ?? null}
