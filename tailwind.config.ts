@@ -46,6 +46,8 @@ const config: Config = {
         soft: '0 2px 0 rgb(0 0 0 / 0.7)',
         lift: '0 16px 0 -10px rgb(0 0 0 / 0.85), 0 22px 44px -24px rgb(0 0 0 / 0.85)',
         cabinet: 'inset 0 1px 0 rgb(255 255 255 / 0.08), inset 0 -2px 0 rgb(0 0 0 / 0.45), 0 18px 40px -24px rgb(0 0 0 / 0.9)',
+        marquee:
+          'inset 0 1px 0 rgb(255 255 255 / 0.08), inset 0 -2px 0 rgb(0 0 0 / 0.45), 0 0 0 1px rgb(var(--color-accent) / 0.55), 0 6px 22px -6px rgb(var(--color-accent) / 0.4), 0 22px 48px -26px rgb(0 0 0 / 0.9)',
       },
       keyframes: {
         shimmer: {

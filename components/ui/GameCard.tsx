@@ -20,6 +20,8 @@ export interface GameCardProps {
   /** Visual size of the card. */
   size?: GameCardSize;
   className?: string;
+  /** Extra classes merged onto the cover `<img>` (e.g. a parent-driven hover zoom). */
+  imageClassName?: string;
 }
 
 export type GameCardSize = keyof typeof SIZES;
@@ -51,6 +53,7 @@ export function GameCard({
   onSelect,
   size = 'md',
   className,
+  imageClassName,
 }: GameCardProps) {
   const reduce = useReducedMotion();
 
@@ -91,7 +94,7 @@ export function GameCard({
           draggable={false}
           onDragStart={(e) => e.preventDefault()}
           loading="lazy"
-          className="h-full w-full object-cover"
+          className={cn('h-full w-full object-cover', imageClassName)}
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-surface-elevated p-3 text-center">

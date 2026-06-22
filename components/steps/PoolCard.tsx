@@ -45,7 +45,6 @@ export function PoolCard({ game, random = Math.random, onDecide }: PoolCardProps
       initial={reduce ? false : { opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
-      whileHover={reduce ? undefined : { y: -5 }}
       transition={
         reduce
           ? { duration: 0 }
@@ -57,11 +56,21 @@ export function PoolCard({ game, random = Math.random, onDecide }: PoolCardProps
       }
       className={cn(
         'group relative mx-auto w-[var(--cover-pool)] overflow-hidden rounded-card border-2 bg-surface shadow-cabinet',
-        'border-border transition-[border-color,box-shadow] duration-200 hover:border-accent/40 hover:shadow-lift',
+        'border-border transition-[border-color,box-shadow] duration-200 hover:border-accent/70 hover:shadow-marquee',
       )}
     >
       <div className="relative">
-        <GameCard game={game} showTitle={false} size="pool" className="w-full rounded-none border-0 shadow-none" />
+        <GameCard
+          game={game}
+          showTitle={false}
+          size="pool"
+          className="w-full rounded-none border-0 shadow-none"
+          imageClassName={
+            reduce
+              ? undefined
+              : 'transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06] motion-reduce:transform-none'
+          }
+        />
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-[36%] bg-gradient-to-t from-black/95 via-black/72 via-45% to-transparent"
