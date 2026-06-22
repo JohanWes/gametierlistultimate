@@ -3,6 +3,7 @@ import type { Collection, Document } from 'mongodb';
 import { COLLECTIONS, getDb } from '../mongo';
 import { getCooccurrenceScores } from '../pool-patterns-repo';
 import { DLC_CATEGORIES, isDlc, normalizeMongoDoc } from './normalize';
+import { STARTER_COVERS } from './starter-covers';
 import { setResolvedStarterIds, STARTER_GAME_NAMES } from './starter-set';
 import type { Game, Preferences, SuggestionContext } from './types';
 
@@ -449,7 +450,15 @@ export async function getStarterSet(limit?: number): Promise<Game[]> {
   const resolved = await getByNames([...STARTER_GAME_NAMES]);
   const filtered = resolved.filter((g) => !isDlc(g));
   setResolvedStarterIds(filtered.map((g) => g.igdbId));
-  return typeof limit === 'number' && limit > 0 ? filtered.slice(0, limit) : filtered;
+  // Swap the remote images.igdb.com cover for a predownloaded same-origin copy (when available)
+  // so the pool builder opens with no external-CDN cover loading. A missing manifest entry simply
+  // keeps the remote URL. See scripts/fetch-starter-covers.ts + lib/games/starter-covers.ts.
+  const withLocalCovers = filtered.map((g) =>
+    STARTER_COVERS[g.igdbId] ? { ...g, coverUrl: STARTER_COVERS[g.igdbId] } : g,
+  );
+  return typeof limit === 'number' && limit > 0
+    ? withLocalCovers.slice(0, limit)
+    : withLocalCovers;
 }
 
 /**

@@ -4,6 +4,7 @@ import { COLLECTIONS } from '@/lib/mongo';
 import { withMemoryMongo, type MemoryMongo } from '@/test/helpers/mongo';
 
 import { getByIds, getByNames, getStarterSet, getSuggestions, searchLocal, upsertGames } from './repo';
+import { STARTER_COVERS } from './starter-covers';
 import { setResolvedStarterIds } from './starter-set';
 
 let mongo: MemoryMongo;
@@ -280,6 +281,29 @@ describe('getSuggestions', () => {
     expect(secondIds).toHaveLength(5);
     // No overlap between the two batches — the exclude param was honored.
     expect(secondIds.filter((id) => firstIds.includes(id))).toEqual([]);
+  });
+});
+
+describe('getStarterSet local cover override', () => {
+  it('swaps the remote cover for the predownloaded local path when the manifest has the id', async () => {
+    // The Witcher 3's real IGDB id is in the committed manifest; pair it with a non-manifest starter.
+    const witcherId = 1942;
+    expect(STARTER_COVERS[witcherId]).toBeDefined();
+
+    await mongo.db.collection(COLLECTIONS.games).insertMany([
+      { id: witcherId, name: 'The Witcher 3: Wild Hunt', genre: 'RPG', platform: 'PC', rating: 92, cover: 'https://images.igdb.com/igdb/image/upload/t_cover_big_2x/remote.jpg' },
+      // A starter whose id is NOT in the manifest — must keep its remote URL.
+      { id: 999999, name: 'Elden Ring', genre: 'RPG', platform: 'PC', rating: 95, cover: 'https://images.igdb.com/igdb/image/upload/t_cover_big_2x/keep.jpg' },
+    ]);
+
+    const games = await getStarterSet();
+    const local = games.find((g) => g.igdbId === witcherId);
+    const remote = games.find((g) => g.igdbId === 999999);
+
+    expect(local?.coverUrl).toBe(STARTER_COVERS[witcherId]);
+    expect(remote?.coverUrl).toBe(
+      'https://images.igdb.com/igdb/image/upload/t_cover_big_2x/keep.jpg',
+    );
   });
 });
 
