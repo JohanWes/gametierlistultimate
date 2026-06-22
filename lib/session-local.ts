@@ -12,6 +12,8 @@ export interface LocalSessionState {
   prefs: PrefsState;
   /** Full game objects (with played status) so resume never refetches. */
   pool: PoolEntry[];
+  /** Every game id passed on, so resume keeps them suppressed (see lib/store `rejected`). */
+  rejected: number[];
   scores: Record<string, unknown>;
   step: Step;
 }
@@ -39,6 +41,12 @@ function parsePool(value: unknown): PoolEntry[] {
   return entries;
 }
 
+/** Validate a parsed blob into a deduped array of finite numeric ids. */
+function parseIds(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((id): id is number => typeof id === 'number' && Number.isFinite(id)))];
+}
+
 /** Read saved local state, or null if absent/unparseable. Never throws. */
 export function loadLocalSession(): LocalSessionState | null {
   if (typeof window === 'undefined') return null;
@@ -51,6 +59,7 @@ export function loadLocalSession(): LocalSessionState | null {
     return {
       prefs: prefs ?? { genres: [], platforms: [], flags: {} },
       pool: parsePool(data.pool),
+      rejected: parseIds(data.rejected),
       scores:
         data.scores && typeof data.scores === 'object'
           ? (data.scores as Record<string, unknown>)

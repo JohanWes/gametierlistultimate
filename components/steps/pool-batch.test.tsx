@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { resetStore } from '@/lib/store';
+import { resetStore, useStore } from '@/lib/store';
 import { makeGame, makeGames } from '@/test/helpers/games';
 import { fireEvent, renderWithProviders, screen, waitFor } from '@/test/helpers/render';
 
@@ -139,6 +139,41 @@ describe('PoolStep batches', () => {
       expect(calls.some((url) => listParam(url, 'seedIds').includes('1000'))).toBe(true);
       expect(calls.some((url) => listParam(url, 'rejectIds').includes('1001'))).toBe(true);
     });
+  });
+
+  it('seeds exclude/reject context from a resumed rejected list and never re-shows those games', async () => {
+    // Simulate a resume: previously passed-on game 1001 restored into the store.
+    useStore.getState().hydrate({ rejected: [1001], step: 'pool' });
+
+    const calls: string[] = [];
+    const fetchImpl = vi.fn(async (url: string) => {
+      calls.push(url);
+      // The API echoes the rejected game back alongside fresh ones; the client must filter it.
+      const games = [makeGame({ igdbId: 1001, title: 'Rejected 1001' }), ...makeGames(3, 2000)];
+      return { ok: true, status: 200, json: async () => ({ games }) };
+    }) as unknown as typeof fetch;
+
+    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
+
+    await screen.findAllByRole('button', { name: /pass/i });
+
+    expect(listParam(calls[0], 'exclude')).toContain('1001');
+    expect(listParam(calls[0], 'rejectIds')).toContain('1001');
+    expect(screen.queryByText('Rejected 1001')).not.toBeInTheDocument();
+  });
+
+  it('persists a pass into the store so the rejection survives a resume', async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      const start = 1 + listParam(url, 'exclude').length;
+      return { ok: true, status: 200, json: async () => ({ games: makeGames(3, start) }) };
+    }) as unknown as typeof fetch;
+
+    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
+
+    await screen.findAllByRole('button', { name: /pass/i });
+    fireEvent.click(screen.getAllByRole('button', { name: /pass/i })[0]);
+
+    await waitFor(() => expect(useStore.getState().rejected).toContain(1));
   });
 
   it('ignores duplicate games returned by a later batch', async () => {

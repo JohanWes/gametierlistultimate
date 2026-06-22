@@ -45,7 +45,7 @@ describe('StoreHydrator', () => {
       game: game(i + 1),
       status: 'played-a-lot' as const,
     }));
-    seedLocalSession({ prefs: { genres: [], platforms: [], flags: {} }, pool, scores: {}, step: 'arcade' });
+    seedLocalSession({ prefs: { genres: [], platforms: [], flags: {} }, pool, rejected: [], scores: {}, step: 'arcade' });
 
     renderWithProviders(<StoreHydrator />);
 
@@ -57,9 +57,28 @@ describe('StoreHydrator', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it('restores rejected ids from localStorage without any network', async () => {
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchImpl);
+
+    seedLocalSession({
+      prefs: { genres: [], platforms: [], flags: {} },
+      pool: [],
+      rejected: [101, 102, 103],
+      scores: {},
+      step: 'pool',
+    });
+
+    renderWithProviders(<StoreHydrator />);
+
+    await waitFor(() => expect(useStore.getState().ui.hydrated).toBe(true));
+
+    expect(useStore.getState().rejected).toEqual([101, 102, 103]);
+  });
+
   it('falls back to the pool step when the saved pool is too small for an advanced step', async () => {
     const pool = [1, 2, 3].map((id) => ({ game: game(id), status: 'finished' as const }));
-    seedLocalSession({ prefs: { genres: [], platforms: [], flags: {} }, pool, scores: {}, step: 'reveal' });
+    seedLocalSession({ prefs: { genres: [], platforms: [], flags: {} }, pool, rejected: [], scores: {}, step: 'reveal' });
 
     renderWithProviders(<StoreHydrator />);
 

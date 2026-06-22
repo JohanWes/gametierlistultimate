@@ -29,6 +29,15 @@ const REFILL_AT = 2;
  */
 const PRESET_BATCH_LIMIT = Math.ceil(STARTER_GAME_NAMES.length / VISIBLE_SLOTS);
 const PRESET_ACCEPT_HANDOFF = 3;
+/**
+ * The full rejected set is kept locally and enforced client-side (`filterFreshGames`), so a
+ * passed-on game is never re-shown. We only send bounded recent windows to the API: `exclude`
+ * just saves the server returning games we'd filter anyway, and `rejectIds` feeds the
+ * "avoid similar" bias. This keeps request-URL length and server scoring cost flat no matter how
+ * many games have been rejected across sessions.
+ */
+const MAX_API_EXCLUDE = 300;
+const MAX_API_REJECT_IDS = 80;
 
 export interface PoolStepProps {
   fetchImpl?: typeof fetch;
@@ -61,10 +70,16 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
   const [error, setError] = useState(false);
 
   // Refs so async callbacks always read the latest values without stale closures.
+  // Seed from restored state: accepted ids (from the pool) plus every previously rejected id, so
+  // resume never re-shows a passed-on game. Both refs are seeded — `decidedRef` drives the
+  // exclude/dedup path, `rejectedRef` drives the "avoid similar" suggestion bias.
   const decidedRef = useRef<Set<number>>(
-    new Set(useStore.getState().pool.map((e) => e.game.igdbId)),
+    new Set([
+      ...useStore.getState().pool.map((e) => e.game.igdbId),
+      ...useStore.getState().rejected,
+    ]),
   );
-  const rejectedRef = useRef<Set<number>>(new Set());
+  const rejectedRef = useRef<Set<number>>(new Set(useStore.getState().rejected));
   const slotsRef = useRef<(SlotEntry | null)[]>(slots);
   const backlogRef = useRef<SlotEntry[]>([]);
   const fetchingRef = useRef(false);
@@ -101,9 +116,15 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
   const buildSuggestionContext = useCallback(
     () => ({
       seedIds: useStore.getState().pool.map((e) => e.game.igdbId),
-      rejectIds: [...rejectedRef.current],
+      rejectIds: [...rejectedRef.current].slice(-MAX_API_REJECT_IDS),
     }),
     [],
+  );
+
+  /** Bounded recent slice of the exclude set for the API; the full set guards re-shows locally. */
+  const buildApiExclude = useCallback(
+    (): number[] => buildExclude().slice(-MAX_API_EXCLUDE),
+    [buildExclude],
   );
 
   const filterFreshGames = useCallback(
@@ -157,7 +178,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
     try {
       const preset = shouldUsePreset();
       const games = await fetchSuggestions(
-        { prefs, exclude: buildExclude(), ...buildSuggestionContext(), preset, limit: VISIBLE_SLOTS },
+        { prefs, exclude: buildApiExclude(), ...buildSuggestionContext(), preset, limit: VISIBLE_SLOTS },
         fetchImpl ?? fetch,
       );
 
@@ -187,7 +208,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, [prefs, fetchImpl, buildExclude, buildSuggestionContext, filterFreshGames, fillEmptySlots, shouldUsePreset]);
+  }, [prefs, fetchImpl, buildApiExclude, buildSuggestionContext, filterFreshGames, fillEmptySlots, shouldUsePreset]);
 
   // Bootstrap: load the first batch straight into the five slots, then top up the backlog.
   useEffect(() => {
@@ -233,7 +254,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
             : await fetchSuggestions(
                 {
                   prefs,
-                  exclude: [...decidedRef.current],
+                  exclude: [...decidedRef.current].slice(-MAX_API_EXCLUDE),
                   ...ctx,
                   preset,
                   limit: VISIBLE_SLOTS,
@@ -284,7 +305,11 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
   /** Record the decision for prefetch/handoff bookkeeping. Shared by both layouts. */
   const recordDecision = (id: number, action: PoolDecision) => {
     decidedRef.current.add(id);
-    if (action === 'reject') rejectedRef.current.add(id);
+    if (action === 'reject') {
+      rejectedRef.current.add(id);
+      // Persist the rejection (autosave → localStorage) so resume keeps it suppressed.
+      useStore.getState().markRejected(id);
+    }
     if (action === 'include') acceptsRef.current += 1;
   };
 

@@ -9,6 +9,11 @@ import { startAutosave, useStore } from '@/lib/store';
 
 import { VISIBLE_SLOTS } from './steps/PoolStep';
 
+// Bound the resume prefetch the same way PoolStep bounds its live API calls, so request cost stays
+// flat regardless of how many games have been rejected across sessions.
+const RESUME_REJECT_IDS = 80;
+const RESUME_EXCLUDE = 300;
+
 /**
  * Side-effect-only component: restores in-progress state from localStorage (no network),
  * restores the mute preference, starts debounced autosave, syncs mute into the sound module,
@@ -31,17 +36,19 @@ export function StoreHydrator() {
     // gets the curated starter shelf; a warm/returning pool gets an adaptive batch seeded by the
     // already-accepted games so it doesn't pay for a live adaptive round-trip on first paint.
     // Skipped when the user resumes past the pool step (arcade/reveal) — no pool batch needed.
-    const { pool, prefs, ui } = useStore.getState();
+    const { pool, prefs, rejected, ui } = useStore.getState();
     const resumeStep = ui.step;
     if (resumeStep === 'welcome' || resumeStep === 'onboarding' || resumeStep === 'pool') {
       if (pool.length === 0) {
         prefetchStarterBatch(VISIBLE_SLOTS);
       } else {
         const seedIds = pool.map((e) => e.game.igdbId);
+        // Bounded recent slice mirrors PoolStep's API caps (full reject set is enforced locally).
+        const rejectIds = rejected.slice(-RESUME_REJECT_IDS);
         prefetchAdaptiveBatch({
           seedIds,
-          rejectIds: [],
-          exclude: seedIds,
+          rejectIds,
+          exclude: [...seedIds, ...rejectIds].slice(-RESUME_EXCLUDE),
           prefs,
           limit: VISIBLE_SLOTS,
         });

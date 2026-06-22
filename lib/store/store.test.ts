@@ -66,6 +66,16 @@ describe('store', () => {
     });
   });
 
+  describe('rejected', () => {
+    it('records rejected ids and de-dupes', () => {
+      const { markRejected } = useStore.getState();
+      markRejected(1);
+      markRejected(2);
+      markRejected(1); // duplicate ignored
+      expect(useStore.getState().rejected).toEqual([1, 2]);
+    });
+  });
+
   describe('sound', () => {
     it('toggles soundOn', () => {
       expect(useStore.getState().ui.soundOn).toBe(true);
@@ -113,6 +123,20 @@ describe('store', () => {
       expect(JSON.parse(init.body)).toEqual({ previous: [], next: [1, 2] });
       // The pool is also persisted locally.
       expect(readLocalSession().pool.map((e: PoolEntry) => e.game.igdbId)).toEqual([1, 2]);
+      stop();
+    });
+
+    it('persists rejected ids locally (no network) after a rejection', () => {
+      const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
+      const stop = startAutosave({ waitMs: 500, fetchImpl });
+
+      useStore.getState().setHydrated(true);
+      useStore.getState().markRejected(7);
+      useStore.getState().markRejected(8);
+      vi.advanceTimersByTime(500);
+
+      expect(readLocalSession().rejected).toEqual([7, 8]);
+      expect(fetchImpl).not.toHaveBeenCalled(); // rejections are local-only
       stop();
     });
 
@@ -166,6 +190,11 @@ describe('store', () => {
     it('falls advanced steps back to pool when the restored pool is too small', () => {
       useStore.getState().hydrate({ pool: poolEntries(3), step: 'arcade' });
       expect(useStore.getState().ui.step).toBe('pool');
+    });
+
+    it('restores rejected ids and drops non-numeric entries', () => {
+      useStore.getState().hydrate({ rejected: [1, 2, 'x', 2, NaN, 3] });
+      expect(useStore.getState().rejected).toEqual([1, 2, 3]);
     });
 
     it('resumes an advanced step and restores pool entries with their statuses', () => {

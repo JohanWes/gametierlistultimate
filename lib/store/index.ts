@@ -44,6 +44,11 @@ export interface StoreState {
   prefs: PrefsState;
   /** Games the user has added, with played status. Live UI source of truth. */
   pool: PoolEntry[];
+  /**
+   * Every game id the user has passed on (rejected) in the pool picker. Persisted in full so
+   * resume never re-shows them; only a recent slice is sent to the server (see PoolStep).
+   */
+  rejected: number[];
   /** Opaque hidden ranking state (filled by the Phase 6 engine). */
   scores: Record<string, unknown>;
   arcade: ArcadeState;
@@ -58,6 +63,7 @@ export interface StoreState {
   addToPool: (game: Game, status?: PlayedStatus) => void;
   removeFromPool: (igdbId: number) => void;
   setPlayedStatus: (igdbId: number, status: PlayedStatus) => void;
+  markRejected: (igdbId: number) => void;
 
   // scores / arcade
   setScores: (scores: Record<string, unknown>) => void;
@@ -75,6 +81,7 @@ export interface StoreState {
   hydrate: (saved: {
     prefs?: unknown;
     pool?: unknown;
+    rejected?: unknown;
     scores?: unknown;
     step?: unknown;
   }) => void;
@@ -91,10 +98,14 @@ function persistSoundPref(on: boolean): void {
   }
 }
 
-function initialState(): Pick<StoreState, 'prefs' | 'pool' | 'scores' | 'arcade' | 'ui'> {
+function initialState(): Pick<
+  StoreState,
+  'prefs' | 'pool' | 'rejected' | 'scores' | 'arcade' | 'ui'
+> {
   return {
     prefs: { genres: [], platforms: [], flags: {} },
     pool: [],
+    rejected: [],
     scores: {},
     arcade: { phase: 'early', round: 0 },
     ui: { soundOn: true, step: 'welcome', hydrated: false },
@@ -133,6 +144,9 @@ export const useStore = create<StoreState>((set, get) => ({
     set((s) => ({
       pool: s.pool.map((e) => (e.game.igdbId === igdbId ? { ...e, status } : e)),
     })),
+
+  markRejected: (igdbId) =>
+    set((s) => (s.rejected.includes(igdbId) ? s : { rejected: [...s.rejected, igdbId] })),
 
   setScores: (scores) => set({ scores }),
 
@@ -190,6 +204,11 @@ export const useStore = create<StoreState>((set, get) => ({
       );
       patch.pool = pool;
     }
+    if (Array.isArray(saved.rejected)) {
+      patch.rejected = [
+        ...new Set(saved.rejected.filter((id): id is number => Number.isFinite(id))),
+      ];
+    }
     if (saved.scores && typeof saved.scores === 'object') {
       patch.scores = saved.scores as Record<string, unknown>;
     }
@@ -221,7 +240,13 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
 
   const persist = debounce(() => {
     const s = useStore.getState();
-    saveLocalSession({ prefs: s.prefs, pool: s.pool, scores: s.scores, step: s.ui.step });
+    saveLocalSession({
+      prefs: s.prefs,
+      pool: s.pool,
+      rejected: s.rejected,
+      scores: s.scores,
+      step: s.ui.step,
+    });
   }, waitMs);
 
   // Baseline of pool ids already recorded in the community aggregates; sent as `previous` and
@@ -257,6 +282,7 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
     if (
       next.prefs !== prev.prefs ||
       next.pool !== prev.pool ||
+      next.rejected !== prev.rejected ||
       next.scores !== prev.scores ||
       next.step !== prev.step
     ) {
@@ -278,7 +304,7 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
 }
 
 function pickPersisted(s: StoreState) {
-  return { prefs: s.prefs, pool: s.pool, scores: s.scores, step: s.ui.step };
+  return { prefs: s.prefs, pool: s.pool, rejected: s.rejected, scores: s.scores, step: s.ui.step };
 }
 
 /** Test-only: reset the store's data slices to initial values (actions are preserved). */
