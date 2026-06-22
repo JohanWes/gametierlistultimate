@@ -128,9 +128,11 @@ describe('PoolStep batches', () => {
     await screen.findAllByRole('button', { name: /played it/i });
     await waitFor(() => expect(calls).toHaveLength(2));
 
-    // Accept the first card (a seed), then pass the rest — draining the backlog forces a
+    // Accept the first card (a seed). Wait for its replacement to mount so the passes below land
+    // on live cards (not the exiting one) and drain the backlog past the refill mark, forcing a
     // refill fetch that carries the seed/reject context forward.
     fireEvent.click(screen.getAllByRole('button', { name: /played it/i })[0]);
+    await screen.findByText('Game 1003');
     for (const button of screen.getAllByRole('button', { name: /pass/i })) {
       fireEvent.click(button);
     }
@@ -196,13 +198,13 @@ describe('PoolStep batches', () => {
     renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
 
     await screen.findAllByRole('button', { name: /pass/i });
-    await waitFor(() => expect(call).toBe(2));
+    // The backlog refill (and any catch-up refill it chains) repeats game 6; the client must
+    // dedupe it across batches.
+    await waitFor(() => expect(call).toBeGreaterThanOrEqual(2));
 
-    // Deciding one card pulls game 6 in from the backlog and drains it below the refill mark,
-    // so the next batch (which repeats game 6) is fetched and must be ignored.
+    // Deciding one card pulls game 6 in from the backlog; it must surface exactly once.
     fireEvent.click(screen.getAllByRole('button', { name: /pass/i })[0]);
 
-    await waitFor(() => expect(call).toBe(3));
     await waitFor(() => {
       expect(screen.getAllByText('Game 6')).toHaveLength(1);
     });

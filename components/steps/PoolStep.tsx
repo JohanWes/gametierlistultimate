@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchSuggestions } from '@/lib/games/client';
-import { peekAdaptiveBatch, peekStarterBatch } from '@/lib/games/prefetch';
+import { peekAdaptiveBatch, peekStarterBatch, preloadCovers } from '@/lib/games/prefetch';
 import type { Game } from '@/lib/games/types';
 import { STARTER_GAME_NAMES } from '@/lib/games/starter-set';
 import { useIsMobile } from '@/lib/use-is-mobile';
@@ -19,13 +19,22 @@ import { MIN_POOL, RosterMeter } from './RosterMeter';
 import { StepScaffold } from './StepScaffold';
 
 export const VISIBLE_SLOTS = 3;
-const REFILL_AT = 2;
+/** Refill the backlog once it drops below this many cards. */
+const REFILL_AT = 3;
+/**
+ * Games fetched per backlog refill. Larger than `VISIBLE_SLOTS` so fast deciders don't outrun the
+ * ~500ms suggestions round-trip and hit an empty slot. This costs no extra DB work — the adaptive
+ * path already scans the full candidate set and only slices `limit`, and the cold path's fetch
+ * floor is 20 regardless (see lib/games/repo.ts).
+ */
+const BACKLOG_BATCH = 5;
 /**
  * Curated starter shelf handoff. The first few batches pull the preset shelf so the user's
  * accepts can branch into the pre-seeded persona co-occurrence clusters. We stop asking for the
- * preset once the shelf is drained (36 games / 3 per batch ≈ 12 batches) OR the user has accepted
- * 3 games — at that point personalization has enough signal to take over. The server also
- * ignores `preset` once `seedIds` is non-empty, so this is a defense-in-depth toggle.
+ * preset once the shelf could be drained OR the user has accepted 3 games — at that point
+ * personalization has enough signal to take over. This is a loose upper bound (batches return
+ * up to `BACKLOG_BATCH` games, so the shelf actually drains sooner); the accept handoff below
+ * almost always trips first, and the server ignores `preset` once `seedIds` is non-empty.
  */
 const PRESET_BATCH_LIMIT = Math.ceil(STARTER_GAME_NAMES.length / VISIBLE_SLOTS);
 const PRESET_ACCEPT_HANDOFF = 3;
@@ -166,6 +175,11 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
   /**
    * Fetch a batch from the API and append to the backlog. Skips if already fetching,
    * the shelf is exhausted, or the backlog is comfortably full (`REFILL_AT`).
+   *
+   * Single-flight: only one fetch runs at a time. If the user drains the backlog *while* a fetch
+   * is in flight (rapid deciding), those `ensureBacklog` calls are dropped by the guard — so on
+   * completion we re-check and chain another fetch when the backlog is still below `REFILL_AT`.
+   * This both keeps the buffer ahead of fast tapping and carries the latest seed/reject context.
    */
   const ensureBacklog = useCallback(async () => {
     if (fetchingRef.current || exhaustedRef.current) return;
@@ -175,10 +189,11 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
     setError(false);
     setLoading(true);
 
+    let chain = false;
     try {
       const preset = shouldUsePreset();
       const games = await fetchSuggestions(
-        { prefs, exclude: buildApiExclude(), ...buildSuggestionContext(), preset, limit: VISIBLE_SLOTS },
+        { prefs, exclude: buildApiExclude(), ...buildSuggestionContext(), preset, limit: BACKLOG_BATCH },
         fetchImpl ?? fetch,
       );
 
@@ -192,6 +207,10 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
 
       if (preset) presetBatchesRef.current += 1;
 
+      // Warm covers for backlog cards ahead of display so a card promoted into a slot paints
+      // instantly instead of decoding its <img> on mount.
+      preloadCovers(freshGames);
+
       const entries: SlotEntry[] = freshGames.map((g) => ({
         game: g,
       }));
@@ -201,12 +220,16 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
       setBacklog(next);
 
       fillEmptySlots();
+
+      // Backlog still short (drained mid-fetch, or a small batch) — chain another refill below.
+      chain = backlogRef.current.length < REFILL_AT;
     } catch {
       setError(true);
       retryTimerRef.current = setTimeout(() => void ensureBacklog(), 1500);
     } finally {
       setLoading(false);
       fetchingRef.current = false;
+      if (chain && !exhaustedRef.current) void ensureBacklog();
     }
   }, [prefs, fetchImpl, buildApiExclude, buildSuggestionContext, filterFreshGames, fillEmptySlots, shouldUsePreset]);
 

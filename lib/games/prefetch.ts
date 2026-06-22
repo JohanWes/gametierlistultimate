@@ -104,9 +104,10 @@ export function resetDecodedCovers(): void {
 /**
  * Warm the browser image cache for a batch's covers and pin the decoded bitmaps so they
  * survive step transitions. In jsdom (tests) `Image` exists but `decode()` may not, so the
- * decode call is guarded.
+ * decode call is guarded. Exported so the pool builder can warm backlog covers ahead of
+ * display (not just the initial prefetched batch).
  */
-function preloadCovers(games: Game[]): void {
+export function preloadCovers(games: Game[]): void {
   if (typeof window === 'undefined') return;
   for (const game of games) {
     if (!game.coverUrl) continue;
