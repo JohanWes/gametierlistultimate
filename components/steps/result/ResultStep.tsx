@@ -48,6 +48,7 @@ export function ResultStep() {
   const removeFromPool = useStore((s) => s.removeFromPool);
   const goBack = useStore((s) => s.goBack);
   const soundOn = useStore((s) => s.ui.soundOn);
+  const step = useStore((s) => s.ui.step);
 
   const gamesById = useMemo(() => new Map(pool.map((e) => [e.game.igdbId, e.game])), [pool]);
 
@@ -72,9 +73,12 @@ export function ResultStep() {
 
   const ding = useCallback(
     (_tier: Tier, isLast: boolean) => {
+      // Keep-alive: ResultStep stays mounted when hidden. Don't play reveal sounds
+      // while the user is on another step.
+      if (step !== 'reveal') return;
       if (soundOn) playSound(isLast ? 'success' : 'reveal');
     },
-    [soundOn],
+    [soundOn, step],
   );
 
   const { revealed, done, skip } = useReveal({

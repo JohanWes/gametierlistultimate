@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchSuggestions } from '@/lib/games/client';
-import { peekStarterBatch } from '@/lib/games/prefetch';
+import { peekAdaptiveBatch, peekStarterBatch } from '@/lib/games/prefetch';
 import type { Game } from '@/lib/games/types';
 import { STARTER_GAME_NAMES } from '@/lib/games/starter-set';
 import { useIsMobile } from '@/lib/use-is-mobile';
@@ -202,16 +202,31 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
       try {
         const preset = shouldUsePreset();
         const ctx = buildSuggestionContext();
-        // On a fresh preset-shelf open, reuse the batch prefetched on the welcome screen so the
-        // pool builder paints instantly. Only when nothing's decided yet and no fetch stub is
-        // injected (tests drive the network themselves); otherwise fetch normally.
-        const canUsePrefetch =
+        // Reuse a batch prefetched on hydration so the pool builder paints instantly. Two paths:
+        //   - Cold pool (no accepts): the starter shelf prefetched on the welcome/hydrate moment.
+        //   - Warm/returning pool: an adaptive batch seeded by the already-accepted games.
+        // Only when no fetch stub is injected (tests drive the network themselves) and nothing
+        // is decided yet for the starter path; the adaptive path is valid with prior accepts.
+        const canUseStarterPrefetch =
           preset &&
           !fetchImpl &&
           decidedRef.current.size === 0 &&
           ctx.seedIds.length === 0 &&
           ctx.rejectIds.length === 0;
-        const prefetched = canUsePrefetch ? await peekStarterBatch() : null;
+        const canUseAdaptivePrefetch =
+          !fetchImpl && (decidedRef.current.size > 0 || ctx.seedIds.length > 0);
+        let prefetched: Game[] | null = null;
+        if (canUseStarterPrefetch) {
+          prefetched = await peekStarterBatch();
+        } else if (canUseAdaptivePrefetch) {
+          // The adaptive prefetch was fired with the pool-at-hydration as seeds/exclude. Filter
+          // out any games the user has decided since, so a stale-but-resolved batch is still safe.
+          const adaptive = await peekAdaptiveBatch();
+          if (adaptive && adaptive.length > 0) {
+            const decided = new Set(decidedRef.current);
+            prefetched = adaptive.filter((g) => !decided.has(g.igdbId));
+          }
+        }
         const games =
           prefetched && prefetched.length > 0
             ? prefetched

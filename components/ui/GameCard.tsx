@@ -22,6 +22,12 @@ export interface GameCardProps {
   className?: string;
   /** Extra classes merged onto the cover `<img>` (e.g. a parent-driven hover zoom). */
   imageClassName?: string;
+  /**
+   * Load the cover eagerly with high priority. Defaults to lazy — fine for dense grids and
+   * below-the-fold rows. Set `eager` for always-visible hero slots (pool builder) where a
+   * lazy load would add an intersection-check tick before the image decodes.
+   */
+  eager?: boolean;
 }
 
 export type GameCardSize = keyof typeof SIZES;
@@ -54,6 +60,7 @@ export function GameCard({
   size = 'md',
   className,
   imageClassName,
+  eager = false,
 }: GameCardProps) {
   const reduce = useReducedMotion();
 
@@ -93,7 +100,8 @@ export function GameCard({
           alt={game.title}
           draggable={false}
           onDragStart={(e) => e.preventDefault()}
-          loading="lazy"
+          loading={eager ? 'eager' : 'lazy'}
+          fetchPriority={eager ? 'high' : 'auto'}
           className={cn('h-full w-full object-cover', imageClassName)}
         />
       ) : (

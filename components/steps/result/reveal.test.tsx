@@ -32,6 +32,7 @@ function seed() {
     state = assignTier(state, i + 1, tier);
   });
   useStore.getState().setScores(serializeRankingState(state) as unknown as Record<string, unknown>);
+  useStore.getState().setStep('reveal');
   return games;
 }
 

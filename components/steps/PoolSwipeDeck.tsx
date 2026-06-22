@@ -98,6 +98,7 @@ export function PoolSwipeDeck({
                 game={peek.game}
                 showTitle={false}
                 size="lg"
+                eager
                 className="w-full rounded-card border-2 border-border"
               />
             </div>

@@ -166,6 +166,7 @@ export function PoolSwipeCard({ game, random = Math.random, onDecide }: PoolSwip
           game={game}
           showTitle={false}
           size="lg"
+          eager
           className="pointer-events-none w-full rounded-none border-0 shadow-none"
         />
         <div

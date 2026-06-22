@@ -64,6 +64,7 @@ export function PoolCard({ game, random = Math.random, onDecide }: PoolCardProps
           game={game}
           showTitle={false}
           size="pool"
+          eager
           className="w-full rounded-none border-0 shadow-none"
           imageClassName={
             reduce

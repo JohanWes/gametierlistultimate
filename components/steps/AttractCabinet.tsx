@@ -74,17 +74,25 @@ export const ATTRACT_COVER_TITLES: readonly string[] = TIER_ORDER.flatMap((t) =>
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+export interface AttractCabinetProps {
+  /** Pause the attract-mode loop when the cabinet is off-screen (keep-alive). Defaults to true. */
+  active?: boolean;
+}
+
 /**
  * The signature "Attract Mode" cabinet. An infinite, self-playing tier-list demo: covers deal
  * out tier-by-tier (top→bottom), hold, then retract (bottom→top), forever. Built with
  * `useAnimate` so the whole timeline runs on the compositor without re-rendering React.
+ *
+ * Pass `active={false}` to pause the loop when the cabinet is hidden (e.g. the welcome screen
+ * is keep-alive but not the current step) — avoids burning CPU on animations nobody sees.
  */
-export function AttractCabinet() {
+export function AttractCabinet({ active = true }: AttractCabinetProps) {
   const reduce = useReducedMotion();
   const [scope, animate] = useAnimate();
 
   useEffect(() => {
-    if (reduce) return; // covers render in their resting (visible) state; no loop.
+    if (reduce || !active) return; // covers render in their resting (visible) state; no loop.
     let cancelled = false;
 
     // DOM order is S→F, left→right. `from: 'first'` deals top-to-bottom / left-to-right;
@@ -116,7 +124,7 @@ export function AttractCabinet() {
     return () => {
       cancelled = true;
     };
-  }, [animate, reduce]);
+  }, [animate, reduce, active]);
 
   return (
     <div className="relative mx-auto w-fit max-w-full overflow-hidden rounded-card border-2 border-border bg-bg shadow-cabinet">
