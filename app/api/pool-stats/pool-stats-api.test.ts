@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { resetStarterSetCache } from '@/lib/games/repo';
 import { COLLECTIONS } from '@/lib/mongo';
 import { resetStarterGuardrail } from '@/lib/pool-stats-service';
 import { withMemoryMongo, type MemoryMongo } from '@/test/helpers/mongo';
@@ -33,6 +34,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await mongo.clear();
   resetStarterGuardrail();
+  resetStarterSetCache(); // tests re-seed games; drop the memoized starter shelf so it re-resolves
 });
 
 describe('POST /api/pool-stats', () => {

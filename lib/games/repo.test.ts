@@ -3,7 +3,15 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { COLLECTIONS } from '@/lib/mongo';
 import { withMemoryMongo, type MemoryMongo } from '@/test/helpers/mongo';
 
-import { getByIds, getByNames, getStarterSet, getSuggestions, searchLocal, upsertGames } from './repo';
+import {
+  getByIds,
+  getByNames,
+  getStarterSet,
+  getSuggestions,
+  resetStarterSetCache,
+  searchLocal,
+  upsertGames,
+} from './repo';
 import { STARTER_COVERS } from './starter-covers';
 import { setResolvedStarterIds } from './starter-set';
 
@@ -74,6 +82,7 @@ beforeEach(async () => {
   await mongo.clear();
   await mongo.db.collection(COLLECTIONS.games).insertMany(fixtures.map((f) => ({ ...f })));
   setResolvedStarterIds([]); // reset the process-wide starter id cache between tests
+  resetStarterSetCache(); // each test re-seeds the games collection, so drop the memoized shelf
 });
 
 describe('getSuggestions', () => {

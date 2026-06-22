@@ -373,51 +373,59 @@ export async function getByIds(ids: number[]): Promise<Game[]> {
  * Modeled on the fuzzy matcher in `scripts/seed-pool-patterns.ts` so the curated starter
  * shelf (`STARTER_GAME_NAMES`) resolves identically to how the persona seeding does.
  */
-export async function getByNames(names: string[]): Promise<Game[]> {
-  const cleaned = [...new Set(names.map((n) => (typeof n === 'string' ? n.trim() : '')).filter(Boolean))];
-  if (cleaned.length === 0) return [];
+/** Escape regex metacharacters and anchor for an exact, case-insensitive whole-title match. */
+function exactTitleRegex(name: string): RegExp {
+  return new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+}
 
-  const coll = await gamesCollection();
-  const docs = await coll.find({}).toArray();
-  const all = docs.map(normalizeMongoDoc);
-
+/**
+ * Resolve `names` against `pool` by exact (case-insensitive) then NFKD-normalized title. Hits are
+ * written into `resolved`; returns the subset of `names` that matched neither.
+ */
+function resolveByExactOrNormalized(
+  names: string[],
+  pool: Game[],
+  resolved: Map<string, Game>,
+): string[] {
   const byExact = new Map<string, Game>();
   const byNormalized = new Map<string, Game>();
-  for (const g of all) {
+  for (const g of pool) {
     const lower = g.title.toLowerCase();
     if (!byExact.has(lower)) byExact.set(lower, g);
     const norm = titleKey(g.title);
     if (!byNormalized.has(norm)) byNormalized.set(norm, g);
   }
 
-  const resolved = new Map<string, Game>();
-  const stillMissing: string[] = [];
-
-  // Pass 1: exact + normalized.
-  for (const name of cleaned) {
+  const missing: string[] = [];
+  for (const name of names) {
     if (resolved.has(name)) continue;
     const exact = byExact.get(name.toLowerCase());
     if (exact) {
       resolved.set(name, exact);
       continue;
     }
-    const norm = titleKey(name);
-    const normMatch = byNormalized.get(norm);
+    const normMatch = byNormalized.get(titleKey(name));
     if (normMatch) resolved.set(name, normMatch);
-    else stillMissing.push(name);
+    else missing.push(name);
   }
+  return missing;
+}
 
-  // Pass 2: substring fallback for the unresolved — prefer the shortest matching DB title.
-  // Guard against short common-word false positives by requiring the normalized query to be
-  // at least 4 chars (all curated starter names are ≥ 5 chars, so this never blocks them
-  // while preventing 1-3 char queries from matching unrelated games).
+/**
+ * Substring fallback over `pool` for the still-unresolved `names` — prefers the shortest matching
+ * DB title (more specific). Guards against short common-word false positives by requiring the
+ * normalized query to be at least 4 chars (all curated starter names are ≥ 5 chars, so this never
+ * blocks them while preventing 1-3 char queries from matching unrelated games).
+ */
+function resolveBySubstring(names: string[], pool: Game[], resolved: Map<string, Game>): void {
   const MIN_SUBSTR_LEN = 4;
-  for (const name of stillMissing) {
+  for (const name of names) {
+    if (resolved.has(name)) continue;
     const norm = titleKey(name);
     if (norm.length < MIN_SUBSTR_LEN) continue;
     let best: Game | null = null;
     let bestLen = Infinity;
-    for (const g of all) {
+    for (const g of pool) {
       const gNorm = titleKey(g.title);
       if (gNorm === norm) {
         best = g;
@@ -431,6 +439,29 @@ export async function getByNames(names: string[]): Promise<Game[]> {
       }
     }
     if (best) resolved.set(name, best);
+  }
+}
+
+export async function getByNames(names: string[]): Promise<Game[]> {
+  const cleaned = [...new Set(names.map((n) => (typeof n === 'string' ? n.trim() : '')).filter(Boolean))];
+  if (cleaned.length === 0) return [];
+
+  const coll = await gamesCollection();
+  const resolved = new Map<string, Game>();
+
+  // Fast path: a targeted exact-title query (case-insensitive) instead of loading + normalizing
+  // the entire games collection. The curated starter names match a DB title verbatim in the
+  // common case, so this resolves all of them from a small result set — the hot path for the
+  // pool builder's preset batches.
+  const candidateDocs = await coll.find({ name: { $in: cleaned.map(exactTitleRegex) } }).toArray();
+  const missing = resolveByExactOrNormalized(cleaned, candidateDocs.map(normalizeMongoDoc), resolved);
+
+  // Fuzzy fallback: only names the targeted query missed (punctuation/spelling variants between
+  // the query and the DB title) pay for a full-collection scan with normalized + substring matching.
+  if (missing.length > 0) {
+    const all = (await coll.find({}).toArray()).map(normalizeMongoDoc);
+    const stillMissing = resolveByExactOrNormalized(missing, all, resolved);
+    resolveBySubstring(stillMissing, all, resolved);
   }
 
   return cleaned.map((name) => resolved.get(name)).filter((g): g is Game => !!g);
@@ -446,19 +477,34 @@ export async function getByNames(names: string[]): Promise<Game[]> {
  * DLC/expansions are filtered out defensively — the curated list is hand-picked main games,
  * but a fuzzy substring match could theoretically pull in an edition variant.
  */
+/**
+ * Process-wide cache of the fully-resolved starter shelf. The shelf is a fixed curated list, so
+ * resolving it once per process avoids re-scanning Mongo on every preset batch (the pool builder
+ * fetches several preset batches as the user works through Step 3). Reset in tests via
+ * `resetStarterSetCache`. A new serverless instance / deploy re-resolves naturally.
+ */
+let starterSetCache: Game[] | null = null;
+
+/** Clear the memoized starter shelf — used by tests that re-seed the games collection. */
+export function resetStarterSetCache(): void {
+  starterSetCache = null;
+}
+
 export async function getStarterSet(limit?: number): Promise<Game[]> {
-  const resolved = await getByNames([...STARTER_GAME_NAMES]);
-  const filtered = resolved.filter((g) => !isDlc(g));
-  setResolvedStarterIds(filtered.map((g) => g.igdbId));
-  // Swap the remote images.igdb.com cover for a predownloaded same-origin copy (when available)
-  // so the pool builder opens with no external-CDN cover loading. A missing manifest entry simply
-  // keeps the remote URL. See scripts/fetch-starter-covers.ts + lib/games/starter-covers.ts.
-  const withLocalCovers = filtered.map((g) =>
-    STARTER_COVERS[g.igdbId] ? { ...g, coverUrl: STARTER_COVERS[g.igdbId] } : g,
-  );
+  if (!starterSetCache) {
+    const resolved = await getByNames([...STARTER_GAME_NAMES]);
+    const filtered = resolved.filter((g) => !isDlc(g));
+    // Swap the remote images.igdb.com cover for a predownloaded same-origin copy (when available)
+    // so the pool builder opens with no external-CDN cover loading. A missing manifest entry simply
+    // keeps the remote URL. See scripts/fetch-starter-covers.ts + lib/games/starter-covers.ts.
+    starterSetCache = filtered.map((g) =>
+      STARTER_COVERS[g.igdbId] ? { ...g, coverUrl: STARTER_COVERS[g.igdbId] } : g,
+    );
+  }
+  setResolvedStarterIds(starterSetCache.map((g) => g.igdbId));
   return typeof limit === 'number' && limit > 0
-    ? withLocalCovers.slice(0, limit)
-    : withLocalCovers;
+    ? starterSetCache.slice(0, limit)
+    : starterSetCache;
 }
 
 /**

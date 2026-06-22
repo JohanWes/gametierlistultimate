@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { fetchSuggestions } from '@/lib/games/client';
+import { peekStarterBatch } from '@/lib/games/prefetch';
 import type { Game } from '@/lib/games/types';
 import { STARTER_GAME_NAMES } from '@/lib/games/starter-set';
 import { useIsMobile } from '@/lib/use-is-mobile';
@@ -17,7 +18,7 @@ import { PoolSwipeDeck } from './PoolSwipeDeck';
 import { MIN_POOL, RosterMeter } from './RosterMeter';
 import { StepScaffold } from './StepScaffold';
 
-const VISIBLE_SLOTS = 3;
+export const VISIBLE_SLOTS = 3;
 const REFILL_AT = 2;
 /**
  * Curated starter shelf handoff. The first few batches pull the preset shelf so the user's
@@ -200,16 +201,30 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
 
       try {
         const preset = shouldUsePreset();
-        const games = await fetchSuggestions(
-          {
-            prefs,
-            exclude: [...decidedRef.current],
-            ...buildSuggestionContext(),
-            preset,
-            limit: VISIBLE_SLOTS,
-          },
-          fetchImpl ?? fetch,
-        );
+        const ctx = buildSuggestionContext();
+        // On a fresh preset-shelf open, reuse the batch prefetched on the welcome screen so the
+        // pool builder paints instantly. Only when nothing's decided yet and no fetch stub is
+        // injected (tests drive the network themselves); otherwise fetch normally.
+        const canUsePrefetch =
+          preset &&
+          !fetchImpl &&
+          decidedRef.current.size === 0 &&
+          ctx.seedIds.length === 0 &&
+          ctx.rejectIds.length === 0;
+        const prefetched = canUsePrefetch ? await peekStarterBatch() : null;
+        const games =
+          prefetched && prefetched.length > 0
+            ? prefetched
+            : await fetchSuggestions(
+                {
+                  prefs,
+                  exclude: [...decidedRef.current],
+                  ...ctx,
+                  preset,
+                  limit: VISIBLE_SLOTS,
+                },
+                fetchImpl ?? fetch,
+              );
 
         const freshGames = filterFreshGames(games);
 

@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { resetStarterBatchPrefetch } from '@/lib/games/prefetch';
 import { resetStore, useStore } from '@/lib/store';
 import { fireEvent, renderWithProviders, screen } from '@/test/helpers/render';
 
 import { WelcomeStep } from './WelcomeStep';
 
 describe('WelcomeStep', () => {
-  beforeEach(() => resetStore());
+  beforeEach(() => {
+    resetStore();
+    resetStarterBatchPrefetch();
+  });
 
   it('renders the headline and the full how-it-works sequence', () => {
     renderWithProviders(<WelcomeStep />);

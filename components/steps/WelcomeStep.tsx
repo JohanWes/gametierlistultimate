@@ -1,7 +1,9 @@
 'use client';
 
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
+import { useEffect } from 'react';
 
+import { prefetchStarterBatch } from '@/lib/games/prefetch';
 import { playSound } from '@/lib/sound';
 import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -9,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '../ui/Button';
 import { TIER_ORDER, type Tier } from '../ui/Row';
 import { AttractCabinet } from './AttractCabinet';
+import { VISIBLE_SLOTS } from './PoolStep';
 
 const TIER_BG: Record<Tier, string> = {
   S: 'bg-tier-s',
@@ -68,6 +71,12 @@ function HowItWorks({ itemVariants }: { itemVariants: Variants }) {
 export function WelcomeStep() {
   const goNext = useStore((s) => s.goNext);
   const reduce = useReducedMotion();
+
+  // Warm the deterministic starter shelf (data + cover art) while the user reads the welcome
+  // screen, so the pool builder opens with no perceptible loading. See lib/games/prefetch.ts.
+  useEffect(() => {
+    prefetchStarterBatch(VISIBLE_SLOTS);
+  }, []);
 
   const container: Variants = {
     hidden: {},
