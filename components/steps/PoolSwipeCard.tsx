@@ -4,10 +4,11 @@ import {
   animate,
   AnimatePresence,
   motion,
-  type PanInfo,
   useMotionValue,
   useReducedMotion,
+  useSpring,
   useTransform,
+  useVelocity,
 } from 'framer-motion';
 import { useRef } from 'react';
 
@@ -24,6 +25,15 @@ const COMMIT_RATIO = 0.28;
 const MIN_COMMIT = 88;
 /** A fast flick commits even if it didn't travel far. */
 const COMMIT_VELOCITY = 520;
+/** Movement (px) past which a press becomes a drag rather than a tap. */
+const DRAG_THRESHOLD = 6;
+/**
+ * A stiff, near-critically-damped follow. This is a frame interpolator, not added weight: the
+ * raw pointer delta only arrives at the (often ~60Hz) pointer-event rate, but `useSpring` re-renders
+ * on its own rAF loop at the display refresh rate, so the card stays buttery on 120/174Hz screens
+ * without trailing behind the finger.
+ */
+const SWIPE_FOLLOW = { stiffness: 700, damping: 45, mass: 0.6 } as const;
 
 export interface PoolSwipeCardProps {
   game: Game;
@@ -52,10 +62,17 @@ export function PoolSwipeCard({ game, random = Math.random, onDecide }: PoolSwip
   const hasCover = game.hasCover && !!game.coverUrl;
 
   const cardRef = useRef<HTMLDivElement>(null);
+  // `x` is the raw pointer delta; `sx` is the rAF-interpolated value we actually render.
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-260, 0, 260], [-13, 0, 13]);
-  const playedOpacity = useTransform(x, [24, 130], [0, 1]);
-  const passOpacity = useTransform(x, [-130, -24], [1, 0]);
+  const sx = useSpring(x, SWIPE_FOLLOW);
+  const xVelocity = useVelocity(x);
+  const rotate = useTransform(sx, [-260, 0, 260], [-13, 0, 13]);
+  const playedOpacity = useTransform(sx, [24, 130], [0, 1]);
+  const passOpacity = useTransform(sx, [-130, -24], [1, 0]);
+
+  const downRef = useRef(false);
+  const draggedRef = useRef(false);
+  const startRef = useRef({ x: 0, y: 0 });
 
   const flyAway = (dir: 1 | -1, after?: () => void) => {
     if (reduce) {
@@ -87,28 +104,62 @@ export function PoolSwipeCard({ game, random = Math.random, onDecide }: PoolSwip
     flyAway(-1, reject);
   };
 
-  const handleDragEnd = (_: unknown, info: PanInfo) => {
+  const settle = () => {
     const width = cardRef.current?.offsetWidth ?? 320;
     const threshold = Math.max(MIN_COMMIT, width * COMMIT_RATIO);
-    if (info.offset.x > threshold || info.velocity.x > COMMIT_VELOCITY) commitPlayed();
-    else if (info.offset.x < -threshold || info.velocity.x < -COMMIT_VELOCITY) commitReject();
+    const offset = x.get();
+    const velocity = xVelocity.get();
+    if (offset > threshold || velocity > COMMIT_VELOCITY) commitPlayed();
+    else if (offset < -threshold || velocity < -COMMIT_VELOCITY) commitReject();
     else springBack();
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (reduce || picking || e.button !== 0) return;
+    downRef.current = true;
+    draggedRef.current = false;
+    startRef.current = { x: e.clientX, y: e.clientY };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!downRef.current) return;
+    const dx = e.clientX - startRef.current.x;
+    if (!draggedRef.current && Math.abs(dx) > DRAG_THRESHOLD) draggedRef.current = true;
+    if (draggedRef.current) {
+      e.preventDefault();
+      x.set(dx);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!downRef.current) return;
+    downRef.current = false;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    if (draggedRef.current) settle();
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent) => {
+    if (!downRef.current) return;
+    downRef.current = false;
+    draggedRef.current = false;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    springBack();
   };
 
   return (
     <div className="flex w-full flex-col items-center gap-5">
       <motion.div
         ref={cardRef}
-        drag={reduce || picking ? false : 'x'}
-        dragSnapToOrigin={false}
-        dragMomentum={false}
-        dragElastic={0.6}
-        onDragEnd={handleDragEnd}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
         className={cn(
           'relative z-10 w-[min(82vw,20rem)] select-none overflow-hidden rounded-card border-2 border-border bg-surface shadow-lift',
           reduce || picking ? undefined : 'cursor-grab touch-pan-y active:cursor-grabbing',
         )}
-        style={reduce ? undefined : { x, rotate }}
+        style={reduce ? undefined : { x: sx, rotate }}
       >
         <GameCard
           game={game}
