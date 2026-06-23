@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, useReducedMotion } from 'framer-motion';
+import { useState } from 'react';
 
 import { sharpenIgdbCoverUrl } from '@/lib/games/normalize';
 import type { Game } from '@/lib/games/types';
@@ -63,6 +64,10 @@ export function GameCard({
   eager = false,
 }: GameCardProps) {
   const reduce = useReducedMotion();
+  // Covers stream in top-to-bottom; revealing the <img> only once it has fully decoded avoids a
+  // half-painted bottom edge flashing during a card's spawn animation. Cached/warmed covers report
+  // `complete` immediately via the ref, so they appear instantly with no flash.
+  const [loaded, setLoaded] = useState(false);
 
   if (loading || !game) {
     return (
@@ -96,13 +101,24 @@ export function GameCard({
         // Covers come from many IGDB hosts; a plain img avoids per-domain next/image config.
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          // Catch covers already decoded before React attached `onLoad` (warm prefetch cache),
+          // and re-arm the gate when the same element is reused for a different cover.
+          ref={(el) => setLoaded(!!el?.complete && el.naturalWidth > 0)}
+          key={coverUrl}
           src={coverUrl ?? undefined}
           alt={game.title}
           draggable={false}
           onDragStart={(e) => e.preventDefault()}
+          onLoad={() => setLoaded(true)}
           loading={eager ? 'eager' : 'lazy'}
           fetchPriority={eager ? 'high' : 'auto'}
-          className={cn('h-full w-full object-cover', imageClassName)}
+          decoding="async"
+          className={cn(
+            'h-full w-full object-cover',
+            !reduce && 'transition-opacity duration-300',
+            loaded ? 'opacity-100' : 'opacity-0',
+            imageClassName,
+          )}
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-surface-elevated p-3 text-center">
