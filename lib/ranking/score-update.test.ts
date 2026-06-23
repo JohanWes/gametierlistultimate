@@ -78,16 +78,20 @@ describe('ranking score updates', () => {
     expect(next.games[1].rating - next.games[2].rating).toBeLessThan(beforeGap);
   });
 
-  it('replay test is a low-weight signal compared with a duel', () => {
+  it('replay is a moderate absolute signal that banks real confidence credit', () => {
     const base = createRankingState([1, 2], { seed: 4 });
 
-    const replay = applyOutcome(base, { type: 'replay', gameId: 1, answer: 'immediately' });
-    const duel = applyOutcome(base, { type: 'pairwise', winnerId: 1, loserId: 2 });
+    const up = applyOutcome(base, { type: 'replay', gameId: 1, answer: 'immediately' });
+    const down = applyOutcome(base, { type: 'replay', gameId: 1, answer: 'never' });
 
-    expect(replay.games[1].rating - base.games[1].rating).toBeGreaterThan(0);
-    expect(replay.games[1].rating - base.games[1].rating).toBeLessThan(
-      duel.games[1].rating - base.games[1].rating,
-    );
+    // Moves the rating toward the answer (up for "immediately", down for "never").
+    expect(up.games[1].rating).toBeGreaterThan(base.games[1].rating);
+    expect(down.games[1].rating).toBeLessThan(base.games[1].rating);
+
+    // An absolute tier statement banks meaningful confidence credit (more than a single pairwise's
+    // worth) and sharpens the estimate, so a replay round registers real progress.
+    expect(up.games[1].comparisons).toBeGreaterThan(1);
+    expect(up.games[1].uncertainty).toBeLessThan(base.games[1].uncertainty);
   });
 
   it('vibe verdict moves a game toward the chosen tier band', () => {

@@ -128,6 +128,14 @@ const COVERAGE_FULL_AT = 3;
 const VIBE_CONFIDENCE_CREDIT = 2.4;
 
 /**
+ * Extra comparison credit banked by a replay-test answer. A replay verdict ("how soon would you
+ * replay this?") is an absolute tier statement like a vibe, but coarser — a 4-way choice rather than a
+ * precise slider — so it earns roughly half the confidence credit. Enough that a replay round
+ * registers real progress instead of nudging the meter by a rounding error.
+ */
+const REPLAY_CONFIDENCE_CREDIT = 1.2;
+
+/**
  * Cadence for the rare two-card breather during the early (multi-item) phase.
  * Picked as the first round not claimed by any scheduled special (bucket 4,
  * vibe 5, replay 6, podium 7, gauntlet 8, bracket 9), so a breather never
@@ -497,12 +505,15 @@ function applyReplay(
     never: BASE_RATING - 110,
   } satisfies Record<typeof answer, number>;
 
-  const expected = expectedScore(game.rating, BASE_RATING);
-  const targetScore = expectedScore(targetByAnswer[answer], BASE_RATING);
-  const delta = 30 * clamp(weight, 0.05, 0.75) * (targetScore - expected);
-  game.rating += delta;
-  game.uncertainty = Math.max(MIN_UNCERTAINTY, game.uncertainty * 0.975);
-  game.comparisons += weight;
+  // Like a vibe but gentler (a coarse 4-way choice, not a precise slider): pull the rating toward the
+  // answer's target scaled by how unsettled the game still is, and bank real confidence credit so a
+  // replay round registers progress instead of moving a game only a point or two.
+  const trust = clamp(game.uncertainty / INITIAL_UNCERTAINTY, 0, 1); // ~1 cold … ~0.17 settled
+  const pull = clamp(0.18 + 0.45 * trust, 0.1, 0.6);
+  game.rating += pull * (targetByAnswer[answer] - game.rating);
+
+  game.uncertainty = Math.max(MIN_UNCERTAINTY, game.uncertainty * 0.85);
+  game.comparisons += clamp(weight, 0.05, 0.75) + REPLAY_CONFIDENCE_CREDIT;
 }
 
 /**
