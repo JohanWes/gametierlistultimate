@@ -21,6 +21,7 @@ export function DesktopBracket({ gameById, state, active, pendingWinnerId, champ
 
   const box = (id: string, label?: string) => (
     <BoutBox
+      id={id}
       bout={getBout(state, id)}
       label={label}
       activeId={activeId}
@@ -40,9 +41,9 @@ export function DesktopBracket({ gameById, state, active, pendingWinnerId, champ
         hint={champion !== null ? '9 bouts · settled' : position ? `${position} · 9 bouts` : '9 bouts'}
       />
 
-      <div className="flex w-full justify-center overflow-x-auto pb-2">
+      <div className="flex w-full justify-center overflow-visible pb-2">
         {/* Shrink the cover token locally so all five bout columns + connectors fit common desktop
-            widths (1280–1440) without horizontal scroll; the scroll container is only a safety net. */}
+            widths (1280–1440); the active matchup scales with transform so layout stays fixed. */}
         <div
           className="flex items-stretch gap-2 lg:gap-3 [--cover-zone:clamp(3.25rem,5vw,4.75rem)]"
         >
@@ -84,6 +85,7 @@ export function DesktopBracket({ gameById, state, active, pendingWinnerId, champ
 }
 
 function BoutBox({
+  id,
   bout,
   label,
   activeId,
@@ -92,6 +94,7 @@ function BoutBox({
   gameById,
   onPick,
 }: {
+  id: string;
   bout: Bout | undefined;
   label?: string;
   activeId: string | null;
@@ -103,6 +106,7 @@ function BoutBox({
   const isActive = bout != null && bout.id === activeId;
   const isFinale = bout?.round === 'finale';
   const decided = bout?.winnerId != null;
+  const isRedemption = bout?.round === 'redemption';
 
   const stateFor = (id: number): CardState => {
     if (champion === id) return 'win';
@@ -114,8 +118,16 @@ function BoutBox({
 
   return (
     <div
+      data-showdown-bout={id}
+      data-active={isActive ? 'true' : 'false'}
       className={cn(
-        'flex flex-col gap-1 rounded-tile border p-1.5 transition-colors',
+        'relative flex flex-col gap-1 rounded-tile border p-1.5 transition-[border-color,background-color,transform,filter] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform motion-reduce:transition-none',
+        transformOriginFor(id),
+        isActive
+          ? isRedemption
+            ? 'z-20 scale-[1.14] shadow-[0_16px_46px_rgb(0_0_0/0.38)] xl:scale-[1.20] 2xl:scale-[1.24]'
+            : 'z-20 scale-[1.28] shadow-[0_18px_54px_rgb(0_0_0/0.42)] xl:scale-[1.36] 2xl:scale-[1.42]'
+          : 'z-0 scale-100',
         isActive
           ? isFinale
             ? 'border-teal/70 bg-teal/5'
@@ -155,6 +167,28 @@ function BoutBox({
       </div>
     </div>
   );
+}
+
+function transformOriginFor(id: string) {
+  switch (id) {
+    case 'QF1':
+      return 'origin-bottom-left';
+    case 'QF2':
+      return 'origin-top-left';
+    case 'QF3':
+      return 'origin-bottom-right';
+    case 'QF4':
+      return 'origin-top-right';
+    case 'SF1':
+      return 'origin-left';
+    case 'SF2':
+      return 'origin-right';
+    case 'R1':
+    case 'R2':
+      return 'origin-top';
+    default:
+      return 'origin-center';
+  }
 }
 
 function Slot() {

@@ -12,6 +12,36 @@ async function crown(title: RegExp) {
 }
 
 describe('GreatShowdown', () => {
+  it('marks only the current desktop bout as active while the matchup advances', async () => {
+    const games = makeGames(8);
+    const onComplete = vi.fn();
+    const { container } = renderWithProviders(
+      <GreatShowdown games={games} onComplete={onComplete} />,
+    );
+
+    expect(container.querySelector('[data-showdown-bout="QF1"]')).toHaveAttribute(
+      'data-active',
+      'true',
+    );
+    expect(container.querySelectorAll('[data-active="true"]')).toHaveLength(1);
+
+    await crown(/^Game 1$/);
+
+    await waitFor(
+      () =>
+        expect(container.querySelector('[data-showdown-bout="QF2"]')).toHaveAttribute(
+          'data-active',
+          'true',
+        ),
+      { timeout: 4000 },
+    );
+    expect(container.querySelector('[data-showdown-bout="QF1"]')).toHaveAttribute(
+      'data-active',
+      'false',
+    );
+    expect(container.querySelectorAll('[data-active="true"]')).toHaveLength(1);
+  });
+
   it('plays nine bouts (quarters, redemption, semis, finale) and emits weighted duels', async () => {
     const games = makeGames(8); // seeds 1..8, quarter pairs (1,2)(3,4)(5,6)(7,8)
     const onComplete = vi.fn();
