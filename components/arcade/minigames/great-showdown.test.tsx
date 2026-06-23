@@ -42,6 +42,45 @@ describe('GreatShowdown', () => {
     expect(container.querySelectorAll('[data-active="true"]')).toHaveLength(1);
   });
 
+  it('shows the redemption pop-up only while a redemption bout is live', async () => {
+    const games = makeGames(8);
+    const onComplete = vi.fn();
+    const { container } = renderWithProviders(
+      <GreatShowdown games={games} onComplete={onComplete} />,
+    );
+
+    // During the quarters there is no redemption overlay.
+    expect(container.querySelector('[data-showdown-redemption-overlay]')).toBeNull();
+
+    await crown(/^Game 1$/); // QF1
+    await crown(/^Game 3$/); // QF2
+    await crown(/^Game 5$/); // QF3
+    await crown(/^Game 7$/); // QF4
+
+    // Quarters done → redemption pops up, with exactly one active bout (R1).
+    await waitFor(
+      () => expect(container.querySelector('[data-showdown-redemption-overlay]')).not.toBeNull(),
+      { timeout: 4000 },
+    );
+    expect(container.querySelectorAll('[data-active="true"]')).toHaveLength(1);
+    expect(container.querySelector('[data-showdown-bout="R1"]')).toHaveAttribute(
+      'data-active',
+      'true',
+    );
+
+    // Resolve both redemption duels → overlay dissolves and a semifinal takes over.
+    await crown(/^Game 2$/); // R1
+    await crown(/^Game 6$/); // R2
+    await waitFor(
+      () => expect(container.querySelector('[data-showdown-redemption-overlay]')).toBeNull(),
+      { timeout: 4000 },
+    );
+    expect(container.querySelector('[data-showdown-bout="SF1"]')).toHaveAttribute(
+      'data-active',
+      'true',
+    );
+  });
+
   it('plays nine bouts (quarters, redemption, semis, finale) and emits weighted duels', async () => {
     const games = makeGames(8); // seeds 1..8, quarter pairs (1,2)(3,4)(5,6)(7,8)
     const onComplete = vi.fn();

@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'framer-motion';
 
 import type { Game } from '@/lib/games/types';
 import { cn } from '@/lib/utils';
@@ -11,13 +11,24 @@ import { MinigameHeader } from '../MinigameHeader';
 import { getBout, roundHeading, type Bout } from './tournament';
 
 /**
- * Desktop presentation: the whole bracket at once — two mirrored halves feeding a centered finale,
- * with the redemption duels on a rail below. The active bout glows; decided bouts show the winner and
- * dim the loser. Connectors light as each side resolves ("the bracket fills with light").
+ * Desktop presentation: the whole bracket at once — two mirrored halves feeding a centered finale.
+ * The active bout grows for real (a larger `--cover-zone`) and the tree reflows around it via
+ * framer `layout`, so titles stay crisp (no scale blur). The redemption duels are *not* a permanent
+ * rail; they pop up in the foreground after the quarters resolve and dissolve as the semifinals
+ * light up — freeing the layout and giving the "second chance" its own beat.
  */
-export function DesktopBracket({ gameById, state, active, pendingWinnerId, champion, onPick }: ShowdownViewProps) {
+export function DesktopBracket({
+  gameById,
+  state,
+  active,
+  pendingWinnerId,
+  champion,
+  onPick,
+}: ShowdownViewProps) {
+  const reduce = useReducedMotion();
   const { title, position } = roundHeading(state);
   const activeId = active?.id ?? null;
+  const redemptionActive = active?.round === 'redemption';
 
   const box = (id: string, label?: string) => (
     <BoutBox
@@ -29,11 +40,14 @@ export function DesktopBracket({ gameById, state, active, pendingWinnerId, champ
       champion={champion}
       gameById={gameById}
       onPick={onPick}
+      reduce={reduce}
     />
   );
 
   return (
-    <div className="flex flex-col items-center">
+    // Base cover token lives on the root so every bout column inherits one consistent size; the
+    // active bout overrides it locally to grow.
+    <div className="flex flex-col items-center [--cover-zone:clamp(3.5rem,4.6vw,5rem)]">
       <MinigameHeader
         tone="accent"
         eyebrow="The Great Showdown"
@@ -41,46 +55,117 @@ export function DesktopBracket({ gameById, state, active, pendingWinnerId, champ
         hint={champion !== null ? '9 bouts · settled' : position ? `${position} · 9 bouts` : '9 bouts'}
       />
 
-      <div className="flex w-full justify-center overflow-visible pb-2">
-        {/* Shrink the cover token locally so all five bout columns + connectors fit common desktop
-            widths (1280–1440); the active matchup scales with transform so layout stays fixed. */}
-        <div
-          className="flex items-stretch gap-2 lg:gap-3 [--cover-zone:clamp(3.25rem,5vw,4.75rem)]"
-        >
+      <div className="relative flex w-full justify-center pb-2">
+        <div className="flex items-stretch gap-2 lg:gap-3">
           {/* Left half: two quarters feed semifinal 1. */}
-          <div className="flex flex-col justify-center gap-4">
+          <div className="flex flex-col items-center justify-center gap-4">
             {box('QF1', 'Quarter 1')}
             {box('QF2', 'Quarter 2')}
           </div>
-          <Connector lit={!!getBout(state, 'SF1')} />
-          <div className="flex flex-col justify-center">{box('SF1', 'Semifinal 1')}</div>
-          <Connector lit={!!getBout(state, 'F')} />
+          <Connector lit={!!getBout(state, 'SF1')} reduce={reduce} />
+          <div className="flex flex-col items-center justify-center">{box('SF1', 'Semifinal 1')}</div>
+          <Connector lit={!!getBout(state, 'F')} reduce={reduce} />
 
           {/* Finale. */}
-          <div className="flex flex-col justify-center">{box('F', 'Finale')}</div>
+          <div className="flex flex-col items-center justify-center">{box('F', 'Finale')}</div>
 
           {/* Right half mirrors the left. */}
-          <Connector lit={!!getBout(state, 'F')} />
-          <div className="flex flex-col justify-center">{box('SF2', 'Semifinal 2')}</div>
-          <Connector lit={!!getBout(state, 'SF2')} />
-          <div className="flex flex-col justify-center gap-4">
+          <Connector lit={!!getBout(state, 'F')} reduce={reduce} />
+          <div className="flex flex-col items-center justify-center">{box('SF2', 'Semifinal 2')}</div>
+          <Connector lit={!!getBout(state, 'SF2')} reduce={reduce} />
+          <div className="flex flex-col items-center justify-center gap-4">
             {box('QF3', 'Quarter 3')}
             {box('QF4', 'Quarter 4')}
           </div>
         </div>
-      </div>
 
-      {/* Redemption rail — the first-round losers get a second chance. */}
-      <div className="mt-3 flex flex-col items-center gap-1.5 border-t border-border/60 pt-3">
-        <span className="font-mono text-[0.58rem] uppercase tracking-[0.18em] text-coin">
-          Redemption
-        </span>
-        <div className="flex gap-4">
-          {box('R1')}
-          {box('R2')}
-        </div>
+        {/* Redemption — pops into the foreground over a dimmed bracket while its duels are live. */}
+        <AnimatePresence>
+          {redemptionActive ? (
+            <RedemptionOverlay
+              state={state}
+              activeId={activeId}
+              pendingWinnerId={pendingWinnerId}
+              champion={champion}
+              gameById={gameById}
+              onPick={onPick}
+              reduce={reduce}
+            />
+          ) : null}
+        </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+function RedemptionOverlay({
+  state,
+  activeId,
+  pendingWinnerId,
+  champion,
+  gameById,
+  onPick,
+  reduce,
+}: {
+  state: ShowdownViewProps['state'];
+  activeId: string | null;
+  pendingWinnerId: number | null;
+  champion: number | null;
+  gameById: Map<number, Game>;
+  onPick: (winnerId: number) => void;
+  reduce: boolean | null;
+}) {
+  // While AnimatePresence plays the exit, the bracket has already advanced to the next bout. Drop
+  // the redemption bouts' active state during exit so the foreground never holds a second
+  // `data-active` bout (or a live, tappable card) over the new semifinal.
+  const isPresent = useIsPresent();
+  const effectiveActiveId = isPresent ? activeId : null;
+
+  return (
+    <motion.div
+      data-showdown-redemption-overlay
+      aria-hidden={!isPresent}
+      className={cn(
+        'absolute inset-0 z-30 flex items-center justify-center',
+        !isPresent && 'pointer-events-none',
+      )}
+      initial={reduce ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: reduce ? 0 : 0.22 }}
+    >
+      <div className="absolute inset-0 bg-bg/72 backdrop-blur-sm" aria-hidden />
+
+      <motion.div
+        className="relative flex flex-col items-center gap-3 rounded-card border border-coin/40 bg-surface/95 px-7 py-5 shadow-[0_24px_70px_rgb(0_0_0/0.5)] [--cover-zone:clamp(6.5rem,9vw,9rem)]"
+        initial={reduce ? false : { opacity: 0, scale: 0.9, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.92, y: 10 }}
+        transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 26 }}
+      >
+        <div className="flex flex-col items-center gap-0.5 text-center">
+          <span className="font-mono text-[0.62rem] uppercase tracking-[0.22em] text-coin">
+            Redemption
+          </span>
+          <span className="text-xs text-muted">Second chance — the first-round losers duel again.</span>
+        </div>
+        <div className="flex gap-6">
+          {(['R1', 'R2'] as const).map((id) => (
+            <BoutBox
+              key={id}
+              id={id}
+              bout={getBout(state, id)}
+              activeId={effectiveActiveId}
+              pendingWinnerId={pendingWinnerId}
+              champion={champion}
+              gameById={gameById}
+              onPick={onPick}
+              reduce={reduce}
+            />
+          ))}
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -93,6 +178,7 @@ function BoutBox({
   champion,
   gameById,
   onPick,
+  reduce,
 }: {
   id: string;
   bout: Bout | undefined;
@@ -102,11 +188,15 @@ function BoutBox({
   champion: number | null;
   gameById: Map<number, Game>;
   onPick: (winnerId: number) => void;
+  reduce: boolean | null;
 }) {
   const isActive = bout != null && bout.id === activeId;
   const isFinale = bout?.round === 'finale';
   const decided = bout?.winnerId != null;
   const isRedemption = bout?.round === 'redemption';
+  // Grow the active bout for real — but not in the redemption pop-up, which is already enlarged and
+  // leans on the glow instead (an active override there would shrink the card below its sibling).
+  const grow = isActive && !isRedemption;
 
   const stateFor = (id: number): CardState => {
     if (champion === id) return 'win';
@@ -117,21 +207,18 @@ function BoutBox({
   };
 
   return (
-    <div
+    <motion.div
+      layout={!reduce}
       data-showdown-bout={id}
       data-active={isActive ? 'true' : 'false'}
+      transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 30 }}
       className={cn(
-        'relative flex flex-col gap-1 rounded-tile border p-1.5 transition-[border-color,background-color,transform,filter] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform motion-reduce:transition-none',
-        transformOriginFor(id),
-        isActive
-          ? isRedemption
-            ? 'z-20 scale-[1.14] shadow-[0_16px_46px_rgb(0_0_0/0.38)] xl:scale-[1.20] 2xl:scale-[1.24]'
-            : 'z-20 scale-[1.28] shadow-[0_18px_54px_rgb(0_0_0/0.42)] xl:scale-[1.36] 2xl:scale-[1.42]'
-          : 'z-0 scale-100',
+        'relative flex flex-col gap-1 rounded-tile border p-1.5 transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]',
+        grow && 'z-20 [--cover-zone:clamp(5rem,6.5vw,7rem)]',
         isActive
           ? isFinale
-            ? 'border-teal/70 bg-teal/5'
-            : 'border-accent/60 bg-accent/5'
+            ? 'border-teal/70 bg-teal/5 shadow-[0_14px_42px_rgb(0_0_0/0.34)]'
+            : 'border-accent/60 bg-accent/5 shadow-[0_14px_42px_rgb(0_0_0/0.34)]'
           : decided
             ? 'border-border'
             : 'border-dashed border-border/60',
@@ -165,30 +252,8 @@ function BoutBox({
             })
           : [<Slot key="a" />, <Slot key="b" />]}
       </div>
-    </div>
+    </motion.div>
   );
-}
-
-function transformOriginFor(id: string) {
-  switch (id) {
-    case 'QF1':
-      return 'origin-bottom-left';
-    case 'QF2':
-      return 'origin-top-left';
-    case 'QF3':
-      return 'origin-bottom-right';
-    case 'QF4':
-      return 'origin-top-right';
-    case 'SF1':
-      return 'origin-left';
-    case 'SF2':
-      return 'origin-right';
-    case 'R1':
-    case 'R2':
-      return 'origin-top';
-    default:
-      return 'origin-center';
-  }
 }
 
 function Slot() {
@@ -197,10 +262,9 @@ function Slot() {
   );
 }
 
-function Connector({ lit }: { lit: boolean }) {
-  const reduce = useReducedMotion();
+function Connector({ lit, reduce }: { lit: boolean; reduce: boolean | null }) {
   return (
-    <div className="flex items-center" aria-hidden>
+    <motion.div layout={!reduce} className="flex items-center" aria-hidden>
       <motion.span
         className="h-px w-4 rounded-full lg:w-6"
         initial={false}
@@ -209,6 +273,6 @@ function Connector({ lit }: { lit: boolean }) {
         }}
         transition={{ duration: reduce ? 0 : 0.3 }}
       />
-    </div>
+    </motion.div>
   );
 }

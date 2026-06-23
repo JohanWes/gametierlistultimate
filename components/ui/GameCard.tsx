@@ -134,7 +134,7 @@ export function GameCard({
             className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-[36%] bg-gradient-to-t from-black/95 via-black/72 via-45% to-transparent"
           />
           <div className="pointer-events-none absolute inset-x-0 bottom-[clamp(0.45rem,5.5cqw,1rem)] z-20 px-[clamp(0.55rem,7cqw,1rem)] text-center">
-            <span className="line-clamp-2 text-[clamp(0.75rem,5.2cqw,0.875rem)] font-semibold leading-tight text-fg drop-shadow-[0_2px_3px_rgb(0_0_0/0.95)]">
+            <span className="line-clamp-2 text-[clamp(0.75rem,5.2cqw,1rem)] font-semibold leading-tight text-fg drop-shadow-[0_2px_3px_rgb(0_0_0/0.95)]">
               {game.title}
             </span>
           </div>
