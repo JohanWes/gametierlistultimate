@@ -4,6 +4,7 @@ import {
   buildBracket,
   buildBucketRound,
   buildGauntlet,
+  buildGreatShowdown,
   buildPodium,
   buildVibeRound,
   canReveal,
@@ -232,6 +233,58 @@ describe('buildBucketRound / buildPodium / buildBracket', () => {
     expect(bucket.gameIds).toHaveLength(6);
     expect(bucket.gameIds).not.toContain(1);
     expect(bucket.gameIds).not.toContain(2);
+  });
+});
+
+describe('buildGreatShowdown', () => {
+  it('seeds eight games (the bracket needs a full draw)', () => {
+    const state = createRankingState([1, 2, 3, 4, 5, 6, 7, 8], { seed: 2 });
+    const showdown = buildGreatShowdown(state)!;
+    expect(showdown.kind).toBe('great-showdown');
+    expect(showdown.gameIds).toHaveLength(8);
+    expect(showdown.anchorId).toBe(showdown.gameIds[0]);
+  });
+
+  it('returns null when fewer than eight games are available', () => {
+    expect(buildGreatShowdown(createRankingState([1, 2, 3, 4, 5, 6, 7], { seed: 1 }))).toBeNull();
+  });
+
+  it('seeds the eight least-sampled games', () => {
+    let state = createRankingState([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], { seed: 2 });
+    // Heavily sample 1 and 2 so they fall outside the eight least-sampled.
+    for (let i = 0; i < 8; i += 1) {
+      state = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 2 });
+    }
+    const showdown = buildGreatShowdown(state)!;
+    expect(showdown.gameIds).toHaveLength(8);
+    expect(showdown.gameIds).not.toContain(1);
+    expect(showdown.gameIds).not.toContain(2);
+  });
+});
+
+describe('selectRound — great showdown injection', () => {
+  it('injects the great showdown on its cadence in the early phase', () => {
+    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6, 7, 8], 13), { phase: 'early' })!;
+    expect(round.kind).toBe('great-showdown');
+    expect(round.gameIds).toHaveLength(8);
+  });
+
+  it('injects the great showdown in the late phase too (playable at all stages)', () => {
+    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6, 7, 8], 13), { phase: 'late' })!;
+    expect(round.kind).toBe('great-showdown');
+  });
+
+  it('does not repeat the great showdown back-to-back', () => {
+    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6, 7, 8], 13), {
+      phase: 'early',
+      recentKinds: ['great-showdown'],
+    })!;
+    expect(round.kind).not.toBe('great-showdown');
+  });
+
+  it('falls through to a normal round when the pool is too small for a full draw', () => {
+    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 13), { phase: 'early' })!;
+    expect(round.kind).not.toBe('great-showdown');
   });
 });
 

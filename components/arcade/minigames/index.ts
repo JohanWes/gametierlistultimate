@@ -7,6 +7,7 @@ import { BucketSort } from './BucketSort';
 import { Champion } from './Champion';
 import { Duel } from './Duel';
 import { Gauntlet } from './Gauntlet';
+import { GreatShowdown } from './GreatShowdown';
 import { HigherLower } from './HigherLower';
 import { KeepTwo } from './KeepTwo';
 import { Lineup } from './Lineup';
@@ -33,5 +34,6 @@ export const MINIGAMES: Record<MinigameKind, ComponentType<MinigameProps>> = {
   vibe: VibeMeter,
   bucket: BucketSort,
   bracket: Bracket,
+  'great-showdown': GreatShowdown,
   podium: Podium,
 };

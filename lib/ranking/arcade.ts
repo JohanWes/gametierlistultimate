@@ -28,6 +28,7 @@ export type MinigameKind =
   | 'vibe'
   | 'bucket'
   | 'bracket'
+  | 'great-showdown'
   | 'podium';
 
 export interface ArcadeRound {
@@ -82,6 +83,15 @@ const PODIUM_EVERY = 7;
 const PODIUM_POOL_SIZE = 6;
 const BRACKET_EVERY = 9;
 const BRACKET_POOL_SIZE = 4;
+
+/**
+ * The Great Showdown: an 8-game knockout with a redemption round — 9 bouts in one round (4 quarters,
+ * 2 redemption duels for the first-round losers, 2 semis, 1 finale). The heaviest, highest-signal
+ * special, so it fires rarely (every 13, staggered against the others) and is checked *before* the
+ * bracket so it wins the occasional cadence collision. Allowed in both phases like the bracket.
+ */
+const GREAT_SHOWDOWN_EVERY = 13;
+const GREAT_SHOWDOWN_POOL_SIZE = 8;
 
 /** Five-card group minigames (all consume exactly 5 games). */
 const FIVE_GROUP: MinigameKind[] = ['champion', 'sacrifice', 'keep2kill3', 'lineup'];
@@ -182,6 +192,14 @@ function injectedRound(
   if (phase !== 'late' && round % PODIUM_EVERY === 0 && last !== 'podium') {
     const podium = buildPodium(state);
     if (podium) return podium;
+  }
+
+  // Great Showdown: the big one — an 8-game knockout plus a redemption round, 9 bouts in a single
+  // round. The strongest confidence push available, so it rates aggressively. Checked before the
+  // bracket so it wins a rare cadence collision; allowed in both phases. Needs eight games.
+  if (round % GREAT_SHOWDOWN_EVERY === 0 && last !== 'great-showdown') {
+    const showdown = buildGreatShowdown(state);
+    if (showdown) return showdown;
   }
 
   // Bracket: a four-game knockout (two semis + a final) — i.e. three 1v1s in one round. It earns
@@ -301,6 +319,26 @@ export function buildBracket(state: RankingState): ArcadeRound | null {
   const picked = leastSampledIds(state, BRACKET_POOL_SIZE);
   if (!picked) return null;
   return { kind: 'bracket', gameIds: picked, anchorId: picked[0] };
+}
+
+/**
+ * Build a Great Showdown round: the eight least-sampled games seeded into a knockout. We pick by
+ * coverage (where the engine has the least to go on), then re-sort the eight by current rating so the
+ * quarterfinal pairs are neighbours — close, informative bouts rather than blowouts. Returned in
+ * seed order `[QF1a, QF1b, QF2a, QF2b, QF3a, QF3b, QF4a, QF4b]`; the component derives the bracket and
+ * the redemption/semi/final bouts from winners and losers. Null below eight games.
+ */
+export function buildGreatShowdown(state: RankingState): ArcadeRound | null {
+  const picked = leastSampledIds(state, GREAT_SHOWDOWN_POOL_SIZE);
+  if (!picked) return null;
+
+  const seeded = picked.sort((a, b) => {
+    const ra = state.games[String(a)]?.rating ?? 0;
+    const rb = state.games[String(b)]?.rating ?? 0;
+    return rb - ra || a - b;
+  });
+
+  return { kind: 'great-showdown', gameIds: seeded, anchorId: seeded[0] };
 }
 
 /** Pick the `n` least-sampled (then most-uncertain) game ids, or null if the pool is smaller than `n`. */

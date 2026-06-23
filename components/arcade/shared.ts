@@ -1,7 +1,7 @@
 'use client';
 
 import { useReducedMotion } from 'framer-motion';
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import type { RankingOutcome } from '@/lib/ranking';
 
@@ -18,12 +18,22 @@ export const RESOLVE_MS = 560;
 export function useComplete(onComplete: (outcomes: RankingOutcome[]) => void) {
   const reduce = useReducedMotion();
   const fired = useRef(false);
+  const timer = useRef<number | null>(null);
+
+  // Clear a pending completion if the minigame unmounts first (e.g. the player taps "Skip round"
+  // during a long champion hold), so a stale outcome can't be applied to the next round.
+  useEffect(
+    () => () => {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+    },
+    [],
+  );
 
   return useCallback(
     (outcomes: RankingOutcome[], delay = RESOLVE_MS) => {
       if (fired.current) return;
       fired.current = true;
-      window.setTimeout(() => onComplete(outcomes), reduce ? 0 : delay);
+      timer.current = window.setTimeout(() => onComplete(outcomes), reduce ? 0 : delay);
     },
     [onComplete, reduce],
   );
