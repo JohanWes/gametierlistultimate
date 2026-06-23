@@ -80,7 +80,7 @@ describe('Lineup — tap-to-order fallback', () => {
       fireEvent.touchEnd(screen.getByRole('button', { name: new RegExp(`^Game ${id}$`, 'i') }));
     }
 
-    // Remove Game 1 (was rank 1) — it returns to the pool, so lock-in disappears.
+    // Tap Game 1's card (was rank 1) to remove it — it returns to the pool, so lock-in disappears.
     fireEvent.click(screen.getByRole('button', { name: /remove game 1/i }));
     expect(screen.queryByRole('button', { name: /lock in ranking/i })).not.toBeInTheDocument();
 

@@ -8,7 +8,7 @@ import type { Game } from '@/lib/games/types';
 import { playSound } from '@/lib/sound';
 
 import { Button } from '../../ui/Button';
-import { tapProps, useComplete } from '../shared';
+import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
 import { DraggableArcadeCard } from './DraggableArcadeCard';
@@ -88,15 +88,15 @@ export function Lineup({ games, onComplete }: MinigameProps) {
               }}
               className="relative cursor-grab touch-none active:cursor-grabbing"
             >
-              <ArcadeCard game={game} size="lineup" badge={i + 1} />
-              <button
+              <motion.button
                 type="button"
-                aria-label={`Remove ${game.title}`}
-                {...tapProps(() => unplace(game))}
-                className="absolute -right-1.5 -top-1.5 z-20 flex h-6 w-6 items-center justify-center rounded-hardware border border-border bg-bg text-xs text-muted shadow-soft transition-colors hover:border-coin hover:text-coin focus-visible:outline-none"
+                layout
+                aria-label={`Remove ${game.title} from the lineup`}
+                onClick={() => unplace(game)}
+                className="rounded-tile focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                ✕
-              </button>
+                <ArcadeCard game={game} size="lineup" badge={i + 1} />
+              </motion.button>
             </Reorder.Item>
           ))}
           {Array.from({ length: emptySlots }).map((_, i) => (
