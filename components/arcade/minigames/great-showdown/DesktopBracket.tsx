@@ -43,27 +43,27 @@ export function DesktopBracket({ gameById, state, active, pendingWinnerId, champ
 
       <div className="flex w-full justify-center overflow-visible pb-2">
         {/* Shrink the cover token locally so all five bout columns + connectors fit common desktop
-            widths (1280–1440); the active matchup scales with transform so layout stays fixed. */}
+            widths (1280–1440); active bouts get a larger local token and layout-animate into it. */}
         <div
-          className="flex items-stretch gap-2 lg:gap-3 [--cover-zone:clamp(3.25rem,5vw,4.75rem)]"
+          className="flex items-stretch gap-2 lg:gap-3 [--showdown-cover-active:clamp(4.35rem,6.4vw,6.2rem)] [--showdown-cover-redemption:clamp(4rem,5.8vw,5.5rem)] [--showdown-cover:clamp(3.25rem,5vw,4.75rem)]"
         >
           {/* Left half: two quarters feed semifinal 1. */}
-          <div className="flex flex-col justify-center gap-4">
+          <div className="flex flex-col items-center justify-center gap-4">
             {box('QF1', 'Quarter 1')}
             {box('QF2', 'Quarter 2')}
           </div>
           <Connector lit={!!getBout(state, 'SF1')} />
-          <div className="flex flex-col justify-center">{box('SF1', 'Semifinal 1')}</div>
+          <div className="flex flex-col items-center justify-center">{box('SF1', 'Semifinal 1')}</div>
           <Connector lit={!!getBout(state, 'F')} />
 
           {/* Finale. */}
-          <div className="flex flex-col justify-center">{box('F', 'Finale')}</div>
+          <div className="flex flex-col items-center justify-center">{box('F', 'Finale')}</div>
 
           {/* Right half mirrors the left. */}
           <Connector lit={!!getBout(state, 'F')} />
-          <div className="flex flex-col justify-center">{box('SF2', 'Semifinal 2')}</div>
+          <div className="flex flex-col items-center justify-center">{box('SF2', 'Semifinal 2')}</div>
           <Connector lit={!!getBout(state, 'SF2')} />
-          <div className="flex flex-col justify-center gap-4">
+          <div className="flex flex-col items-center justify-center gap-4">
             {box('QF3', 'Quarter 3')}
             {box('QF4', 'Quarter 4')}
           </div>
@@ -75,7 +75,7 @@ export function DesktopBracket({ gameById, state, active, pendingWinnerId, champ
         <span className="font-mono text-[0.58rem] uppercase tracking-[0.18em] text-coin">
           Redemption
         </span>
-        <div className="flex gap-4">
+        <div className="flex items-start gap-4">
           {box('R1')}
           {box('R2')}
         </div>
@@ -107,6 +107,7 @@ function BoutBox({
   const isFinale = bout?.round === 'finale';
   const decided = bout?.winnerId != null;
   const isRedemption = bout?.round === 'redemption';
+  const reduce = useReducedMotion();
 
   const stateFor = (id: number): CardState => {
     if (champion === id) return 'win';
@@ -117,17 +118,17 @@ function BoutBox({
   };
 
   return (
-    <div
+    <motion.div
+      layout
       data-showdown-bout={id}
       data-active={isActive ? 'true' : 'false'}
       className={cn(
-        'relative flex flex-col gap-1 rounded-tile border p-1.5 transition-[border-color,background-color,transform,filter] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform motion-reduce:transition-none',
-        transformOriginFor(id),
+        'relative flex flex-col items-center gap-1 rounded-tile border p-1.5 transition-[border-color,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
         isActive
           ? isRedemption
-            ? 'z-20 scale-[1.14] shadow-[0_16px_46px_rgb(0_0_0/0.38)] xl:scale-[1.20] 2xl:scale-[1.24]'
-            : 'z-20 scale-[1.28] shadow-[0_18px_54px_rgb(0_0_0/0.42)] xl:scale-[1.36] 2xl:scale-[1.42]'
-          : 'z-0 scale-100',
+            ? 'z-20 [--cover-zone:var(--showdown-cover-redemption)] shadow-[0_16px_46px_rgb(0_0_0/0.38)]'
+            : 'z-20 [--cover-zone:var(--showdown-cover-active)] shadow-[0_18px_54px_rgb(0_0_0/0.42)]'
+          : 'z-0 [--cover-zone:var(--showdown-cover)]',
         isActive
           ? isFinale
             ? 'border-teal/70 bg-teal/5'
@@ -136,6 +137,11 @@ function BoutBox({
             ? 'border-border'
             : 'border-dashed border-border/60',
       )}
+      transition={
+        reduce
+          ? { duration: 0 }
+          : { layout: { type: 'spring', stiffness: 360, damping: 34 }, duration: 0.24 }
+      }
     >
       {label ? (
         <span
@@ -165,30 +171,8 @@ function BoutBox({
             })
           : [<Slot key="a" />, <Slot key="b" />]}
       </div>
-    </div>
+    </motion.div>
   );
-}
-
-function transformOriginFor(id: string) {
-  switch (id) {
-    case 'QF1':
-      return 'origin-bottom-left';
-    case 'QF2':
-      return 'origin-top-left';
-    case 'QF3':
-      return 'origin-bottom-right';
-    case 'QF4':
-      return 'origin-top-right';
-    case 'SF1':
-      return 'origin-left';
-    case 'SF2':
-      return 'origin-right';
-    case 'R1':
-    case 'R2':
-      return 'origin-top';
-    default:
-      return 'origin-center';
-  }
 }
 
 function Slot() {
