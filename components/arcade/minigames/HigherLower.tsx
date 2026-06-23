@@ -189,7 +189,15 @@ export function HigherLower({ games, anchorId, onComplete }: MinigameProps) {
                   picked !== null && 'cursor-pointer border-solid border-teal/50 bg-surface/25',
                 )}
               >
-                <div className="flex flex-wrap items-center justify-center gap-2">
+                <div
+                  className={cn(
+                    'flex w-full flex-wrap items-center justify-center gap-2',
+                    // Two covers in one band: keep them stacked on narrow screens (nicer when
+                    // cramped), but lay them side-by-side once there's room by shrinking the cover
+                    // token so both fit on one row inside the (max-w-2xl) band column.
+                    contents.length > 1 && 'md:flex-nowrap md:[--cover-zone:5.5rem]',
+                  )}
+                >
                   {contents.map((g) => (
                     <motion.button
                       key={g.igdbId}
