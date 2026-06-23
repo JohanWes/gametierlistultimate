@@ -63,7 +63,7 @@ export const REVEAL_MIN_ROUNDS = 12;
  * to high confidence stays fast; beyond this, only fine-tuning 1-on-1s (boundary
  * pairs + the bracket tournament, which is just three 1v1s) sharpen placements.
  */
-export const LATE_PHASE_CONFIDENCE = 95;
+export const LATE_PHASE_CONFIDENCE = 80;
 
 const REPLAY_EVERY = 6;
 const GAUNTLET_EVERY = 8;

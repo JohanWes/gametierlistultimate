@@ -90,6 +90,35 @@ const RECENT_WINDOW = 4;
 const RECENT_HISTORY = 10;
 
 /**
+ * Tier boundary thresholds (high → low), mirrored from `tierForRating`. A skill at or above
+ * `TIER_THRESHOLDS[0]` is S; below `TIER_THRESHOLDS[5]` is F; the gaps between are A…E.
+ */
+const TIER_THRESHOLDS = [1615, 1565, 1505, 1445, 1375, 1325] as const;
+
+/**
+ * Standard deviation of the tier posterior `skill ~ Normal(rating, σ)`, derived from the *evidence
+ * count* as σ = SIGMA_K / √(comparisons + ε) — the standard 1/√n sharpening of an estimate from n
+ * observations (Fisher-information style). This deliberately decouples confidence from the engine's
+ * slow multiplicative `uncertainty` (which plateaus high and is coupled to rating-step damping):
+ * each comparison genuinely sharpens the tier estimate, so a well-separated game reaches a confident
+ * tier placement after a handful of comparisons instead of needing the rating spread to fully settle.
+ * SIGMA_K is set so ~9 comparisons gives σ≈20 (a game centred in a ~60-wide tier band then reads
+ * ~90% confident). Tuned against `simulation.test.ts` / `aggressiveness.test.ts` — accuracy first.
+ */
+const SIGMA_K = 60;
+const SIGMA_EPS = 0.25;
+const SIGMA_MIN = 10;
+const SIGMA_MAX = 130;
+
+/**
+ * Comparisons at which the coverage ramp saturates. Below this a game's confidence is damped toward
+ * zero (a never-played game reads 0), so the global meter does not inflate from priors alone; above
+ * it, confidence is governed purely by tier-placement certainty. Deliberately small (≪ the old
+ * "6 direct comparisons" coverage target) so well-separated games stop needing redundant sampling.
+ */
+const COVERAGE_FULL_AT = 3;
+
+/**
  * Cadence for the rare two-card breather during the early (multi-item) phase.
  * Picked as the first round not claimed by any scheduled special (bucket 4,
  * vibe 5, replay 6, podium 7, gauntlet 8, bracket 9), so a breather never
@@ -253,18 +282,32 @@ export function applyOutcome(state: RankingState, outcome: RankingOutcome): Rank
   return next;
 }
 
+/**
+ * Confidence is now a *tier-placement* measure, not a sampling count. Per game it is the probability
+ * the game sits in the tier the list will actually *display* it in (`placementConfidence` against the
+ * `computeTiers` assignment, not the raw rating band), damped by a small coverage ramp so a game that
+ * has never been compared still reads 0 (priors alone must not inflate the meter). Measuring against
+ * the displayed tier keeps the meter honest under the S-tier cap in `computeTiers`: a top game whose
+ * rating sits in the S band but is displayed in A (because S is capped) is scored as "A or better",
+ * not falsely as certain-S. Because the rating scale is already globally transitive, a game can reach
+ * high confidence after only a few comparisons once its posterior clears the surrounding boundaries —
+ * it no longer needs to be directly sampled ~6 times. Global confidence ≈ the expected fraction of
+ * games shown in the right tier.
+ */
 export function computeConfidence(state: RankingState): ConfidenceResult {
   const perGame: Record<string, number> = {};
   const games = gameList(state);
 
+  const displayed = computeTiers(state);
+  const tierOf = new Map<number, Tier>();
+  for (const tier of TIER_ORDER) {
+    for (const id of displayed[tier]) tierOf.set(id, tier);
+  }
+
   for (const game of games) {
-    const uncertaintyScore = clamp(
-      (INITIAL_UNCERTAINTY - game.uncertainty) / (INITIAL_UNCERTAINTY - MIN_UNCERTAINTY),
-      0,
-      1,
-    );
-    const coverageScore = clamp(game.comparisons / 6, 0, 1);
-    perGame[String(game.gameId)] = Math.round((uncertaintyScore * 0.65 + coverageScore * 0.35) * 100);
+    const tier = tierOf.get(game.gameId) ?? tierForRating(game.rating);
+    const coverage = clamp(game.comparisons / COVERAGE_FULL_AT, 0, 1);
+    perGame[String(game.gameId)] = Math.round(placementConfidence(game, tier) * coverage * 100);
   }
 
   const global = games.length
@@ -571,11 +614,19 @@ function pickBoundaryPair(state: RankingState): Matchup | null {
   return best?.matchup ?? null;
 }
 
+/**
+ * Selection priority — active learning over tier placement. Blends *tier doubt*
+ * (`1 - maxTierProbability`: a game whose posterior straddles a boundary is worth comparing) with the
+ * raw uncertainty/coverage terms that keep ratings spreading toward the extremes. Tier doubt steers
+ * comparisons toward genuinely contested placements; the uncertainty + sparse terms keep
+ * under-sampled games in rotation so the scale still fans out. Recency preserves variety.
+ */
 function uncertaintySelectionScore(state: RankingState, game: GameRating): number {
+  const tierDoubt = 1 - maxTierProbability(game);
   const uncertainty = game.uncertainty / INITIAL_UNCERTAINTY;
   const sparse = 1 / (1 + game.comparisons);
   const recency = recentGamePenalty(state, game.gameId);
-  return uncertainty * 0.7 + sparse * 0.45 - recency;
+  return tierDoubt * 0.45 + uncertainty * 0.4 + sparse * 0.3 - recency;
 }
 
 function recentGamePenalty(state: RankingState, gameId: number): number {
@@ -606,6 +657,75 @@ function computePriorOffset(prior: GamePrior): number {
 
 function expectedScore(aRating: number, bRating: number): number {
   return 1 / (1 + 10 ** ((bRating - aRating) / 400));
+}
+
+/** Tier-posterior std-dev (rating units) from a game's accumulated comparison evidence (σ ∝ 1/√n). */
+function ratingSigma(comparisons: number): number {
+  return clamp(SIGMA_K / Math.sqrt(comparisons + SIGMA_EPS), SIGMA_MIN, SIGMA_MAX);
+}
+
+/** Standard normal CDF, P(X < x) for X ~ Normal(mean, sigma). */
+function normalCdf(x: number, mean: number, sigma: number): number {
+  return 0.5 * (1 + erf((x - mean) / (Math.SQRT2 * Math.max(sigma, 1e-6))));
+}
+
+/** Abramowitz & Stegun 7.1.26 erf approximation (max abs error ~1.5e-7). */
+function erf(x: number): number {
+  const sign = x < 0 ? -1 : 1;
+  const ax = Math.abs(x);
+  const t = 1 / (1 + 0.3275911 * ax);
+  const y =
+    1 -
+    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
+      t *
+      Math.exp(-ax * ax);
+  return sign * y;
+}
+
+/**
+ * Probability mass that a game's skill falls in each tier band, treating `skill ~ Normal(rating, σ)`.
+ * Returned high → low: index 0 = S … 6 = F. This is the core of the tier-placement view of the
+ * ranking: confidence and selection both read off how cleanly a game's posterior sits inside one band
+ * versus straddling a boundary, instead of how many times it was directly sampled.
+ */
+function tierProbabilities(game: GameRating): number[] {
+  const sigma = ratingSigma(game.comparisons);
+  const cdf = TIER_THRESHOLDS.map((t) => normalCdf(t, game.rating, sigma));
+  const probs: number[] = [1 - cdf[0]]; // S: skill >= top threshold
+  for (let k = 1; k < TIER_THRESHOLDS.length; k += 1) {
+    probs.push(cdf[k - 1] - cdf[k]); // band between adjacent thresholds
+  }
+  probs.push(cdf[cdf.length - 1]); // F: skill < bottom threshold
+  return probs;
+}
+
+/** Confidence that a game belongs to its single most-likely tier (1 = certain, ~0.14 = no idea). */
+function maxTierProbability(game: GameRating): number {
+  return Math.max(...tierProbabilities(game));
+}
+
+/** Rating band [lo, hi) for a tier (S open above, F open below), from the shared thresholds. */
+function tierBand(tier: Tier): { lo: number; hi: number } {
+  const idx = TIER_ORDER.indexOf(tier);
+  const hi = idx <= 0 ? Infinity : TIER_THRESHOLDS[idx - 1];
+  const lo = idx >= TIER_THRESHOLDS.length ? -Infinity : TIER_THRESHOLDS[idx];
+  return { lo, hi };
+}
+
+/**
+ * Probability the game's skill is consistent with the tier it is *displayed* in. Normally that is
+ * the mass inside the tier's rating band. When a display rule (the S-tier cap in `computeTiers`) shows
+ * a game one tier below where its rating sits, we open the band's far edge so the game reads as "that
+ * tier or better" rather than as miscalibrated — the meter must agree with what the user actually sees.
+ */
+function placementConfidence(game: GameRating, displayedTier: Tier): number {
+  const sigma = ratingSigma(game.comparisons);
+  let { lo, hi } = tierBand(displayedTier);
+  if (game.rating >= hi) hi = Infinity; // demoted below its rating band (S cap) → "this tier or above"
+  if (game.rating < lo) lo = -Infinity; // promoted above its rating band → "this tier or below"
+  const pHi = hi === Infinity ? 1 : normalCdf(hi, game.rating, sigma);
+  const pLo = lo === -Infinity ? 0 : normalCdf(lo, game.rating, sigma);
+  return clamp(pHi - pLo, 0, 1);
 }
 
 function emptyTiers(): TierMap {
