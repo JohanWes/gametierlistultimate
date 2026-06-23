@@ -119,6 +119,15 @@ const SIGMA_MAX = 130;
 const COVERAGE_FULL_AT = 3;
 
 /**
+ * Extra comparison credit banked by a vibe-meter placement, on top of its weight. A vibe is a direct,
+ * precise absolute statement of a game's tier (the player drags it onto the S–F scale), so it is worth
+ * far more tier-confidence than a single pairwise nudge — enough that one decisive placement lifts the
+ * game most of the way up the coverage ramp. Kept below "instant certainty" so a careless drag can't
+ * fully settle a game on its own.
+ */
+const VIBE_CONFIDENCE_CREDIT = 2.4;
+
+/**
  * Cadence for the rare two-card breather during the early (multi-item) phase.
  * Picked as the first round not claimed by any scheduled special (bucket 4,
  * vibe 5, replay 6, podium 7, gauntlet 8, bracket 9), so a breather never
@@ -507,13 +516,16 @@ export function vibeScoreToRating(score: number): number {
 }
 
 /**
- * Apply a "vibe" verdict — the player drags a single game onto a 0–100 meter. Like `applyReplay`
- * it is an absolute signal (a single game rated against the implicit `BASE_RATING` benchmark via the
- * ELO expected-score transform). The target is the continuous rating for the dragged `score`
+ * Apply a "vibe" verdict — the player drags a single game onto a 0–100 meter. Unlike a pairwise
+ * nudge this is a *direct, precise absolute placement* of the game's tier, so it is treated as strong
+ * evidence rather than a soft hint. The target is the continuous rating for the dragged `score`
  * (`vibeScoreToRating`), falling back to the chosen tier's representative band (`TIER_BANDS[tier]`)
- * when no score is supplied. The nudge is soft (weight capped at 0.75) so it coexists with
- * accumulated pairwise results rather than overwriting them. Default weight is a touch stronger than
- * `replay` because a deliberate placement is more intentional than a replay verdict.
+ * when no score is supplied. We pull the rating toward that target by a fraction scaled to how
+ * unsettled the game still is: a cold game snaps most of the way (the player just told us where it
+ * goes), while a well-established game is only nudged so accumulated pairwise history isn't
+ * overwritten. The placement also confers real tier confidence — uncertainty shrinks hard and a solid
+ * comparison credit is banked (`VIBE_CONFIDENCE_CREDIT`) so the meter reflects that the player pinned
+ * the tier, instead of crawling as it did when a vibe moved only a few rating points.
  */
 function applyVibe(
   state: RankingState,
@@ -526,12 +538,12 @@ function applyVibe(
   if (!game) return;
 
   const targetRating = score != null ? vibeScoreToRating(score) : TIER_BANDS[tier];
-  const expected = expectedScore(game.rating, BASE_RATING);
-  const targetScore = expectedScore(targetRating, BASE_RATING);
-  const delta = 30 * clamp(weight, 0.05, 0.75) * (targetScore - expected);
-  game.rating += delta;
-  game.uncertainty = Math.max(MIN_UNCERTAINTY, game.uncertainty * 0.975);
-  game.comparisons += weight;
+  const trust = clamp(game.uncertainty / INITIAL_UNCERTAINTY, 0, 1); // ~1 cold … ~0.17 settled
+  const pull = clamp(0.25 + 0.6 * trust, 0.15, 0.8);
+  game.rating += pull * (targetRating - game.rating);
+
+  game.uncertainty = Math.max(MIN_UNCERTAINTY, game.uncertainty * 0.78);
+  game.comparisons += clamp(weight, 0.05, 0.75) + VIBE_CONFIDENCE_CREDIT;
 }
 
 function markParticipants(
