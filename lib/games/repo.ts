@@ -2,6 +2,7 @@ import type { Collection, Document } from 'mongodb';
 
 import { COLLECTIONS, getDb } from '../mongo';
 import { getCooccurrenceScores } from '../pool-patterns-repo';
+import { YOUTUBE_RESOLVER_VERSION } from '../youtube';
 import { DLC_CATEGORIES, isDlc, normalizeMongoDoc } from './normalize';
 import { STARTER_COVERS } from './starter-covers';
 import { setResolvedStarterIds, STARTER_GAME_NAMES } from './starter-set';
@@ -512,6 +513,56 @@ export async function getStarterSet(limit?: number): Promise<Game[]> {
  * Keyed on the IGDB `id`. Stores the normalized shape alongside the source fields the local
  * dataset uses (name/cover) so it blends with existing docs.
  */
+/** Cached gameplay-video resolution for a single game (see lib/youtube.ts). */
+export interface CachedVideo {
+  /** Resolved YouTube id, or null when the last resolve found nothing. */
+  videoId: string | null;
+  status: 'hit' | 'miss';
+  resolvedAt: Date;
+}
+
+/**
+ * Read a game's cached gameplay-video resolution. Returns null when the game has never been
+ * resolved (no `youtubeResolveStatus` on the doc) so the caller knows to resolve fresh.
+ */
+export async function getCachedVideo(igdbId: number): Promise<CachedVideo | null> {
+  if (!Number.isFinite(igdbId)) return null;
+  const coll = await gamesCollection();
+  const doc = await coll.findOne(
+    { id: igdbId },
+    { projection: { youtubeVideoId: 1, youtubeResolveStatus: 1, youtubeResolvedAt: 1 } },
+  );
+  if (!doc || (doc.youtubeResolveStatus !== 'hit' && doc.youtubeResolveStatus !== 'miss')) {
+    return null;
+  }
+  return {
+    videoId: typeof doc.youtubeVideoId === 'string' ? doc.youtubeVideoId : null,
+    status: doc.youtubeResolveStatus,
+    resolvedAt: doc.youtubeResolvedAt instanceof Date ? doc.youtubeResolvedAt : new Date(0),
+  };
+}
+
+/**
+ * Record a gameplay-video resolution (hit or miss) on an existing game doc. `upsert: false` — we
+ * never create a stub game from a video lookup; an unknown id is simply a no-op.
+ */
+export async function setCachedVideo(igdbId: number, videoId: string | null): Promise<void> {
+  if (!Number.isFinite(igdbId)) return;
+  const coll = await gamesCollection();
+  await coll.updateOne(
+    { id: igdbId },
+    {
+      $set: {
+        youtubeVideoId: videoId,
+        youtubeResolveStatus: videoId ? 'hit' : 'miss',
+        youtubeResolvedAt: new Date(),
+        youtubeResolverVersion: YOUTUBE_RESOLVER_VERSION,
+      },
+    },
+    { upsert: false },
+  );
+}
+
 export async function upsertGames(games: Game[]): Promise<void> {
   if (games.length === 0) return;
   const coll = await gamesCollection();

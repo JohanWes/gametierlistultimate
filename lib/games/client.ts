@@ -49,6 +49,26 @@ export async function fetchSuggestions(
   return Array.isArray(data.games) ? data.games : [];
 }
 
+/**
+ * GET /api/games/:igdbId/video — resolve a game to a YouTube gameplay video id (cached server-side).
+ * Returns null on a miss or any failure so the modal falls back to a link-out. The server reads the
+ * search title from its own data, so no title is sent from the client.
+ */
+export async function fetchGameplayVideo(
+  igdbId: number,
+  fetchImpl: typeof fetch = fetch,
+): Promise<string | null> {
+  if (!Number.isFinite(igdbId)) return null;
+  try {
+    const res = await fetchImpl(`/api/games/${igdbId}/video`, { credentials: 'same-origin' });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { videoId?: string | null };
+    return typeof data.videoId === 'string' ? data.videoId : null;
+  } catch {
+    return null;
+  }
+}
+
 /** GET /api/games/search — local-first, IGDB fallback. Blank queries skip the network. */
 export async function searchGames(
   q: string,

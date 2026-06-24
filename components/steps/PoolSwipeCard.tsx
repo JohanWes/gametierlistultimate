@@ -41,6 +41,8 @@ export interface PoolSwipeCardProps {
   /** Injected RNG in [0, 1); defaults to Math.random. */
   random?: () => number;
   onDecide: (action: PoolDecision) => void;
+  /** Open the gameplay-footage popup, expanding from the card's rect, on a clean tap. */
+  onWatch?: (game: Game, rect: DOMRect) => void;
 }
 
 /**
@@ -53,7 +55,7 @@ export interface PoolSwipeCardProps {
  * Dragging uses Framer Motion's built-in pointer/touch handling (it sets the right `touch-action`
  * and pointer capture) so a horizontal swipe is never mistaken for a page scroll.
  */
-export function PoolSwipeCard({ game, random = Math.random, onDecide }: PoolSwipeCardProps) {
+export function PoolSwipeCard({ game, random = Math.random, onDecide, onWatch }: PoolSwipeCardProps) {
   const reduce = useReducedMotion();
   const { picking, playedRollHits, reject, chooseStatus } = usePoolDecision({
     game,
@@ -148,6 +150,14 @@ export function PoolSwipeCard({ game, random = Math.random, onDecide }: PoolSwip
     springBack();
   };
 
+  // A clean tap (no drag, sheet not open) opens the gameplay footage. A drag sets `draggedRef`,
+  // which suppresses the synthesized click so swiping never opens the popup.
+  const handleClick = () => {
+    if (draggedRef.current || picking) return;
+    const rect = cardRef.current?.getBoundingClientRect();
+    if (rect) onWatch?.(game, rect);
+  };
+
   return (
     <div className="flex w-full flex-col items-center gap-5">
       <motion.div
@@ -156,6 +166,7 @@ export function PoolSwipeCard({ game, random = Math.random, onDecide }: PoolSwip
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
+        onClick={handleClick}
         className={cn(
           'relative z-10 w-[min(82vw,20rem)] select-none overflow-hidden rounded-card border-2 border-border bg-surface shadow-lift',
           reduce || picking ? undefined : 'cursor-grab touch-pan-y active:cursor-grabbing',

@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, useReducedMotion } from 'framer-motion';
+import { useRef } from 'react';
 
 import type { Game } from '@/lib/games/types';
 import { type PoolDecision, STATUS_OPTIONS, usePoolDecision } from '@/lib/pool-decision';
@@ -16,6 +17,8 @@ export interface PoolCardProps {
   /** Injected RNG in [0, 1); defaults to Math.random. */
   random?: () => number;
   onDecide: (action: PoolDecision) => void;
+  /** Open the gameplay-footage popup, expanding from the clicked cover's rect. */
+  onWatch?: (game: Game, rect: DOMRect) => void;
 }
 
 /**
@@ -26,7 +29,7 @@ export interface PoolCardProps {
  * ranking phase. The trigger is rolled only on a "Played it" tap, so it never fires on a game the
  * user passed on.
  */
-export function PoolCard({ game, random = Math.random, onDecide }: PoolCardProps) {
+export function PoolCard({ game, random = Math.random, onDecide, onWatch }: PoolCardProps) {
   const reduce = useReducedMotion();
   const { picking, playedRollHits, reject, chooseStatus } = usePoolDecision({
     game,
@@ -34,9 +37,15 @@ export function PoolCard({ game, random = Math.random, onDecide }: PoolCardProps
     onDecide,
   });
   const hasCover = game.hasCover && !!game.coverUrl;
+  const coverRef = useRef<HTMLDivElement>(null);
 
   const onPlayed = () => {
     if (!playedRollHits()) chooseStatus('finished');
+  };
+
+  const watch = () => {
+    const rect = coverRef.current?.getBoundingClientRect();
+    if (rect) onWatch?.(game, rect);
   };
 
   return (
@@ -59,7 +68,7 @@ export function PoolCard({ game, random = Math.random, onDecide }: PoolCardProps
         'border-border transition-[border-color,box-shadow] duration-200 hover:border-accent/70 hover:shadow-marquee',
       )}
     >
-      <div className="relative">
+      <div className="relative" ref={coverRef}>
         <GameCard
           game={game}
           showTitle={false}
@@ -76,6 +85,25 @@ export function PoolCard({ game, random = Math.random, onDecide }: PoolCardProps
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-[36%] bg-gradient-to-t from-black/95 via-black/72 via-45% to-transparent"
         />
+
+        {onWatch ? (
+          <button
+            type="button"
+            aria-label={`Watch gameplay for ${game.title}`}
+            disabled={picking}
+            {...tapProps(watch)}
+            className="group/play absolute inset-0 z-20 flex items-center justify-center focus-visible:outline-none disabled:pointer-events-none"
+          >
+            <span className="flex flex-col items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover/play:opacity-100 group-focus-visible/play:opacity-100">
+              <span className="flex h-12 w-12 items-center justify-center rounded-hardware border border-accent/70 bg-black/55 text-xl leading-none text-accent shadow-soft backdrop-blur-sm">
+                ▶
+              </span>
+              <span className="rounded-hardware border border-accent/50 bg-black/55 px-2 py-0.5 font-mono text-[0.56rem] font-bold uppercase tracking-[0.16em] text-accent shadow-soft">
+                Watch gameplay
+              </span>
+            </span>
+          </button>
+        ) : null}
 
         {hasCover ? (
           <motion.div

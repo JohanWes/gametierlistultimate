@@ -12,6 +12,7 @@ import { useStore } from '@/lib/store';
 
 import { Button } from '../ui/Button';
 import { GameCard } from '../ui/GameCard';
+import { GameplayVideoModal, type VideoTarget } from './GameplayVideoModal';
 import { ManualSearch } from './ManualSearch';
 import { PoolCard, type PoolDecision } from './PoolCard';
 import { PoolSwipeDeck } from './PoolSwipeDeck';
@@ -74,6 +75,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
     Array.from({ length: VISIBLE_SLOTS }, () => null),
   );
   const [backlog, setBacklog] = useState<SlotEntry[]>([]);
+  const [video, setVideo] = useState<VideoTarget | null>(null);
   const [loading, setLoading] = useState(true);
   const [exhausted, setExhausted] = useState(false);
   const [error, setError] = useState(false);
@@ -94,6 +96,9 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
   const fetchingRef = useRef(false);
   const exhaustedRef = useRef(false);
   const initRef = useRef(false);
+  // False once unmounted, so async fetches that resolve after teardown don't setState on a dead
+  // component (which throws during test teardown and warns in the browser).
+  const mountedRef = useRef(true);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Preset-shelf handoff: count how many preset batches we've fetched and how many games the
   // user has accepted. Stop requesting preset once either threshold is reached.
@@ -197,6 +202,8 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
         fetchImpl ?? fetch,
       );
 
+      if (!mountedRef.current) return; // unmounted mid-fetch — skip state updates
+
       const freshGames = filterFreshGames(games);
 
       if (freshGames.length === 0) {
@@ -224,17 +231,25 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
       // Backlog still short (drained mid-fetch, or a small batch) — chain another refill below.
       chain = backlogRef.current.length < REFILL_AT;
     } catch {
-      setError(true);
-      retryTimerRef.current = setTimeout(() => void ensureBacklog(), 1500);
+      if (mountedRef.current) {
+        setError(true);
+        retryTimerRef.current = setTimeout(() => void ensureBacklog(), 1500);
+      }
     } finally {
-      setLoading(false);
       fetchingRef.current = false;
-      if (chain && !exhaustedRef.current) void ensureBacklog();
+      if (mountedRef.current) {
+        setLoading(false);
+        if (chain && !exhaustedRef.current) void ensureBacklog();
+      }
     }
   }, [prefs, fetchImpl, buildApiExclude, buildSuggestionContext, filterFreshGames, fillEmptySlots, shouldUsePreset]);
 
   // Bootstrap: load the first batch straight into the five slots, then top up the backlog.
   useEffect(() => {
+    // Re-arm the mounted flag first: under React StrictMode (dev) this effect's cleanup runs
+    // between the double-invoked mounts, so without this the in-flight bootstrap from the first
+    // pass would see `mountedRef === false` (set by that cleanup) and skip populating the slots.
+    mountedRef.current = true;
     if (initRef.current) return;
     initRef.current = true;
 
@@ -285,6 +300,8 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
                 fetchImpl ?? fetch,
               );
 
+        if (!mountedRef.current) return; // unmounted mid-fetch — skip state updates
+
         const freshGames = filterFreshGames(games);
 
         if (freshGames.length === 0) {
@@ -310,16 +327,19 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
 
         void ensureBacklog();
       } catch {
-        setError(true);
-        setLoading(false);
         fetchingRef.current = false;
-        retryTimerRef.current = setTimeout(() => void bootstrap(), 1500);
+        if (mountedRef.current) {
+          setError(true);
+          setLoading(false);
+          retryTimerRef.current = setTimeout(() => void bootstrap(), 1500);
+        }
       }
     };
 
     void bootstrap();
 
     return () => {
+      mountedRef.current = false;
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -412,6 +432,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
               exhausted={exhausted && backlog.length === 0}
               onDecide={handleSwipeDecide}
               onRetry={() => void ensureBacklog()}
+              onWatch={(g, rect) => setVideo({ game: g, rect })}
               random={random}
             />
           ) : showSkeletons ? (
@@ -467,6 +488,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
                         game={entry.game}
                         random={random}
                         onDecide={(action) => handleDecide(entry.game.igdbId, action)}
+                        onWatch={(g, rect) => setVideo({ game: g, rect })}
                       />
                     ) : (
                       <motion.div
@@ -490,6 +512,8 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
           )}
         </div>
       </div>
+
+      <GameplayVideoModal video={video} onClose={() => setVideo(null)} fetchImpl={fetchImpl} />
     </StepScaffold>
   );
 }
