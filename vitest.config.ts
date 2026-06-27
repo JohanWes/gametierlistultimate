@@ -14,7 +14,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./test/setup.ts'],
-    exclude: ['node_modules/**', '.next/**'],
+    exclude: ['**/node_modules/**', '.next/**'],
     // mongodb-memory-server can take a moment to download/spin up on first run.
     testTimeout: 30_000,
     hookTimeout: 60_000,

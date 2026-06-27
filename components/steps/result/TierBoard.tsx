@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion } from 'framer-motion';
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 
 import type { Game } from '@/lib/games/types';
 import { TIER_ORDER, type Tier, type TierMap } from '@/lib/ranking';
@@ -48,6 +48,8 @@ export interface TierBoardProps {
   onPick?: (game: Game, from: Tier) => void;
   /** When provided, each movable cover shows a delete-X that removes the game from the pool. */
   onRemove?: (game: Game, from: Tier) => void;
+  /** Play the one-shot S-tier coronation (bloom + glow + marquee + coin burst) on the S row. */
+  coronate?: boolean;
   className?: string;
 }
 
@@ -64,6 +66,7 @@ export function TierBoard({
   onMove,
   onPick,
   onRemove,
+  coronate,
   className,
 }: TierBoardProps) {
   const revealing = visibleTiers !== undefined;
@@ -123,10 +126,11 @@ export function TierBoard({
                     rowRefs.current[tier] = el;
                   }}
                   className={cn(
-                    'flex items-stretch gap-3 rounded-card border border-border bg-surface shadow-cabinet',
+                    'relative isolate flex items-stretch gap-3 rounded-card border border-border bg-surface shadow-cabinet',
                     ROW_TINT[tier],
                   )}
                 >
+                  {coronate && tier === 'S' ? <SCoronation /> : null}
                   <div
                     className={cn(
                       'flex w-14 shrink-0 flex-col items-center justify-center py-4 sm:w-16',
@@ -170,17 +174,20 @@ export function TierBoard({
                 ref={(el) => {
                   rowRefs.current[tier] = el;
                 }}
-                initial={revealing ? { opacity: 0, y: -14, scale: 0.985 } : false}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.34, ease: 'easeOut', layout: { duration: 0.28 } }}
+                initial={revealing ? { opacity: 0 } : false}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.22, ease: 'easeOut', layout: { duration: 0.28 } }}
               >
-                <Row tier={tier} count={ids.length}>
-                  {ids.map((id, idx) => {
-                    const game = gamesById.get(id);
-                    if (!game) return null;
-                    return <RevealCard key={id} game={game} animateIn={revealing} index={idx} />;
-                  })}
-                </Row>
+                <div className={cn('rounded-card', revealing && 'crt-boot')}>
+                  {revealing ? <span aria-hidden className="crt-scanline" /> : null}
+                  <Row tier={tier} count={ids.length}>
+                    {ids.map((id, idx) => {
+                      const game = gamesById.get(id);
+                      if (!game) return null;
+                      return <RevealCard key={id} game={game} animateIn={revealing} index={idx} />;
+                    })}
+                  </Row>
+                </div>
               </motion.div>
             );
           })}
@@ -304,5 +311,61 @@ function MovableCard({
       <GameCard game={game} size="sm" />
       {onRemove ? <RemoveButton onClick={() => onRemove(game, from)} title={game.title} /> : null}
     </motion.div>
+  );
+}
+
+const BURST_COLORS = ['var(--tier-s)', 'var(--color-accent)', 'var(--color-teal)', 'var(--color-coin)'];
+
+/**
+ * One-shot crescendo over the S row: a glow ring, a bloom, a traveling marquee light, and a coin
+ * burst flung up from the row's center. CSS owns the first three (see globals.css); the particles
+ * are Framer so each gets its own trajectory. Mounted only for the coronation window, then unmounted
+ * by the parent — no exit choreography needed.
+ */
+function SCoronation() {
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 22 }, (_, i) => {
+        // Fan upward and out: angles biased to the top hemisphere so coins arc over the covers.
+        const angle = -Math.PI / 2 + (((i / 22) * 2 - 1) * Math.PI * 0.82);
+        const dist = 96 + ((i * 53) % 78);
+        return {
+          id: i,
+          dx: Math.cos(angle) * dist,
+          dy: Math.sin(angle) * dist,
+          rot: ((i * 67) % 2 ? 1 : -1) * (140 + ((i * 37) % 220)),
+          size: 5 + ((i * 13) % 6),
+          color: BURST_COLORS[i % BURST_COLORS.length],
+          delay: ((i * 17) % 5) * 0.014,
+        };
+      }),
+    [],
+  );
+
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0">
+      <span className="s-crown-bloom" />
+      <span className="s-crown-ring" />
+      <span className="marquee-frame" />
+      <div className="absolute left-1/2 top-1/2 h-0 w-0">
+        {particles.map((p) => (
+          <motion.span
+            key={p.id}
+            className="absolute rounded-[2px]"
+            style={{
+              width: p.size,
+              height: p.size,
+              marginLeft: -p.size / 2,
+              marginTop: -p.size / 2,
+              backgroundColor: `rgb(${p.color})`,
+              boxShadow: `0 0 6px rgb(${p.color} / 0.7)`,
+            }}
+            initial={{ x: 0, y: 0, opacity: 0, scale: 0.4 }}
+            animate={{ x: p.dx, y: p.dy, opacity: [0, 1, 1, 0], scale: 1, rotate: p.rot }}
+            transition={{ duration: 0.78, ease: [0.22, 1, 0.36, 1], delay: p.delay, times: [0, 0.12, 0.7, 1] }}
+          />
+        ))}
+      </div>
+    </div>
   );
 }

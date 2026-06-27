@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Game } from '@/lib/games/types';
@@ -18,6 +18,7 @@ import {
 } from '@/lib/ranking';
 import { playSound } from '@/lib/sound';
 import { useStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 
 import { Button } from '../../ui/Button';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
@@ -93,6 +94,16 @@ export function ResultStep() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The S-tier crescendo: fires once when the last tier lands, then clears so the one-shot CSS/
+  // particle animations unmount. Skipped under reduced motion (the board just settles).
+  const [coronate, setCoronate] = useState(false);
+  useEffect(() => {
+    if (!done || reduce || step !== 'reveal') return;
+    setCoronate(true);
+    const id = window.setTimeout(() => setCoronate(false), 2600);
+    return () => window.clearTimeout(id);
+  }, [done, reduce, step]);
+
   const move = useCallback(
     (gameId: number, from: Tier, to: Tier, toIndex?: number) => {
       setTiers((prev) => moveInTierMap(prev, gameId, to, toIndex));
@@ -137,7 +148,18 @@ export function ResultStep() {
             Step 5 · Your tier list
           </p>
           <h1 className="font-display text-4xl font-black uppercase leading-[0.95] tracking-[0.02em] text-fg sm:text-5xl">
-            {done ? 'Here’s where they landed.' : 'Building the ladder…'}
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={done ? 'done' : 'building'}
+                className="block"
+                initial={reduce ? false : { opacity: 0, y: 8, filter: 'blur(6px)' }}
+                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8, filter: 'blur(6px)' }}
+                transition={{ duration: 0.32, ease: 'easeOut' }}
+              >
+                {done ? 'Here’s where they landed.' : 'Building the ladder…'}
+              </motion.span>
+            </AnimatePresence>
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted sm:text-base">
             {done
@@ -167,14 +189,17 @@ export function ResultStep() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
-        <TierBoard
-          tiers={tiers}
-          gamesById={gamesById}
-          visibleTiers={done ? undefined : revealed}
-          onMove={done ? move : undefined}
-          onPick={done ? (game, from) => setPicking({ game, from }) : undefined}
-          onRemove={done ? (game) => setPendingRemoval(game) : undefined}
-        />
+        <div className={cn(coronate && 'coronation-shake')}>
+          <TierBoard
+            tiers={tiers}
+            gamesById={gamesById}
+            visibleTiers={done ? undefined : revealed}
+            onMove={done ? move : undefined}
+            onPick={done ? (game, from) => setPicking({ game, from }) : undefined}
+            onRemove={done ? (game) => setPendingRemoval(game) : undefined}
+            coronate={coronate}
+          />
+        </div>
       </motion.div>
 
       {done ? <ShareBar tiers={tiers} gamesById={gamesById} /> : null}

@@ -134,6 +134,217 @@ body::before {
   border-radius: 4px;
 }
 
+/*
+ * ── Reveal payoff: CRT power-on per row + S-tier coronation ──────────────────
+ * Step 5's reveal is the brand's one big delight moment. Each tier "boots" in like a CRT channel
+ * (scanline sweep + brightness surge + RGB-fringe glitch settling), and the S row lands with a
+ * crescendo: bloom, glow ring, a luminous marquee chase, and a coin burst. All transform/filter +
+ * one masked conic gradient — no WebGL. The reduced-motion block below neutralizes every keyframe,
+ * and the reveal itself goes instant for those users, so they never see any of this.
+ */
+@property --chase {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* CRT power-on for one revealing tier row. Runs on an inner wrapper so it never fights the
+   Framer `layout` reflow that pushes earlier rows down. */
+.crt-boot {
+  position: relative;
+  transform-origin: center;
+  animation: crt-boot 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, filter;
+}
+@keyframes crt-boot {
+  0% {
+    transform: scaleY(0.05) translateX(-3px);
+    filter: brightness(2.6) contrast(1.35) saturate(0.35);
+  }
+  11% {
+    transform: scaleY(0.05) translateX(3px);
+    filter: brightness(2.6) contrast(1.35) saturate(0.35);
+  }
+  17% {
+    transform: scaleY(1) translateX(2px);
+    filter: brightness(1.9) saturate(1.2)
+      drop-shadow(2px 0 0 rgb(var(--color-teal) / 0.55))
+      drop-shadow(-2px 0 0 rgb(var(--color-coin) / 0.55));
+  }
+  26% {
+    transform: translateX(-2px);
+    filter: brightness(1.35) drop-shadow(1px 0 0 rgb(var(--color-teal) / 0.3))
+      drop-shadow(-1px 0 0 rgb(var(--color-coin) / 0.3));
+  }
+  34% {
+    transform: translateX(1px);
+    filter: brightness(1.12);
+  }
+  100% {
+    transform: none;
+    filter: none;
+  }
+}
+
+/* The bright scan band that sweeps down the row as it powers on. */
+.crt-scanline {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  border-radius: inherit;
+  mix-blend-mode: screen;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgb(var(--color-teal) / 0.16) 46%,
+    rgb(var(--color-fg) / 0.4) 50%,
+    rgb(var(--color-teal) / 0.16) 54%,
+    transparent 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 240%;
+  animation: crt-sweep 560ms ease-out both;
+}
+@keyframes crt-sweep {
+  0% {
+    background-position: 50% -140%;
+    opacity: 0;
+  }
+  16% {
+    opacity: 1;
+  }
+  100% {
+    background-position: 50% 240%;
+    opacity: 0;
+  }
+}
+
+/* Coronation: brief screen shake on the board when S lands. Small, ease-out, no bounce. */
+.coronation-shake {
+  animation: coronation-shake 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes coronation-shake {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  14% {
+    transform: translate3d(-3px, 2px, 0);
+  }
+  30% {
+    transform: translate3d(3px, -2px, 0);
+  }
+  46% {
+    transform: translate3d(-2px, 1px, 0);
+  }
+  62% {
+    transform: translate3d(2px, -1px, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* A glow ring that surges around the S row, then fades. Its own element so it never clobbers the
+   row's resting cabinet shadow / tier stripe. */
+.s-crown-ring {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  border-radius: inherit;
+  animation: s-crown-ring 2200ms ease-out both;
+}
+@keyframes s-crown-ring {
+  0% {
+    box-shadow:
+      0 0 0 0 rgb(var(--tier-s) / 0),
+      inset 0 0 0 0 rgb(var(--tier-s) / 0);
+  }
+  16% {
+    box-shadow:
+      0 0 38px -4px rgb(var(--tier-s) / 0.8),
+      inset 0 0 26px -8px rgb(var(--tier-s) / 0.55);
+  }
+  100% {
+    box-shadow:
+      0 0 0 0 rgb(var(--tier-s) / 0),
+      inset 0 0 0 0 rgb(var(--tier-s) / 0);
+  }
+}
+
+/* Radial bloom flaring out from behind the S covers. */
+.s-crown-bloom {
+  position: absolute;
+  inset: -20% -8%;
+  z-index: 10;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    rgb(var(--tier-s) / 0.55) 0%,
+    rgb(var(--color-accent) / 0.22) 34%,
+    transparent 68%
+  );
+  animation: s-crown-bloom 2200ms ease-out both;
+}
+@keyframes s-crown-bloom {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  20% {
+    opacity: 0.95;
+    transform: scale(1.06);
+  }
+  46% {
+    opacity: 0.32;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.03);
+  }
+}
+
+/* Luminous marquee light traveling around the S row's border (border-only via mask + conic). */
+.marquee-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+  padding: 2px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--chase),
+    rgb(var(--tier-s) / 0) 0deg,
+    rgb(var(--tier-s) / 0.95) 26deg,
+    rgb(var(--color-accent) / 0.95) 52deg,
+    rgb(var(--tier-s) / 0) 110deg,
+    rgb(var(--tier-s) / 0) 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation:
+    marquee-chase 760ms linear 3,
+    s-crown-fade 520ms ease-out 1760ms both;
+}
+@keyframes marquee-chase {
+  to {
+    --chase: 360deg;
+  }
+}
+@keyframes s-crown-fade {
+  to {
+    opacity: 0;
+  }
+}
+
 /* Respect users who prefer less motion — primitives gate Framer Motion on this too. */
 @media (prefers-reduced-motion: reduce) {
   *,
