@@ -26,6 +26,15 @@ let adaptiveBatchPromise: Promise<Game[]> | null = null;
  */
 const decodedCovers: Set<HTMLImageElement> = new Set();
 
+/**
+ * Cap on pinned decoded covers. Covers the on-screen working set (VISIBLE_SLOTS + a few
+ * BACKLOG_BATCH rounds) with margin; older bitmaps evict FIFO. An evicted cover stays in the
+ * browser HTTP cache, so re-showing it re-decodes cheaply instead of re-downloading.
+ * Without this the Set grows unbounded over a long session — every cover ever warmed stays
+ * pinned in memory. ponytail: FIFO cap; switch to true LRU only if re-decode churn shows up.
+ */
+const MAX_DECODED_COVERS = 32;
+
 /** Kick off the starter-shelf prefetch if it hasn't started yet. Safe to call repeatedly. */
 export function prefetchStarterBatch(limit: number, fetchImpl: typeof fetch = fetch): void {
   if (starterBatchPromise) return;
@@ -101,6 +110,11 @@ export function resetDecodedCovers(): void {
   decodedCovers.clear();
 }
 
+/** Test hook — number of currently pinned decoded covers. */
+export function pinnedCoverCount(): number {
+  return decodedCovers.size;
+}
+
 /**
  * Warm the browser image cache for a batch's covers and pin the decoded bitmaps so they
  * survive step transitions. In jsdom (tests) `Image` exists but `decode()` may not, so the
@@ -115,6 +129,11 @@ export function preloadCovers(games: Game[]): void {
     img.decoding = 'async';
     img.src = game.coverUrl;
     decodedCovers.add(img);
+    while (decodedCovers.size > MAX_DECODED_COVERS) {
+      const oldest = decodedCovers.values().next().value;
+      if (!oldest) break;
+      decodedCovers.delete(oldest);
+    }
     if (typeof img.decode === 'function') {
       img.decode().catch(() => {
         /* best-effort: a failed decode just means the <img> will decode on paint */
