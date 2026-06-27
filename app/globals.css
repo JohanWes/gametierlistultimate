@@ -45,6 +45,10 @@
   --cover-row: min(44vw, clamp(6rem, 18vh, 13rem)); /* champion/keep-two/sacrifice — on phones these render as a swipe rail (CoverRail), so the wider vw shows ~2 covers + a peek; sm/lg below revert to grid widths */
   --cover-duo: min(34vw, clamp(7rem, 24vh, 14rem)); /* two-up versus: duel/rivalry/promotion, gauntlet */
   --cover-solo: min(60vw, clamp(7.5rem, 26vh, 14rem)); /* single hero card: replay test */
+  /* Regular Showdown: the live bout's pair, enlarged slightly over the resting --cover-zone. Two
+     grown covers + padding must still fit a ~360px phone in stacked mode (vw guard) and breathe on
+     a 16:9 desktop (vh guard keeps the grown card + chrome within the arcade panel height). */
+  --cover-bracket-active: min(36vw, clamp(7rem, 20vh, 10.5rem));
 
   /* Step 3 pool builder: three large boxart cards. Bounded by width (vw guard, so 3 + gaps stay
      inside the panel with breathing room) and height (clamp `vh`, so the card + chrome fits the
@@ -70,6 +74,9 @@
     --cover-duo: min(24vw, clamp(8rem, 32vh, 24rem));
     --cover-solo: min(40vw, clamp(9rem, 26vh, 22rem));
     --cover-pool: min(19vw, clamp(8rem, 38vh, 18rem));
+    /* Showdown active pair, lg: higher room lets the grown pair sit ~224px wide without crowding
+       the wide 5-up arcade panel. */
+    --cover-bracket-active: min(22vw, clamp(9rem, 22vh, 14rem));
   }
 }
 
