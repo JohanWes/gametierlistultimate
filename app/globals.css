@@ -40,27 +40,41 @@
    * breakpoint below where a minigame's column count changes. Card height = width * 4/3
    * (`aspect-[3/4]`); placeholders and zone min-heights reference these via `calc()`.
    */
-  --cover-zone: min(24vw, clamp(6rem, 11.5vh, 8.75rem)); /* bucket/higher-lower/podium/bracket/vibe — kept lean: these stack dense zones */
-  --cover-lineup: min(24vw, clamp(6rem, 12.5vh, 9rem)); /* lineup: two rows of exactly five covers, so it can breathe more than dense zones */
-  --cover-row: min(44vw, clamp(6rem, 18vh, 13rem)); /* champion/keep-two/sacrifice — on phones these render as a swipe rail (CoverRail), so the wider vw shows ~2 covers + a peek; sm/lg below revert to grid widths */
-  --cover-duo: min(34vw, clamp(7rem, 24vh, 14rem)); /* two-up versus: duel/rivalry/promotion, gauntlet */
-  --cover-solo: min(60vw, clamp(7.5rem, 26vh, 14rem)); /* single hero card: replay test */
+  /*
+   * Viewport-height fit caps. The vw/vh clamps below describe the *wanted* cover size; these caps
+   * guarantee the card (= width * 4/3) plus the surrounding chrome still fits the viewport on short
+   * or landscape screens. Subtracted-rem ≈ fixed chrome budget (header, step header, footer nav,
+   * minigame header/label, paddings); the multiplier reserves the rest for the card. Because each
+   * token folds the cap into its `min()`, the cap only wins when it's the *smallest* term — i.e. on
+   * short/landscape viewports — so tall desktop/portrait screens are unaffected. The `max(...)` floor
+   * stops covers collapsing to unusable sizes on extreme (very short landscape) viewports; there the
+   * playfield may scroll a little rather than vanish.
+   */
+  --fit-cap: max(3rem, calc((100dvh - 20rem) * 0.72)); /* single row of hero covers */
+  --fit-cap-tall: max(3rem, calc((100dvh - 23rem) * 0.4)); /* games that stack two cover rows */
+  --fit-cap-pool: max(3.5rem, calc((100dvh - 23rem) * 0.72)); /* pool builder: card + action bar below */
+
+  --cover-zone: min(24vw, clamp(6rem, 11.5vh, 8.75rem), var(--fit-cap-tall)); /* bucket/higher-lower/podium/bracket/vibe — kept lean: these stack dense zones */
+  --cover-lineup: min(24vw, clamp(6rem, 12.5vh, 9rem), var(--fit-cap-tall)); /* lineup: two rows of exactly five covers, so it can breathe more than dense zones */
+  --cover-row: min(44vw, clamp(6rem, 18vh, 13rem), var(--fit-cap)); /* champion/keep-two/sacrifice — on phones these render as a swipe rail (CoverRail), so the wider vw shows ~2 covers + a peek; sm/lg below revert to grid widths */
+  --cover-duo: min(34vw, clamp(7rem, 24vh, 14rem), var(--fit-cap)); /* two-up versus: duel/rivalry/promotion, gauntlet */
+  --cover-solo: min(60vw, clamp(7.5rem, 26vh, 14rem), var(--fit-cap)); /* single hero card: replay test */
   /* Regular Showdown: the live bout's pair, enlarged slightly over the resting --cover-zone. Two
      grown covers + padding must still fit a ~360px phone in stacked mode (vw guard) and breathe on
      a 16:9 desktop (vh guard keeps the grown card + chrome within the arcade panel height). */
-  --cover-bracket-active: min(36vw, clamp(7rem, 20vh, 10.5rem));
+  --cover-bracket-active: min(36vw, clamp(7rem, 20vh, 10.5rem), var(--fit-cap));
 
   /* Step 3 pool builder: three large boxart cards. Bounded by width (vw guard, so 3 + gaps stay
      inside the panel with breathing room) and height (clamp `vh`, so the card + chrome fits the
      vertical space on a 16:9 screen without overflow). */
-  --cover-pool: min(27vw, clamp(7rem, 34vh, 15rem));
+  --cover-pool: min(27vw, clamp(7rem, 34vh, 15rem), var(--fit-cap-pool));
 }
 
 @media (min-width: 640px) {
   /* sm: row games go 3-up; the versus board has more room to breathe. */
   :root {
-    --cover-row: min(28vw, clamp(6.5rem, 24vh, 14rem));
-    --cover-duo: min(40vw, clamp(7rem, 32vh, 18rem));
+    --cover-row: min(28vw, clamp(6.5rem, 24vh, 14rem), var(--fit-cap));
+    --cover-duo: min(40vw, clamp(7rem, 32vh, 18rem), var(--fit-cap));
   }
 }
 
@@ -68,15 +82,15 @@
   /* lg: row games go 5-up and the arcade panel widens (see AppShell `wide`), so covers can grow
      to fill big monitors. The `vw` guards keep five/two covers inside the wider panel. */
   :root {
-    --cover-zone: min(16vw, clamp(6rem, 12.5vh, 11rem));
-    --cover-lineup: min(17.5vw, clamp(7.5rem, 18vh, 14rem));
-    --cover-row: min(17.5vw, clamp(6.5rem, 28vh, 22rem));
-    --cover-duo: min(24vw, clamp(8rem, 32vh, 24rem));
-    --cover-solo: min(40vw, clamp(9rem, 26vh, 22rem));
-    --cover-pool: min(19vw, clamp(8rem, 38vh, 18rem));
+    --cover-zone: min(16vw, clamp(6rem, 12.5vh, 11rem), var(--fit-cap-tall));
+    --cover-lineup: min(17.5vw, clamp(7.5rem, 18vh, 14rem), var(--fit-cap-tall));
+    --cover-row: min(17.5vw, clamp(6.5rem, 28vh, 22rem), var(--fit-cap));
+    --cover-duo: min(24vw, clamp(8rem, 32vh, 24rem), var(--fit-cap));
+    --cover-solo: min(40vw, clamp(9rem, 26vh, 22rem), var(--fit-cap));
+    --cover-pool: min(19vw, clamp(8rem, 38vh, 18rem), var(--fit-cap-pool));
     /* Showdown active pair, lg: higher room lets the grown pair sit ~224px wide without crowding
        the wide 5-up arcade panel. */
-    --cover-bracket-active: min(22vw, clamp(9rem, 22vh, 14rem));
+    --cover-bracket-active: min(22vw, clamp(9rem, 22vh, 14rem), var(--fit-cap));
   }
 }
 
