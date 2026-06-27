@@ -3,6 +3,7 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 
+import { REVEAL_MIN_CONFIDENCE } from '@/lib/ranking/arcade';
 import { clamp, cn } from '@/lib/utils';
 
 export interface ConfidenceMeterProps {
@@ -98,7 +99,20 @@ export function ConfidenceMeter({ value, ready = false, compact = false }: Confi
             animate={reduce ? undefined : { opacity: [0.4, 0.9, 0.4] }}
             transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
           />
-        ) : null}
+        ) : (
+          // The unlock target — gives the climb a destination. Pulses brighter as the fill nears it.
+          <motion.span
+            aria-hidden
+            className="absolute inset-y-0 w-[1.5px] bg-teal shadow-[0_0_6px_rgb(var(--color-teal)/0.85)]"
+            style={{ left: `${REVEAL_MIN_CONFIDENCE}%` }}
+            animate={
+              reduce || pct < REVEAL_MIN_CONFIDENCE - 15
+                ? { opacity: 0.55 }
+                : { opacity: [0.55, 1, 0.55] }
+            }
+            transition={reduce ? { duration: 0 } : { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
       </div>
     </div>
   );

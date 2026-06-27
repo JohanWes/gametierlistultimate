@@ -47,6 +47,9 @@ export function ArcadeCard({
 }: ArcadeCardProps) {
   const reduce = useReducedMotion();
   const interactive = typeof onSelect === 'function' && !disabled;
+  // A card awaiting this player's tap. Gets a breathing teal invitation so the *choice* is the
+  // loudest thing on screen — distinct from the amber `win` glow (teal = selectable, amber = chosen).
+  const live = interactive && state === 'idle';
   const onRemove = useRemoveGame();
 
   const frame = (
@@ -58,6 +61,20 @@ export function ArcadeCard({
       )}
     >
       <GameCard game={game} size={size} />
+
+      {live ? (
+        <motion.span
+          aria-hidden
+          className={cn(
+            'pointer-events-none absolute inset-0 rounded-tile transition-[box-shadow] duration-200',
+            'shadow-[0_0_18px_rgb(var(--color-teal)/0.18),inset_0_0_0_1px_rgb(var(--color-teal)/0.45)]',
+            'group-hover:shadow-[0_0_30px_rgb(var(--color-teal)/0.45),inset_0_0_0_2px_rgb(var(--color-teal)/0.9)]',
+          )}
+          initial={reduce ? false : { opacity: 0.55 }}
+          animate={reduce ? { opacity: 1 } : { opacity: [0.55, 1, 0.55] }}
+          transition={reduce ? { duration: 0 } : { duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      ) : null}
 
       {state === 'win' ? (
         <motion.span
@@ -116,11 +133,11 @@ export function ArcadeCard({
         type="button"
         title={game.title}
         {...tapProps(onSelect)}
-        whileHover={reduce ? undefined : { y: -6 }}
+        whileHover={reduce ? undefined : { y: -6, scale: 1.03 }}
         whileTap={reduce ? undefined : { scale: 0.94 }}
         animate={state === 'win' && !reduce ? { scale: 1.05 } : { scale: 1 }}
         transition={{ type: 'spring', stiffness: 460, damping: 26 }}
-        className="inline-flex cursor-pointer focus-visible:outline-none"
+        className="group inline-flex cursor-pointer focus-visible:outline-none"
       >
         {frame}
       </motion.button>

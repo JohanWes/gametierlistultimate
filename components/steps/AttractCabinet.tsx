@@ -141,7 +141,7 @@ export function AttractCabinet({ active = true }: AttractCabinetProps) {
       <div className="relative flex flex-col gap-2 p-3 sm:p-4">
         {/* marquee header */}
         <div className="flex items-center justify-between border-b border-border/80 pb-2 font-mono text-[0.62rem] uppercase tracking-[0.2em] text-muted">
-          <span className="text-fg/80">Attract&nbsp;Mode</span>
+          <span className="text-fg/80">Rankings</span>
           <span className="flex items-center gap-1.5 text-teal">
             <motion.span
               aria-hidden

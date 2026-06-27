@@ -67,7 +67,7 @@ export function VersusBoard({ left, right, prompt, eyebrow, seamBadge, onPick }:
         </motion.div>
       </div>
 
-      <p className="mt-5 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted">
+      <p className="mt-5 font-mono text-[0.78rem] font-bold uppercase tracking-[0.2em] text-teal">
         Tap the winner
       </p>
     </div>
@@ -78,21 +78,41 @@ function Seam({ badge, settled }: { badge?: React.ReactNode; settled: boolean })
   const reduce = useReducedMotion();
   return (
     <div className="relative flex h-full min-h-[7rem] w-10 items-center justify-center sm:w-14">
-      <span
+      <motion.span
         aria-hidden
         className="absolute inset-y-0 left-1/2 w-[3px] -translate-x-1/2 rounded-full"
         style={{
           background:
             'linear-gradient(to bottom, rgb(var(--color-teal)), rgb(var(--color-accent)), rgb(var(--color-coin)))',
-          opacity: settled ? 0.4 : 0.85,
         }}
+        initial={false}
+        animate={
+          settled
+            ? { opacity: 0.4, boxShadow: '0 0 0 rgb(var(--color-accent) / 0)' }
+            : reduce
+              ? { opacity: 0.85 }
+              : {
+                  opacity: [0.7, 1, 0.7],
+                  boxShadow: [
+                    '0 0 10px rgb(var(--color-accent) / 0.3)',
+                    '0 0 22px rgb(var(--color-accent) / 0.65)',
+                    '0 0 10px rgb(var(--color-accent) / 0.3)',
+                  ],
+                }
+        }
+        transition={
+          settled || reduce
+            ? { duration: 0.3 }
+            : { duration: 1.8, repeat: Infinity, ease: 'easeInOut' }
+        }
       />
       <AnimatePresence mode="wait">
         <motion.span
           key={badge ? 'badge' : 'vs'}
           className={cn(
             'relative z-10 flex items-center justify-center rounded-tile border border-border bg-bg font-display font-black uppercase shadow-cabinet',
-            badge ? 'px-2 py-1 text-[0.6rem] tracking-[0.1em] text-accent' : 'h-10 w-10 rotate-[-8deg] text-sm tracking-[0.05em] text-fg',
+            badge ? 'px-2 py-1 text-[0.6rem] tracking-[0.1em] text-accent' : 'h-11 w-11 rotate-[-8deg] text-base tracking-[0.05em] text-fg',
+            !badge && !settled && 'drop-shadow-[0_0_12px_rgb(var(--color-accent)/0.55)]',
           )}
           initial={reduce ? false : { scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}

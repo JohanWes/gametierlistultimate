@@ -16,8 +16,15 @@ import {
   type RankingState,
   type Tier,
 } from '@/lib/ranking';
-import { canReveal, derivePhase, selectRound, type MinigameKind } from '@/lib/ranking/arcade';
+import {
+  canReveal,
+  derivePhase,
+  REVEAL_MIN_CONFIDENCE,
+  selectRound,
+  type MinigameKind,
+} from '@/lib/ranking/arcade';
 import { type PoolEntry, useStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 
 import { Button } from '../ui/Button';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
@@ -210,7 +217,11 @@ export function ArcadeStep() {
           <span />
         )}
 
-        <RevealCta ready={ready} onReveal={reveal} />
+        <RevealCta
+          ready={ready}
+          near={!ready && confidence >= REVEAL_MIN_CONFIDENCE - 15}
+          onReveal={reveal}
+        />
       </div>
 
       <ConfirmDialog
@@ -244,12 +255,28 @@ function PhaseBadge({ phase, round }: { phase: string; round: number }) {
   );
 }
 
-function RevealCta({ ready, onReveal }: { ready: boolean; onReveal: () => void }) {
+function RevealCta({
+  ready,
+  near,
+  onReveal,
+}: {
+  ready: boolean;
+  near: boolean;
+  onReveal: () => void;
+}) {
+  const reduce = useReducedMotion();
   if (!ready) {
     return (
-      <span className="font-mono text-[0.7rem] uppercase tracking-[0.16em] text-muted/70">
-        Keep playing to unlock
-      </span>
+      <motion.span
+        className={cn(
+          'font-mono text-[0.7rem] uppercase tracking-[0.16em]',
+          near ? 'text-teal' : 'text-muted/70',
+        )}
+        animate={near && !reduce ? { opacity: [0.6, 1, 0.6] } : { opacity: 1 }}
+        transition={near && !reduce ? { duration: 1.6, repeat: Infinity, ease: 'easeInOut' } : undefined}
+      >
+        {near ? 'Almost there — keep playing' : 'Keep playing to unlock'}
+      </motion.span>
     );
   }
   return (
@@ -261,7 +288,24 @@ function RevealCta({ ready, onReveal }: { ready: boolean; onReveal: () => void }
       <span className="hidden font-mono text-[0.7rem] uppercase tracking-[0.16em] text-teal sm:inline">
         Your list is ready
       </span>
-      <Button onClick={onReveal}>Reveal my tier list →</Button>
+      {/* The payoff gate — give the reveal a pulsing glow so it reads as the moment it is. */}
+      <motion.div
+        className="rounded-control"
+        animate={
+          reduce
+            ? undefined
+            : {
+                boxShadow: [
+                  '0 0 0 rgb(var(--color-accent) / 0)',
+                  '0 0 26px rgb(var(--color-accent) / 0.5)',
+                  '0 0 0 rgb(var(--color-accent) / 0)',
+                ],
+              }
+        }
+        transition={reduce ? undefined : { duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        <Button onClick={onReveal}>Reveal my tier list →</Button>
+      </motion.div>
     </motion.div>
   );
 }

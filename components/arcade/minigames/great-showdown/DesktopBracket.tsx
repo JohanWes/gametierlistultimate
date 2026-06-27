@@ -213,17 +213,31 @@ function BoutBox({
       data-active={isActive ? 'true' : 'false'}
       transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 30 }}
       className={cn(
-        'relative flex flex-col gap-1 rounded-tile border p-1.5 transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]',
-        grow && 'z-20 [--cover-zone:clamp(5rem,6.5vw,7rem)]',
+        'relative flex flex-col gap-1 rounded-tile border p-1.5 transition-[opacity,border-color] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]',
+        // The active bout is the hero: grow it for real and lift it clear of the tree.
+        grow && 'z-20 -translate-y-1 [--cover-zone:clamp(6rem,8.5vw,9rem)]',
+        // Push the rest of the bracket back so the live bout owns the eye (ambient context, not gone).
+        !isActive && 'opacity-65',
         isActive
           ? isFinale
-            ? 'border-teal/70 bg-teal/5 shadow-[0_14px_42px_rgb(0_0_0/0.34)]'
-            : 'border-accent/60 bg-accent/5 shadow-[0_14px_42px_rgb(0_0_0/0.34)]'
+            ? 'border-teal/80 bg-teal/5 shadow-[0_18px_50px_rgb(0_0_0/0.42),0_0_38px_rgb(var(--color-teal)/0.32)]'
+            : 'border-accent/70 bg-accent/5 shadow-[0_18px_50px_rgb(0_0_0/0.42),0_0_38px_rgb(var(--color-accent)/0.32)]'
           : decided
             ? 'border-border'
             : 'border-dashed border-border/60',
       )}
     >
+      {grow ? (
+        <span
+          aria-hidden
+          className={cn(
+            'pointer-events-none absolute -inset-7 -z-10 rounded-full blur-2xl',
+            isFinale
+              ? 'bg-[radial-gradient(circle,rgb(var(--color-teal)/0.18),transparent_70%)]'
+              : 'bg-[radial-gradient(circle,rgb(var(--color-accent)/0.18),transparent_70%)]',
+          )}
+        />
+      ) : null}
       {label ? (
         <span
           className={cn(

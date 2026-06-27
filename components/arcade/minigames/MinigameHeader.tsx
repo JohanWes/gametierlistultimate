@@ -40,7 +40,9 @@ export function MinigameHeader({ eyebrow, title, hint, tone = 'teal' }: Minigame
         {title}
       </h2>
       {hint ? (
-        <p className="mt-1 font-mono text-[0.65rem] uppercase tracking-[0.18em] text-muted">{hint}</p>
+        // The actionable instruction — readable sans, not a tracked-mono label, so it leads over the
+        // flavor eyebrow and a skimmer can't mis-play the round.
+        <p className="mt-1.5 text-sm font-medium text-fg/80">{hint}</p>
       ) : null}
     </header>
   );
