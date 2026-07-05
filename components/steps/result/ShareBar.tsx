@@ -5,10 +5,12 @@ import { useState } from 'react';
 import type { Game } from '@/lib/games/types';
 import type { SnapshotGame } from '@/lib/lists-repo';
 import { TIER_ORDER, type TierMap } from '@/lib/ranking';
+import { clearLocalSession } from '@/lib/session-local';
 import { playSound } from '@/lib/sound';
 import { useStore } from '@/lib/store';
 
 import { Button } from '../../ui/Button';
+import { ConfirmDialog } from '../../ui/ConfirmDialog';
 
 export interface ShareBarProps {
   tiers: TierMap;
@@ -40,10 +42,10 @@ function buildSnapshot(tiers: TierMap, gamesById: Map<number, Game>): SnapshotGa
  * snapshot is anonymous and immutable. (Image export is a later phase; this ships the link.)
  */
 export function ShareBar({ tiers, gamesById, fetchImpl }: ShareBarProps) {
-  const setStep = useStore((s) => s.setStep);
   const soundOn = useStore((s) => s.ui.soundOn);
   const [state, setState] = useState<State>({ kind: 'idle' });
   const [copied, setCopied] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const doFetch = fetchImpl ?? fetch;
 
@@ -116,11 +118,26 @@ export function ShareBar({ tiers, gamesById, fetchImpl }: ShareBarProps) {
 
       <button
         type="button"
-        onClick={() => setStep('welcome')}
+        onClick={() => setConfirmReset(true)}
         className="self-start font-mono text-xs uppercase tracking-[0.16em] text-muted transition-colors hover:text-fg focus-visible:outline-none"
       >
         Start over
       </button>
+
+      <ConfirmDialog
+        open={confirmReset}
+        title="Start over?"
+        body="This clears your games, rankings, and progress on this device. Published links keep working."
+        confirmLabel="Start over"
+        cancelLabel="Cancel"
+        onConfirm={() => {
+          // Reload after clearing: keep-alive steps hold in-memory state (pool slots, engine,
+          // board) that a store reset alone would leave stale.
+          clearLocalSession();
+          window.location.reload();
+        }}
+        onCancel={() => setConfirmReset(false)}
+      />
     </div>
   );
 }

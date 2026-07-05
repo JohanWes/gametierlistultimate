@@ -8,27 +8,23 @@ import { STARTER_COVERS } from './starter-covers';
 import { setResolvedStarterIds, STARTER_GAME_NAMES } from './starter-set';
 import type { Game, Preferences, SuggestionContext } from './types';
 
-async function gamesCollection(): Promise<Collection<Document>> {
-  const db = await getDb();
-  return db.collection(COLLECTIONS.games);
-}
-
 let indexesEnsured = false;
 
-/**
- * Create the indexes the queries rely on, once per process. Idempotent — MongoDB ignores
- * a createIndex for an index that already exists.
- */
-export async function ensureGameIndexes(): Promise<void> {
-  if (indexesEnsured) return;
-  const coll = await gamesCollection();
-  await Promise.all([
-    coll.createIndex({ name: 'text' }, { name: 'name_text' }),
-    coll.createIndex({ id: 1 }, { name: 'id_idx' }),
-    coll.createIndex({ genre: 1 }, { name: 'genre_idx' }),
-    coll.createIndex({ rating: -1 }, { name: 'rating_idx' }),
-  ]);
-  indexesEnsured = true;
+async function gamesCollection(): Promise<Collection<Document>> {
+  const db = await getDb();
+  const coll = db.collection(COLLECTIONS.games);
+  // Lazily ensure the indexes the hot queries rely on (`id` lookups/excludes, `rating` sort),
+  // once per process. Fire-and-forget: createIndex is idempotent and must never block a request.
+  if (!indexesEnsured) {
+    indexesEnsured = true;
+    void Promise.all([
+      coll.createIndex({ id: 1 }, { name: 'id_idx' }),
+      coll.createIndex({ rating: -1 }, { name: 'rating_idx' }),
+    ]).catch(() => {
+      indexesEnsured = false; // retry on a later request
+    });
+  }
+  return coll;
 }
 
 /** Exclude DLC/expansions if a category field exists; docs without category are kept. */

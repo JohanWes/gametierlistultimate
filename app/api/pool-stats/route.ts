@@ -2,9 +2,15 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { recordPoolDelta } from '@/lib/pool-stats-service';
 
+/** Bound anonymous input so a hostile POST can't drive unbounded bulk writes. */
+const MAX_POOL_IDS = 500;
+
 function cleanIds(value: unknown): number[] {
   if (!Array.isArray(value)) return [];
-  return value.map((n) => Number(n)).filter((n) => Number.isFinite(n));
+  return value
+    .slice(0, MAX_POOL_IDS)
+    .map((n) => Number(n))
+    .filter((n) => Number.isFinite(n));
 }
 
 /**

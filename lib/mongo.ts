@@ -48,10 +48,17 @@ export async function getClient(): Promise<MongoClient> {
   if (cache.client) return cache.client;
   if (!cache.promise) {
     const client = new MongoClient(resolveUri());
-    cache.promise = client.connect().then((connected) => {
-      cache.client = connected;
-      return connected;
-    });
+    cache.promise = client
+      .connect()
+      .then((connected) => {
+        cache.client = connected;
+        return connected;
+      })
+      .catch((err) => {
+        // Drop the failed promise so the next request retries instead of rethrowing forever.
+        cache.promise = null;
+        throw err;
+      });
   }
   return cache.promise;
 }

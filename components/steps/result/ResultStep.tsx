@@ -72,6 +72,22 @@ export function ResultStep() {
   const [picking, setPicking] = useState<{ game: Game; from: Tier } | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<Game | null>(null);
 
+  // Keep-alive: this step stays mounted after the first reveal, so re-seed the board from the
+  // live engine state each time the user returns (e.g. "← Keep ranking" + more arcade rounds).
+  // Cross-tier manual moves survive (assignTier wrote them into `scores`); within-tier ordering
+  // reverts to rating order, same as an owner reload. `visit` re-keys the community comparison
+  // so its percentage is fetched against the refreshed board.
+  const [visit, setVisit] = useState(0);
+  useEffect(() => {
+    if (step !== 'reveal') return;
+    const parsed = parseRankingState(useStore.getState().scores);
+    if (parsed && Object.keys(parsed.games).length > 0) {
+      rankingRef.current = parsed;
+      setTiers(computeTiers(parsed));
+    }
+    setVisit((v) => v + 1);
+  }, [step]);
+
   const ding = useCallback(
     (_tier: Tier, isLast: boolean) => {
       // Keep-alive: ResultStep stays mounted when hidden. Don't play reveal sounds
@@ -179,7 +195,7 @@ export function ResultStep() {
               </Button>
             ) : null}
           </div>
-          {done ? <CommunityComparison tiers={tiers} gamesById={gamesById} /> : null}
+          {done ? <CommunityComparison key={visit} tiers={tiers} gamesById={gamesById} /> : null}
         </div>
       </div>
 

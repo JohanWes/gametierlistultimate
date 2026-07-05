@@ -12,6 +12,8 @@ import {
   parseRankingState,
   removeGameFromState,
   serializeRankingState,
+  syncStateWithGames,
+  type GamePrior,
   type RankingOutcome,
   type RankingState,
   type Tier,
@@ -38,23 +40,24 @@ const RECENT_MEMORY = 6;
 /** How many past kinds we keep for variety control. */
 type RoundView = { kind: MinigameKind; games: Game[]; anchorId?: number; boundary?: Tier };
 
+function poolPriors(pool: PoolEntry[]): GamePrior[] {
+  return pool.map((e) => ({
+    gameId: e.game.igdbId,
+    rating: e.game.rating,
+    popularity: e.game.popularity,
+  }));
+}
+
 /**
- * Build (or resume) the hidden ranking state. We resume the saved state only when it already
- * covers the current pool; otherwise we start fresh from the pool's priors.
+ * Build (or resume) the hidden ranking state. A saved state is resumed with any pool drift
+ * (games added/removed since it was saved) folded in via `syncStateWithGames`, so accumulated
+ * rounds survive instead of being wiped when the pool changed between sessions.
  */
 function initRanking(pool: PoolEntry[], saved: Record<string, unknown>): RankingState {
+  const priors = poolPriors(pool);
   const parsed = parseRankingState(saved);
-  if (parsed) {
-    const covered = pool.every((e) => parsed.games[String(e.game.igdbId)]);
-    if (covered && Object.keys(parsed.games).length >= 2) return parsed;
-  }
-  return createRankingState(
-    pool.map((e) => ({
-      gameId: e.game.igdbId,
-      rating: e.game.rating,
-      popularity: e.game.popularity,
-    })),
-  );
+  if (parsed && Object.keys(parsed.games).length >= 2) return syncStateWithGames(parsed, priors);
+  return createRankingState(priors);
 }
 
 /** The store keeps `scores` opaque; serialize into that shape. */
@@ -117,6 +120,18 @@ export function ArcadeStep() {
     setArcade({ phase, round: ranking.round });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Keep-alive: Flow never remounts this step, so fold pool edits made on other steps
+  // (a game added via search, or deleted from the reveal board) into the engine as they
+  // happen. `syncStateWithGames` returns the same reference when nothing changed.
+  useEffect(() => {
+    const next = syncStateWithGames(ranking, poolPriors(pool));
+    if (next === ranking) return;
+    const nextConfidence = computeConfidence(next).global;
+    setRanking(next);
+    setScores(toScores(next));
+    setArcade({ phase: derivePhase(next, nextConfidence), round: next.round });
+  }, [pool, ranking, setScores, setArcade]);
 
   const advance = useCallback(
     (outcomes: RankingOutcome[]) => {

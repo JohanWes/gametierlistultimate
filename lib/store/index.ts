@@ -238,7 +238,7 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
   const waitMs = opts?.waitMs ?? 600;
   const doFetch = opts?.fetchImpl ?? fetch;
 
-  const persist = debounce(() => {
+  const saveNow = () => {
     const s = useStore.getState();
     saveLocalSession({
       prefs: s.prefs,
@@ -247,7 +247,21 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
       scores: s.scores,
       step: s.ui.step,
     });
-  }, waitMs);
+  };
+  const persist = debounce(saveNow, waitMs);
+
+  // Flush synchronously when the tab is hidden/closed so an action inside the debounce window
+  // (e.g. decide a card, immediately close the tab) is never lost.
+  const flush = () => {
+    if (!useStore.getState().ui.hydrated) return;
+    persist.cancel();
+    saveNow();
+  };
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') flush();
+  };
+  window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', onVisibilityChange);
 
   // Baseline of pool ids already recorded in the community aggregates; sent as `previous` and
   // advanced only when a sync actually fires.
@@ -297,6 +311,8 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
   });
 
   return () => {
+    window.removeEventListener('pagehide', flush);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
     persist.cancel();
     syncPool.cancel();
     unsub();

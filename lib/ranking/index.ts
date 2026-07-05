@@ -241,6 +241,51 @@ export function removeGameFromState(state: RankingState, gameId: number): Rankin
   return next;
 }
 
+/**
+ * Reconcile the ranking state with the current pool: add entries for new games (seeded from their
+ * priors, exactly like `createRankingState`) and drop entries whose game left the pool. Returns
+ * the *same* state reference when nothing changed, so React effects can cheaply no-op. Used by the
+ * keep-alive arcade step, which never remounts and so must fold pool edits in as they happen.
+ */
+export function syncStateWithGames(
+  state: RankingState,
+  games: Array<number | GamePrior>,
+): RankingState {
+  const wanted = new Map<number, GamePrior>();
+  for (const game of games) {
+    const prior = typeof game === 'number' ? { gameId: game } : game;
+    if (Number.isFinite(prior.gameId) && !wanted.has(prior.gameId)) wanted.set(prior.gameId, prior);
+  }
+
+  const toAdd = [...wanted.values()].filter((p) => !state.games[String(p.gameId)]);
+  const removedIds = new Set(
+    Object.values(state.games)
+      .filter((g) => !wanted.has(g.gameId))
+      .map((g) => g.gameId),
+  );
+  if (toAdd.length === 0 && removedIds.size === 0) return state;
+
+  const next = cloneState(state);
+  for (const id of removedIds) delete next.games[String(id)];
+  if (removedIds.size) {
+    next.recentMatchups = next.recentMatchups.filter(
+      (m) => !m.gameIds.some((id) => removedIds.has(id)),
+    );
+  }
+  for (const prior of toAdd) {
+    const priorOffset = computePriorOffset(prior);
+    next.games[String(prior.gameId)] = {
+      gameId: prior.gameId,
+      rating: BASE_RATING + priorOffset,
+      uncertainty: INITIAL_UNCERTAINTY,
+      comparisons: 0,
+      lastSeenRound: null,
+      priorOffset,
+    };
+  }
+  return next;
+}
+
 export function applyOutcome(state: RankingState, outcome: RankingOutcome): RankingState {
   const next = cloneState(state);
   const beforeRound = next.round;

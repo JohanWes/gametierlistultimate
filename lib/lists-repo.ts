@@ -41,13 +41,42 @@ async function gameStatsCollection() {
   return (await getDb()).collection<GameStatsDoc>(COLLECTIONS.gameStats);
 }
 
+/** Upper bound on games per tier row — anonymous writes must not create unbounded documents. */
+const MAX_TIER_ROW = 500;
+/** Upper bound on embedded snapshot games and their string fields. */
+const MAX_SNAPSHOT_GAMES = 1000;
+const MAX_TITLE_LEN = 300;
+const MAX_URL_LEN = 600;
+
 /** Normalize an arbitrary tiers object into a complete TierMap with numeric ids only. */
 export function normalizeTiers(input: unknown): TierMap {
   const source = (input ?? {}) as Record<string, unknown>;
   const out = {} as TierMap;
   for (const tier of TIERS) {
     const raw = Array.isArray(source[tier]) ? (source[tier] as unknown[]) : [];
-    out[tier] = raw.map((v) => Number(v)).filter((n) => Number.isFinite(n));
+    out[tier] = raw
+      .slice(0, MAX_TIER_ROW)
+      .map((v) => Number(v))
+      .filter((n) => Number.isFinite(n));
+  }
+  return out;
+}
+
+/** Validate + bound the embedded snapshot games; malformed entries are dropped. */
+function normalizeSnapshotGames(input: SnapshotGame[] | undefined): SnapshotGame[] {
+  if (!Array.isArray(input)) return [];
+  const out: SnapshotGame[] = [];
+  for (const raw of input.slice(0, MAX_SNAPSHOT_GAMES)) {
+    if (!raw || typeof raw !== 'object') continue;
+    const igdbId = Number((raw as SnapshotGame).igdbId);
+    const title = (raw as SnapshotGame).title;
+    const coverUrl = (raw as SnapshotGame).coverUrl;
+    if (!Number.isFinite(igdbId) || typeof title !== 'string') continue;
+    out.push({
+      igdbId,
+      title: title.slice(0, MAX_TITLE_LEN),
+      coverUrl: typeof coverUrl === 'string' ? coverUrl.slice(0, MAX_URL_LEN) : null,
+    });
   }
   return out;
 }
@@ -85,7 +114,7 @@ export async function createList(input: ListInput): Promise<{ shareId: string }>
   await coll.insertOne({
     shareId,
     tiers,
-    games: input.games ?? [],
+    games: normalizeSnapshotGames(input.games),
     createdAt: new Date(),
   });
 
