@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
 
 import { playSound } from '@/lib/sound';
 import { useStore } from '@/lib/store';
@@ -9,6 +10,63 @@ import { cn } from '@/lib/utils';
 import { Button } from '../ui/Button';
 import { TIER_ORDER, type Tier } from '../ui/Row';
 import { AttractCabinet } from './AttractCabinet';
+
+/** How long the coin-insert beat holds before the flow advances (coin fall + credit flash). */
+const COIN_BEAT_MS = 680;
+
+/**
+ * The coin-op CTA. At rest the label hard-blinks INSERT COIN / PRESS START (the classic
+ * attract-mode idiom — instant on/off, no fade). Pressing it drops a coin into the slit on the
+ * button face, flashes the button as the credit registers, then advances the flow. Reduced
+ * motion gets a static label and an instant advance.
+ */
+function StartButton() {
+  const goNext = useStore((s) => s.goNext);
+  const reduce = useReducedMotion();
+  const [inserting, setInserting] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  return (
+    <Button
+      size="lg"
+      aria-label="Press start"
+      aria-busy={inserting}
+      className={cn('relative pl-10', inserting && 'coin-accept')}
+      onClick={() => {
+        if (inserting) return;
+        playSound('coin');
+        if (reduce) {
+          goNext();
+          return;
+        }
+        setInserting(true);
+        timer.current = setTimeout(() => {
+          timer.current = null;
+          setInserting(false);
+          goNext();
+        }, COIN_BEAT_MS);
+      }}
+    >
+      <span aria-hidden className="coin-slot">
+        {inserting ? <span className="coin-drop" /> : null}
+      </span>
+      {reduce ? (
+        <>Press start →</>
+      ) : (
+        <span aria-hidden className="grid text-center">
+          <span className="coin-label">Insert coin</span>
+          <span className="coin-label coin-label-alt">Press start →</span>
+        </span>
+      )}
+    </Button>
+  );
+}
 
 const TIER_BG: Record<Tier, string> = {
   S: 'bg-tier-s',
@@ -66,7 +124,6 @@ function HowItWorks({ itemVariants }: { itemVariants: Variants }) {
 }
 
 export function WelcomeStep() {
-  const goNext = useStore((s) => s.goNext);
   const step = useStore((s) => s.ui.step);
   const reduce = useReducedMotion();
 
@@ -123,16 +180,7 @@ export function WelcomeStep() {
               className="absolute -inset-1 rounded-control bg-accent/30 blur-md animate-pulse-glow"
             />
           ) : null}
-          <Button
-            size="lg"
-            className="relative"
-            onClick={() => {
-              playSound('success');
-              goNext();
-            }}
-          >
-            Press start →
-          </Button>
+          <StartButton />
         </motion.div>
       </div>
     </motion.div>

@@ -64,6 +64,23 @@ describe('Flow keep-alive', () => {
     expect(calls).toBe(callsAfterFirstVisit);
   });
 
+  it('plays the CRT boot overlay when the session opens at welcome', () => {
+    act(() => {
+      useStore.getState().setHydrated(true);
+    });
+    const { container } = renderWithProviders(<Flow />);
+    expect(container.querySelector('.boot-shutter')).not.toBeNull();
+  });
+
+  it('skips the CRT boot when resuming past welcome', () => {
+    act(() => {
+      useStore.getState().setHydrated(true);
+      useStore.getState().setStep('pool');
+    });
+    const { container } = renderWithProviders(<Flow />);
+    expect(container.querySelector('.boot-shutter')).toBeNull();
+  });
+
   it('does not mount a step the user skipped (returning user hydrating at pool)', () => {
     act(() => {
       useStore.getState().setHydrated(true);

@@ -4,7 +4,7 @@
  * and every play is a no-op while muted or before that first interaction.
  */
 
-export type SoundName = 'click' | 'blip' | 'hover' | 'success' | 'reveal';
+export type SoundName = 'click' | 'blip' | 'hover' | 'success' | 'reveal' | 'coin';
 
 type Ctor = new () => AudioContext;
 
@@ -135,6 +135,11 @@ function synth(context: AudioContext, name: SoundName): void {
     case 'reveal':
       tone(context, { type: 'sawtooth', from: 300, to: 1200, duration: 0.32, gain: 0.14 });
       tone(context, { type: 'sine', from: 600, to: 1600, duration: 0.32, gain: 0.08, delay: 0.02 });
+      break;
+    case 'coin':
+      // The classic two-note coin chime: B5 tick into a longer E6 ring.
+      tone(context, { type: 'square', from: 988, duration: 0.08, gain: 0.09 });
+      tone(context, { type: 'square', from: 1319, duration: 0.34, gain: 0.1, delay: 0.08 });
       break;
   }
 }

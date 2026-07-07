@@ -359,6 +359,178 @@ body::before {
   }
 }
 
+/*
+ * ── Welcome payoff: cold-boot power-on + coin-op start button ────────────────
+ * The first paint of the product is the machine turning on: a bright horizontal beam snaps
+ * across a black screen, the black "shutters" open vertically like a CRT tube warming, and a
+ * phosphor bloom flares over the revealing UI. Rendered once per page load by <CrtBoot> in
+ * components/Flow.tsx (skipped entirely for reduced-motion and for users resuming mid-flow).
+ */
+.boot-shutter {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  /* +1px so the two halves overlap — no hairline seam at 50% on fractional viewports. */
+  height: calc(50% + 1px);
+  background: rgb(0 0 0);
+  animation: boot-shutter 420ms cubic-bezier(0.22, 1, 0.36, 1) 260ms both;
+}
+.boot-shutter-top {
+  top: 0;
+  transform-origin: top;
+}
+.boot-shutter-bottom {
+  bottom: 0;
+  transform-origin: bottom;
+}
+@keyframes boot-shutter {
+  from {
+    transform: scaleY(1);
+  }
+  to {
+    transform: scaleY(0);
+  }
+}
+
+/* The electron-beam line: flashes on horizontally at center, holds, fades as the tube opens. */
+.boot-beam {
+  position: absolute;
+  top: 50%;
+  left: 6%;
+  right: 6%;
+  height: 2px;
+  border-radius: 9999px;
+  background: rgb(var(--color-fg));
+  box-shadow:
+    0 0 14px 3px rgb(var(--color-teal) / 0.9),
+    0 0 70px 18px rgb(var(--color-teal) / 0.35);
+  animation: boot-beam 860ms ease-out both;
+}
+@keyframes boot-beam {
+  0% {
+    transform: translateY(-50%) scaleX(0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  30% {
+    transform: translateY(-50%) scaleX(1);
+    opacity: 1;
+  }
+  70% {
+    transform: translateY(-50%) scaleX(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(-50%) scaleX(1);
+    opacity: 0;
+  }
+}
+
+/* Phosphor bloom washing over the UI as the shutters open, then settling. */
+.boot-bloom {
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: screen;
+  background: radial-gradient(
+    120% 90% at 50% 50%,
+    rgb(var(--color-fg) / 0.5),
+    rgb(var(--color-teal) / 0.18) 45%,
+    transparent 72%
+  );
+  animation: boot-bloom 700ms ease-out 260ms both;
+}
+@keyframes boot-bloom {
+  0% {
+    opacity: 0;
+  }
+  22% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Hard on/off arcade blink — no fade; the authentic idiom. Two stacked labels run the same
+   animation half a period apart, so the CTA alternates INSERT COIN / PRESS START. */
+.coin-label {
+  grid-area: 1 / 1;
+  animation: hard-blink 2.6s linear infinite;
+}
+.coin-label-alt {
+  animation-delay: -1.3s;
+}
+@keyframes hard-blink {
+  0%,
+  49.9% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The coin slit on the button face; the falling coin renders inside it (edge-on: a narrow
+   vertical pill) so the two stay aligned for free. */
+.coin-slot {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  height: 0.875rem;
+  width: 0.3125rem;
+  transform: translateY(-50%);
+  border-radius: 9999px;
+  background: rgb(0 0 0 / 0.5);
+  box-shadow:
+    inset 0 1px 2px rgb(0 0 0 / 0.8),
+    0 1px 0 rgb(255 255 255 / 0.25);
+}
+.coin-drop {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: rgb(var(--color-coin));
+  box-shadow:
+    inset 1px 0 0 rgb(255 255 255 / 0.45),
+    inset -1px 0 0 rgb(0 0 0 / 0.4);
+  animation: coin-drop 420ms cubic-bezier(0.55, 0, 1, 0.45) both;
+}
+@keyframes coin-drop {
+  0% {
+    transform: translateY(-2.6rem);
+    opacity: 1;
+  }
+  85% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0.15rem) scaleY(0.4);
+    opacity: 0;
+  }
+}
+
+/* Credit accepted: brightness surge on the button right as the coin is swallowed (~420ms in).
+   Filter-only on purpose — Framer Motion owns this element's transform (whileTap). */
+.coin-accept {
+  animation: coin-accept 680ms linear both;
+}
+@keyframes coin-accept {
+  0%,
+  58% {
+    filter: none;
+  }
+  66% {
+    filter: brightness(1.75) saturate(1.15);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
 /* Respect users who prefer less motion — primitives gate Framer Motion on this too. */
 @media (prefers-reduced-motion: reduce) {
   *,
