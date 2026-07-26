@@ -5,7 +5,7 @@ import type { PoolDecision } from '@/lib/pool-decision';
 
 import { Button } from '../ui/Button';
 import { GameCard } from '../ui/GameCard';
-import { PoolSwipeCard } from './PoolSwipeCard';
+import { HERO_SIZE, PoolSwipeCard } from './PoolSwipeCard';
 
 interface SlotEntry {
   game: Game;
@@ -22,8 +22,6 @@ export interface PoolSwipeDeckProps {
   /** Injected RNG forwarded to the active card's spotlight roll. */
   random?: () => number;
 }
-
-const HERO_WIDTH = 'w-[min(80vw,20rem)]';
 
 /**
  * Mobile pool builder: a single boxart card you swipe through, with the next card peeking behind
@@ -75,48 +73,37 @@ export function PoolSwipeDeck({
     }
     // Loading / bootstrap: a single hero skeleton instead of a five-up grid.
     return (
-      <div className="flex flex-col items-center gap-5">
-        <GameCard loading size="lg" className={`${HERO_WIDTH} rounded-card`} />
-        <div className="flex items-start gap-10">
-          <div className="h-16 w-16 rounded-hardware border-2 border-border bg-surface" />
-          <div className="h-16 w-16 rounded-hardware border-2 border-border bg-surface" />
+      <div className="flex h-full min-h-0 flex-col items-center gap-3">
+        <div className="flex min-h-0 flex-1 justify-center">
+          <GameCard loading size="lg" className={`${HERO_SIZE} rounded-card`} />
+        </div>
+        <div className="flex shrink-0 items-start gap-10">
+          <div className="h-14 w-14 rounded-hardware border-2 border-border bg-surface" />
+          <div className="h-14 w-14 rounded-hardware border-2 border-border bg-surface" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <p className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-muted">
-        Swipe right if you&rsquo;ve played it · left to pass
+    <div className="flex h-full min-h-0 w-full flex-col items-center gap-2">
+      {/* Teaches the swipe affordance only — the ✓/✕ buttons below are self-labelling, so the old
+          two-line "swipe right … left to pass" was duplicating them and costing ~40px at 375px. */}
+      <p className="shrink-0 whitespace-nowrap font-mono text-[0.62rem] uppercase tracking-[0.18em] text-muted">
+        ‹ Swipe or tap below ›
       </p>
-      <div className="relative flex w-full justify-center">
-        {peek ? (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 flex justify-center"
-          >
-            <div className={`${HERO_WIDTH} translate-y-3 scale-[0.92] opacity-50`}>
-              <GameCard
-                game={peek.game}
-                showTitle={false}
-                size="lg"
-                eager
-                className="w-full rounded-card border-2 border-border"
-              />
-            </div>
-          </div>
-        ) : null}
-
-        <div className="relative flex w-full justify-center">
-          <PoolSwipeCard
-            key={active.game.igdbId}
-            game={active.game}
-            random={random}
-            onDecide={(action) => onDecide(active.game.igdbId, action)}
-            onWatch={onWatch}
-          />
-        </div>
+      {/* The card owns this whole slot and lays out card-over-actions itself, so the peek card is
+          handed to it rather than absolutely positioned here — that keeps the stacked-deck effect
+          aligned to the cover alone instead of overlapping the ✓/✕ row. */}
+      <div className="flex min-h-0 w-full flex-1 justify-center">
+        <PoolSwipeCard
+          key={active.game.igdbId}
+          game={active.game}
+          peek={peek?.game}
+          random={random}
+          onDecide={(action) => onDecide(active.game.igdbId, action)}
+          onWatch={onWatch}
+        />
       </div>
     </div>
   );

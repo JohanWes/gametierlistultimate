@@ -13,14 +13,17 @@ import { Button } from '../../ui/Button';
 import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
+import { CoverRail } from './CoverRail';
 import { DraggableArcadeCard } from './DraggableArcadeCard';
 import { MinigameHeader } from './MinigameHeader';
 
 /** Podium steps: 1st in the middle and tallest, then 2nd, then 3rd. Rendered left→right as 2/1/3. */
+/* The pedestal heights are decoration — they only have to *read* as a podium. On phones they use
+   about half the height so the space goes to the covers instead. */
 const STEPS = [
-  { rank: 1, label: '1st', height: 'h-20', medal: '🥇', accent: 'text-coin', order: 'order-2' },
-  { rank: 2, label: '2nd', height: 'h-14', medal: '🥈', accent: 'text-muted', order: 'order-1' },
-  { rank: 3, label: '3rd', height: 'h-10', medal: '🥉', accent: 'text-accent', order: 'order-3' },
+  { rank: 1, label: '1st', height: 'h-11 sm:h-20', medal: '🥇', accent: 'text-coin', order: 'order-2' },
+  { rank: 2, label: '2nd', height: 'h-8 sm:h-14', medal: '🥈', accent: 'text-muted', order: 'order-1' },
+  { rank: 3, label: '3rd', height: 'h-6 sm:h-10', medal: '🥉', accent: 'text-accent', order: 'order-3' },
 ] as const;
 
 /**
@@ -149,23 +152,32 @@ export function Podium({ games, onComplete }: MinigameProps) {
         })}
       </div>
 
-      {/* Pool of remaining covers, or the lock-in once three are chosen. */}
-      <div className="mt-4 flex min-h-[calc(var(--cover-zone)*4/3)] w-full max-w-5xl flex-wrap justify-center gap-3 border-t border-border pt-4 sm:mt-7 sm:pt-5">
+      {/* Pool of remaining covers, or the lock-in once three are chosen. On phones the six covers
+          wrapped to two rows, which is one more than `--fit-cap-tall` budgets for — the rail keeps
+          them on a single row at a readable size instead. */}
+      <div className="mt-2 w-full max-w-5xl border-t border-border pt-2 sm:mt-7 sm:pt-5">
         {full ? (
-          <Button onClick={lockIn} disabled={!full}>
-            Lock in podium →
-          </Button>
+          <div className="flex min-h-[calc(var(--cover-zone)*4/3)] justify-center">
+            <Button onClick={lockIn} disabled={!full}>
+              Lock in podium →
+            </Button>
+          </div>
         ) : (
-          pool.map((g) => (
-            <motion.div key={g.igdbId} layout>
-              <DraggableArcadeCard
-                game={g}
-                ariaLabel={g.title}
-                onTap={() => promote(g)}
-                onDropAt={(point) => handleDropAt(g, point)}
-              />
-            </motion.div>
-          ))
+          <CoverRail
+            gridClassName="flex min-h-[calc(var(--cover-zone)*4/3)] flex-wrap justify-center gap-3"
+            hint="Swipe for more"
+          >
+            {pool.map((g) => (
+              <motion.div key={g.igdbId} layout>
+                <DraggableArcadeCard
+                  game={g}
+                  ariaLabel={g.title}
+                  onTap={() => promote(g)}
+                  onDropAt={(point) => handleDropAt(g, point)}
+                />
+              </motion.div>
+            ))}
+          </CoverRail>
         )}
       </div>
     </div>

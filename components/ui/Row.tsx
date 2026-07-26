@@ -59,7 +59,9 @@ export function Row({ tier, children, count, className }: RowProps) {
           <span className="font-mono text-[0.65rem] text-black/60">{count}</span>
         ) : null}
       </div>
-      <div className="flex min-h-[140px] flex-1 items-center gap-2.5 overflow-x-auto py-3 pr-3">
+      {/* `min-w-0` so this `flex-1` strip can shrink below its content and scroll internally
+          instead of widening the row (the parent's `overflow-hidden` was masking it). */}
+      <div className="flex min-h-[140px] min-w-0 flex-1 items-center gap-2.5 overflow-x-auto py-3 pr-3">
         {children}
       </div>
     </div>

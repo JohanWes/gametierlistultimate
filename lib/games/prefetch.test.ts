@@ -31,7 +31,9 @@ describe('prefetchStarterBatch', () => {
 
   it('requests the preset shelf once and caches the resolved batch', async () => {
     const games = [game(1, '/assets/starter/a.jpg'), game(2, '/assets/starter/b.jpg')];
-    const fetchImpl = vi.fn(
+    // Typed via the generic rather than the implementation: a zero-arg implementation makes vi.fn
+    // infer an empty args tuple, and `mock.calls[0][0]` below is then a type error.
+    const fetchImpl = vi.fn<(url: string) => Promise<Response>>(
       async () =>
         new Response(JSON.stringify({ games }), {
           status: 200,
@@ -70,7 +72,7 @@ describe('prefetchAdaptiveBatch', () => {
 
   it('sends seed/exclude/prefs params and caches the resolved batch', async () => {
     const games = [game(10, '/assets/starter/a.jpg'), game(11, '/assets/starter/b.jpg')];
-    const fetchImpl = vi.fn(
+    const fetchImpl = vi.fn<(url: string) => Promise<Response>>(
       async () =>
         new Response(JSON.stringify({ games }), {
           status: 200,

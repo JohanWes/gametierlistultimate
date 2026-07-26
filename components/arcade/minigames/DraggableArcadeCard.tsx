@@ -5,6 +5,9 @@ import { useRef, useState } from 'react';
 
 import type { Game } from '@/lib/games/types';
 import { playSound } from '@/lib/sound';
+import { tapProps } from '@/lib/tap';
+import { useIsMobile } from '@/lib/use-is-mobile';
+import { cn } from '@/lib/utils';
 
 import { ArcadeCard, type ArcadeCardProps, type CardState } from './ArcadeCard';
 
@@ -40,6 +43,13 @@ export function DraggableArcadeCard({
   size = 'zone',
 }: DraggableArcadeCardProps) {
   const reduce = useReducedMotion();
+  // Phones place by tapping, never by dragging. These cards now live inside horizontally
+  // scrolling rails (see CoverRail), and the drag path below owns the gesture completely —
+  // `touch-none`, `preventDefault()` on pointer-down and a pointer capture — so a touch that
+  // started on a cover could never scroll the rail it sits in. Since the covers fill the rail,
+  // that left only the 12px gaps as scrollable surface. Drag stays intact from `sm` up.
+  const isMobile = useIsMobile();
+  const dragEnabled = !reduce && !isMobile;
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const sx = useSpring(x, FOLLOW_SPRING);
@@ -60,7 +70,7 @@ export function DraggableArcadeCard({
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (reduce) return;
+    if (!dragEnabled) return;
     if (e.button !== 0) return;
     e.preventDefault();
     downRef.current = true;
@@ -70,7 +80,7 @@ export function DraggableArcadeCard({
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (reduce || !downRef.current) return;
+    if (!dragEnabled || !downRef.current) return;
     const dx = e.clientX - startRef.current.x;
     const dy = e.clientY - startRef.current.y;
     if (!draggedRef.current && Math.hypot(dx, dy) > DRAG_THRESHOLD) {
@@ -121,22 +131,34 @@ export function DraggableArcadeCard({
 
   const active = picked || dragging;
 
+  // Tap-only on phones: `tapProps` ignores a touch that travelled more than 10px, so a swipe
+  // across the rail scrolls it instead of placing a cover, and `touch-pan-x` hands the horizontal
+  // gesture to the scroll container rather than swallowing it.
+  const gestureProps = dragEnabled
+    ? {
+        onPointerDown: handlePointerDown,
+        onPointerMove: handlePointerMove,
+        onPointerUp: handlePointerUp,
+        onPointerCancel: handlePointerCancel,
+        onClick: handleTapFallback,
+        onTouchEnd: (e: React.TouchEvent) => {
+          e.preventDefault();
+          handleTapFallback();
+        },
+      }
+    : tapProps(onTap);
+
   return (
     <motion.div
       role="button"
       tabIndex={0}
       aria-label={ariaLabel}
-      className="cursor-grab touch-none select-none rounded-tile active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      className={cn(
+        'select-none rounded-tile focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+        dragEnabled ? 'cursor-grab touch-none active:cursor-grabbing' : 'touch-pan-x',
+      )}
       style={reduce ? undefined : { x: sx, y: sy, rotate, zIndex: dragging ? 50 : undefined }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerCancel}
-      onClick={handleTapFallback}
-      onTouchEnd={(e) => {
-        e.preventDefault();
-        handleTapFallback();
-      }}
+      {...gestureProps}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();

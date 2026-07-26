@@ -11,6 +11,7 @@ import { Button } from '../../ui/Button';
 import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
+import { CoverRail } from './CoverRail';
 import { DraggableArcadeCard } from './DraggableArcadeCard';
 import { MinigameHeader } from './MinigameHeader';
 
@@ -71,13 +72,19 @@ export function Lineup({ games, onComplete }: MinigameProps) {
         hint={full ? 'Drag to adjust, then lock it in' : 'Tap in order — best first'}
       />
 
-      {/* Ranking ladder: placed cards (draggable) + numbered empty slots. */}
-      <div className="mb-4 w-full sm:mb-6">
+      {/* Ranking ladder: placed cards (draggable) + numbered empty slots.
+          On phones the five slots wrapped to 3+2 — and with the tray below also wrapping, the round
+          needed four cover rows where `--fit-cap-tall` budgets two. The ladder is a readout of
+          *order*, so it shrinks its covers just enough to stay one row (15vw ≈ 56px at 375px)
+          rather than scrolling; the tray below keeps covers at full size for recognition.
+          Deliberately not a scroll rail: that would put a horizontal drag surface underneath
+          Reorder's horizontal drag. */}
+      <div className="mb-3 w-full sm:mb-6">
         <Reorder.Group
           axis="x"
           values={placed}
           onReorder={setPlaced}
-          className="flex flex-wrap justify-center gap-3"
+          className="flex justify-center gap-2 max-sm:[--cover-lineup:15vw] sm:flex-wrap sm:gap-3"
         >
           {placed.map((game, i) => (
             <Reorder.Item
@@ -114,20 +121,25 @@ export function Lineup({ games, onComplete }: MinigameProps) {
         </Reorder.Group>
       </div>
 
-      {/* Unplaced pool. */}
+      {/* Unplaced pool — one rail row on phones, wrapping grid from `sm` up. */}
       {remaining.length > 0 ? (
-        <div className="flex flex-wrap justify-center gap-3 border-t border-border pt-4 sm:pt-5">
-          {remaining.map((game) => (
-            <motion.div key={game.igdbId} layout>
-              <DraggableArcadeCard
-                game={game}
-                ariaLabel={game.title}
-                onTap={() => place(game)}
-                onDropAt={(point) => handleDropAt(game, point)}
-                size="lineup"
-              />
-            </motion.div>
-          ))}
+        <div className="w-full border-t border-border pt-3 sm:pt-5">
+          <CoverRail
+            gridClassName="flex flex-wrap justify-center gap-3"
+            hint="Swipe for more"
+          >
+            {remaining.map((game) => (
+              <motion.div key={game.igdbId} layout>
+                <DraggableArcadeCard
+                  game={game}
+                  ariaLabel={game.title}
+                  onTap={() => place(game)}
+                  onDropAt={(point) => handleDropAt(game, point)}
+                  size="lineup"
+                />
+              </motion.div>
+            ))}
+          </CoverRail>
         </div>
       ) : (
         <Button onClick={lockIn} disabled={!full}>

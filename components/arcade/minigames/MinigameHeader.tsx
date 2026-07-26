@@ -25,7 +25,7 @@ export interface MinigameHeaderProps {
  */
 export function MinigameHeader({ eyebrow, title, hint, tone = 'teal' }: MinigameHeaderProps) {
   return (
-    <header className="mb-2.5 text-center sm:mb-4">
+    <header className="mb-1.5 text-center sm:mb-4">
       {eyebrow ? (
         <p
           className={cn(
@@ -42,7 +42,7 @@ export function MinigameHeader({ eyebrow, title, hint, tone = 'teal' }: Minigame
       {hint ? (
         // The actionable instruction — readable sans, not a tracked-mono label, so it leads over the
         // flavor eyebrow and a skimmer can't mis-play the round.
-        <p className="mt-1.5 text-sm font-medium text-fg/80">{hint}</p>
+        <p className="mt-1 text-sm font-medium text-fg/80 sm:mt-1.5">{hint}</p>
       ) : null}
     </header>
   );

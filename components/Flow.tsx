@@ -21,6 +21,13 @@ const SCREENS: Record<Step, () => React.JSX.Element> = {
 };
 
 /**
+ * The playfield steps: repeated-decision surfaces where the controls must stay reachable without
+ * scrolling, so the shell is locked to the viewport (see `AppShell.contained`). The other three
+ * are read top-to-bottom once and keep normal document scrolling.
+ */
+const CONTAINED_STEPS = new Set<Step>(['pool', 'arcade']);
+
+/**
  * One-shot CRT power-on played over the first paint of the welcome screen: a bright beam
  * snaps across black, the shutters open, a phosphor bloom flares, and the overlay retires
  * itself. Pure CSS (`.boot-*` in globals.css). A timeout — not `animationend` — removes it,
@@ -87,7 +94,11 @@ export function Flow() {
   return (
     <>
       {boot === 'active' ? <CrtBoot onDone={() => setBoot('done')} /> : null}
-      <AppShell showProgress={step !== 'welcome'} wide={step === 'arcade'}>
+      <AppShell
+        showProgress={step !== 'welcome'}
+        wide={step === 'arcade'}
+        contained={CONTAINED_STEPS.has(step)}
+      >
         {STEP_ORDER.map((s) => {
           if (!visited.has(s)) return null;
           const Screen = SCREENS[s];
@@ -96,7 +107,10 @@ export function Flow() {
             <motion.div
               key={s}
               hidden={!active}
-              className={active ? 'flex flex-1 flex-col' : undefined}
+              // `min-h-0` continues the chain started in AppShell: without it this wrapper's
+              // default `min-height: auto` would refuse to shrink to the shell, and the step's
+              // action bar would be pushed straight back off the bottom of the viewport.
+              className={active ? 'flex min-h-0 flex-1 flex-col' : undefined}
               initial={reduce ? false : { opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25, ease: 'easeOut' }}

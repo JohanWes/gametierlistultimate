@@ -11,6 +11,7 @@ import { Button } from '../../ui/Button';
 import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard } from './ArcadeCard';
+import { CoverRail } from './CoverRail';
 import { DraggableArcadeCard } from './DraggableArcadeCard';
 import { MinigameHeader } from './MinigameHeader';
 
@@ -171,23 +172,30 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
         })}
       </div>
 
-      {/* Tray of unplaced covers */}
-      <div className="mt-4 flex min-h-[calc(var(--cover-zone)*4/3)] w-full max-w-6xl flex-wrap justify-center gap-3 border-t border-border pt-4 sm:mt-6 sm:pt-5">
+      {/* Tray of unplaced covers — a rail on phones so it stays one row (see Podium). */}
+      <div className="mt-4 w-full max-w-6xl border-t border-border pt-4 sm:mt-6 sm:pt-5">
         {tray.length > 0 ? (
-          tray.map((g) => (
-            <DraggableArcadeCard
-              key={g.igdbId}
-              game={g}
-              ariaLabel={`Place ${g.title}`}
-              picked={picked === g.igdbId}
-              onTap={() => tapCard(g.igdbId)}
-              onDropAt={(point) => handleDropAt(g.igdbId, point)}
-            />
-          ))
+          <CoverRail
+            gridClassName="flex min-h-[calc(var(--cover-zone)*4/3)] flex-wrap justify-center gap-3"
+            hint="Swipe for more"
+          >
+            {tray.map((g) => (
+              <DraggableArcadeCard
+                key={g.igdbId}
+                game={g}
+                ariaLabel={`Place ${g.title}`}
+                picked={picked === g.igdbId}
+                onTap={() => tapCard(g.igdbId)}
+                onDropAt={(point) => handleDropAt(g.igdbId, point)}
+              />
+            ))}
+          </CoverRail>
         ) : (
-          <Button onClick={lockIn} disabled={!allPlaced}>
-            Lock in buckets →
-          </Button>
+          <div className="flex min-h-[calc(var(--cover-zone)*4/3)] justify-center">
+            <Button onClick={lockIn} disabled={!allPlaced}>
+              Lock in buckets →
+            </Button>
+          </div>
         )}
       </div>
     </div>

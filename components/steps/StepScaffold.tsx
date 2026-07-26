@@ -43,16 +43,18 @@ export function StepScaffold({
 
   if (compact) {
     return (
-      <div className="flex flex-1 flex-col">
-        <div className="flex w-full flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-border/70 pb-3">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex w-full shrink-0 flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-border/70 pb-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              {/* The step eyebrow duplicates the header's progress rail; on a phone this is a
+                  playfield step, so the row it costs is worth more as cover art. */}
               {eyebrow ? (
-                <p className="font-mono text-[0.7rem] uppercase tracking-[0.22em] text-teal">
+                <p className="hidden font-mono text-[0.7rem] uppercase tracking-[0.22em] text-teal sm:block">
                   {eyebrow}
                 </p>
               ) : null}
-              <h1 className="font-display text-xl font-black uppercase leading-none tracking-[0.02em] text-fg sm:text-3xl">
+              <h1 className="font-display text-lg font-black uppercase leading-none tracking-[0.02em] text-fg sm:text-3xl">
                 {title}
               </h1>
             </div>
@@ -65,9 +67,14 @@ export function StepScaffold({
           {headerAside ? <div className="shrink-0">{headerAside}</div> : null}
         </div>
 
-        {children ? <div className="mt-4 flex w-full flex-1 flex-col">{children}</div> : null}
+        {children ? (
+          <div className="mt-3 flex min-h-0 w-full flex-1 flex-col sm:mt-4">{children}</div>
+        ) : null}
 
-        <div className="mt-auto flex w-full items-center justify-between gap-3 pt-3 sm:pt-5">
+        {/* Action bar: `shrink-0` is what actually pins it — the playfield above absorbs every
+            pixel of slack, so this row can never be pushed below the fold. The safe-area pad
+            keeps it clear of the iOS home indicator once the shell owns the viewport. */}
+        <div className="mt-auto flex w-full shrink-0 items-center justify-between gap-3 pb-[env(safe-area-inset-bottom)] pt-3 sm:pt-5">
           {hideBack ? (
             <span />
           ) : (

@@ -421,10 +421,15 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
       nextDisabled={poolCount < MIN_POOL}
       headerAside={<RosterMeter compact count={poolCount} />}
     >
-      <div className="flex flex-1 flex-col gap-4">
-        <ManualSearch fetchImpl={fetchImpl} />
+      <div className="flex min-h-0 flex-1 flex-col gap-3 sm:gap-4">
+        <div className="shrink-0">
+          <ManualSearch fetchImpl={fetchImpl} />
+        </div>
 
-        <div className="flex min-h-[18rem] flex-1 flex-col justify-center">
+        {/* The playfield. `min-h-0` lets it shrink to whatever the shell leaves over, which is what
+            the mobile swipe deck measures itself against; the `sm:` floor keeps the desktop grid
+            from collapsing on a short window. */}
+        <div className="flex min-h-0 flex-1 flex-col justify-center sm:min-h-[18rem]">
           {isMobile ? (
             <PoolSwipeDeck
               slots={slots}

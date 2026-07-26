@@ -39,7 +39,7 @@ export function ReplayTest({ games, onComplete }: MinigameProps) {
 
       <ArcadeCard game={game} size="solo" state={chosen === 'immediately' ? 'win' : 'idle'} />
 
-      <div className="mt-7 grid w-full max-w-md grid-cols-2 gap-2.5">
+      <div className="mt-4 grid w-full max-w-md grid-cols-2 gap-2.5 sm:mt-7">
         {ANSWERS.map(({ answer, label, tone }) => (
           <button
             key={answer}

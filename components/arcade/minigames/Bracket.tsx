@@ -85,8 +85,12 @@ export function Bracket({ games, onComplete }: MinigameProps) {
 
   // Active hero cards: enlarged cover (real, not scaled — keeps titles crisp), lift, glow. Final
   // uses teal so the last duel reads distinctly from the amber-beat semis (mirrors Great Showdown).
+  // The cover enlargement is `sm:`-only. Side by side (tablet/desktop) the bracket is two columns
+  // and the grown pair costs nothing vertically; stacked on a phone it is three cover rows deep,
+  // and growing one of them alone overflowed the playfield by ~100px. The glow, lift and border
+  // still mark which bout is live, so nothing is lost but the size jump.
   const heroClasses = cn(
-    'z-20 -translate-y-1 [--cover-zone:var(--cover-bracket-active)]',
+    'z-20 -translate-y-1 sm:[--cover-zone:var(--cover-bracket-active)]',
     stageIsFinal
       ? 'border-teal/80 bg-teal/5 shadow-[0_18px_50px_rgb(0_0_0/0.42),0_0_38px_rgb(var(--color-teal)/0.32)]'
       : 'border-accent/70 bg-accent/5 shadow-[0_18px_50px_rgb(0_0_0/0.42),0_0_38px_rgb(var(--color-accent)/0.32)]',
@@ -150,8 +154,12 @@ export function Bracket({ games, onComplete }: MinigameProps) {
 
       {/* Bracket: two semis on the left feed the final on the right. On phones the final stacks
           below the semis so the board stays ~2 covers wide instead of overflowing. */}
-      <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start sm:gap-6">
-        <div className="flex flex-col items-start gap-6">
+      {/* Stacked on phones this is three cover rows (two semis + the final), but `--cover-zone` is
+          sized for the two-row boards it was designed against. The `max-sm` override re-derives it
+          for three rows so the whole bracket fits without a scroll; from `sm` up the layout is two
+          columns and the normal token applies. */}
+      <div className="flex flex-col items-center gap-2 max-sm:[--cover-zone:10.5vh] sm:flex-row sm:items-start sm:gap-6">
+        <div className="flex flex-col items-start gap-2 sm:gap-6">
           {(['semi1', 'semi2'] as const).map((st) => {
             const isActive = stage === st && showActive;
             const isDecided = stage !== st;
@@ -163,7 +171,7 @@ export function Bracket({ games, onComplete }: MinigameProps) {
                 data-active={isActive ? 'true' : 'false'}
                 transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 30 }}
                 className={cn(
-                  'relative flex gap-2 rounded-tile border p-2',
+                  'relative flex gap-2 rounded-tile border p-1.5 sm:p-2',
                   'transition-[opacity,border-color,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]',
                   isActive ? heroClasses : cn(dimClasses, isDecided ? 'border-border' : 'border-dashed border-border/60'),
                 )}
@@ -186,7 +194,7 @@ export function Bracket({ games, onComplete }: MinigameProps) {
         </div>
 
         {/* Connector + final */}
-        <div aria-hidden className="h-4 w-px bg-border sm:h-px sm:w-8" />
+        <div aria-hidden className="h-2 w-px bg-border sm:h-px sm:w-8" />
 
         <motion.div
           layout={!reduce}
@@ -194,7 +202,7 @@ export function Bracket({ games, onComplete }: MinigameProps) {
           data-active={stage === 'final' && showActive ? 'true' : 'false'}
           transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 30 }}
           className={cn(
-            'relative flex min-h-[calc(var(--cover-zone)*4/3_+_1rem)] items-center gap-2 rounded-tile border p-2',
+            'relative flex min-h-[calc(var(--cover-zone)*4/3_+_0.5rem)] items-center gap-2 rounded-tile border p-1.5 sm:min-h-[calc(var(--cover-zone)*4/3_+_1rem)] sm:p-2',
             'transition-[opacity,border-color,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]',
             stage === 'final' && showActive
               ? heroClasses

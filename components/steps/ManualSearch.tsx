@@ -71,7 +71,10 @@ export function ManualSearch({ fetchImpl }: ManualSearchProps) {
   const added = new Set(pool.map((e) => e.game.igdbId));
 
   return (
-    <div>
+    // `relative` anchors the results dropdown below. The results *overlay* the playfield rather
+    // than pushing it: they're a transient list, and in the contained pool shell every pixel they
+    // pushed came straight out of the swipe card (which collapsed to ~4px with results open).
+    <div className="relative">
       <label className="flex items-center gap-2.5 rounded-tile border border-border bg-bg px-3 py-2 shadow-soft focus-within:border-teal/70">
         <span aria-hidden className="font-mono text-sm text-muted">
           ⌕
@@ -100,14 +103,16 @@ export function ManualSearch({ fetchImpl }: ManualSearchProps) {
             initial={reduce ? false : { opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, height: 0 }}
-            className="overflow-hidden"
+            className="absolute inset-x-0 top-full z-30 mt-1.5 overflow-hidden rounded-tile border border-border bg-panel p-1.5 shadow-cabinet"
           >
             {searched && results.length === 0 && !loading ? (
-              <p className="px-1 pt-3 text-sm text-muted">
+              <p className="px-1 py-1.5 text-sm text-muted">
                 No matches for “{query.trim()}”. Try a different spelling or a shorter name.
               </p>
             ) : (
-              <ul className="mt-3 flex max-h-72 flex-col gap-1.5 overflow-y-auto pr-1">
+              // Viewport-relative cap so the dropdown can never run past the bottom of a short
+              // phone; it scrolls internally instead.
+              <ul className="flex max-h-[min(18rem,42svh)] flex-col gap-1.5 overflow-y-auto pr-1">
                 {results.map((game) => {
                   const isAdded = added.has(game.igdbId);
                   return (

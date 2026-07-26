@@ -36,8 +36,19 @@ const DRAG_THRESHOLD = 6;
  */
 const SWIPE_FOLLOW = { stiffness: 700, damping: 45, mass: 0.6 } as const;
 
+/**
+ * The card fills the playfield's height and derives its width from the 3:4 boxart aspect, so it is
+ * sized by the space that actually exists rather than by a `vw` guess (the old `min(82vw,20rem)`
+ * produced a 410px-tall card on a 375px phone and pushed the ✓/✕ buttons ~150px below the fold).
+ * The max-width is only a guard for short-and-wide viewports (landscape phones), where height
+ * alone would make the card wider than the panel.
+ */
+export const HERO_SIZE = 'h-full max-w-[min(82vw,20rem)] w-auto aspect-[3/4]';
+
 export interface PoolSwipeCardProps {
   game: Game;
+  /** The next card in the queue, drawn behind this one for the stacked-deck feel. */
+  peek?: Game;
   /** Injected RNG in [0, 1); defaults to Math.random. */
   random?: () => number;
   onDecide: (action: PoolDecision) => void;
@@ -55,7 +66,13 @@ export interface PoolSwipeCardProps {
  * Dragging uses Framer Motion's built-in pointer/touch handling (it sets the right `touch-action`
  * and pointer capture) so a horizontal swipe is never mistaken for a page scroll.
  */
-export function PoolSwipeCard({ game, random = Math.random, onDecide, onWatch }: PoolSwipeCardProps) {
+export function PoolSwipeCard({
+  game,
+  peek,
+  random = Math.random,
+  onDecide,
+  onWatch,
+}: PoolSwipeCardProps) {
   const reduce = useReducedMotion();
   const { picking, playedRollHits, reject, chooseStatus } = usePoolDecision({
     game,
@@ -159,61 +176,86 @@ export function PoolSwipeCard({ game, random = Math.random, onDecide, onWatch }:
   };
 
   return (
-    <div className="flex w-full flex-col items-center gap-5">
-      <motion.div
-        ref={cardRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerCancel}
-        onClick={handleClick}
-        className={cn(
-          'relative z-10 w-[min(82vw,20rem)] select-none overflow-hidden rounded-card border-2 border-border bg-surface shadow-lift',
-          reduce || picking ? undefined : 'cursor-grab touch-pan-y active:cursor-grabbing',
-        )}
-        style={reduce ? undefined : { x: sx, rotate }}
-      >
-        <GameCard
-          game={game}
-          showTitle={false}
-          size="lg"
-          eager
-          className="pointer-events-none w-full rounded-none border-0 shadow-none"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-[34%] bg-gradient-to-t from-black/95 via-black/70 via-45% to-transparent"
-        />
-        {hasCover ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 px-4 text-center">
-            <p className="line-clamp-2 text-sm font-semibold leading-tight text-fg drop-shadow-[0_2px_3px_rgb(0_0_0/0.95)]">
-              {game.title}
-            </p>
+    <div className="flex h-full min-h-0 w-full flex-col items-center gap-3">
+      {/* Card slot: takes every spare pixel, which is what sizes the cover. */}
+      <div className="relative flex min-h-0 w-full flex-1 justify-center">
+        {peek ? (
+          <div aria-hidden className="pointer-events-none absolute inset-0 flex justify-center">
+            <div className={cn(HERO_SIZE, 'translate-y-3 scale-[0.92] opacity-50')}>
+              <GameCard
+                game={peek}
+                showTitle={false}
+                size="lg"
+                eager
+                className="h-full w-full rounded-card border-2 border-border"
+              />
+            </div>
           </div>
         ) : null}
+        <motion.div
+          ref={cardRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
+          onClick={handleClick}
+          className={cn(
+            'relative z-10 select-none overflow-hidden rounded-card border-2 border-border bg-surface shadow-lift',
+            HERO_SIZE,
+            reduce || picking ? undefined : 'cursor-grab touch-pan-y active:cursor-grabbing',
+          )}
+          style={reduce ? undefined : { x: sx, rotate }}
+        >
+          <GameCard
+            game={game}
+            showTitle={false}
+            size="lg"
+            eager
+            className="pointer-events-none h-full w-full rounded-none border-0 shadow-none"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-[34%] bg-gradient-to-t from-black/95 via-black/70 via-45% to-transparent"
+          />
+          {hasCover ? (
+            <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 px-4 text-center">
+              <p className="line-clamp-2 text-sm font-semibold leading-tight text-fg drop-shadow-[0_2px_3px_rgb(0_0_0/0.95)]">
+                {game.title}
+              </p>
+            </div>
+          ) : null}
 
-        {reduce ? null : (
-          <>
-            <motion.span
-              aria-hidden
-              style={{ opacity: playedOpacity }}
-              className="pointer-events-none absolute left-4 top-4 z-30 -rotate-12 rounded-tile border-[3px] border-tier-c bg-black/40 px-3 py-1 font-display text-2xl font-black uppercase tracking-[0.08em] text-tier-c"
-            >
-              Played it
-            </motion.span>
-            <motion.span
-              aria-hidden
-              style={{ opacity: passOpacity }}
-              className="pointer-events-none absolute right-4 top-4 z-30 rotate-12 rounded-tile border-[3px] border-coin bg-black/40 px-3 py-1 font-display text-2xl font-black uppercase tracking-[0.08em] text-coin"
-            >
-              Pass
-            </motion.span>
-          </>
+          {reduce ? null : (
+            <>
+              <motion.span
+                aria-hidden
+                style={{ opacity: playedOpacity }}
+                className="pointer-events-none absolute left-4 top-4 z-30 -rotate-12 rounded-tile border-[3px] border-tier-c bg-black/40 px-3 py-1 font-display text-2xl font-black uppercase tracking-[0.08em] text-tier-c"
+              >
+                Played it
+              </motion.span>
+              <motion.span
+                aria-hidden
+                style={{ opacity: passOpacity }}
+                className="pointer-events-none absolute right-4 top-4 z-30 rotate-12 rounded-tile border-[3px] border-coin bg-black/40 px-3 py-1 font-display text-2xl font-black uppercase tracking-[0.08em] text-coin"
+              >
+                Pass
+              </motion.span>
+            </>
+          )}
+        </motion.div>
+      </div>
+
+      {/* Action row: `shrink-0`, so it holds its place no matter how tall the cover slot gets.
+          While the spotlight sheet is open it goes `invisible` rather than unmounting — removing
+          it would hand its height back to the flex-1 cover slot and visibly resize the card
+          behind the sheet. */}
+      <div
+        className={cn(
+          'flex shrink-0 items-start gap-10 pb-1',
+          picking && 'pointer-events-none invisible',
         )}
-      </motion.div>
-
-      {picking ? null : (
-        <div className="flex items-start gap-10">
+      >
           <div className="flex flex-col items-center gap-1.5">
             <button
               type="button"
@@ -236,8 +278,7 @@ export function PoolSwipeCard({ game, random = Math.random, onDecide, onWatch }:
             </button>
             <span className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-muted">Played it</span>
           </div>
-        </div>
-      )}
+      </div>
 
       {typeof document !== 'undefined' &&
         createPortal(

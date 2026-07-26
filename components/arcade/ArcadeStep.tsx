@@ -175,8 +175,8 @@ export function ArcadeStep() {
   const Minigame = view ? MINIGAMES[view.kind] : null;
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="flex flex-col gap-2 border-b border-border/70 pb-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:pb-3">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 flex-col gap-2 border-b border-border/70 pb-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:pb-3">
         <div className="flex items-center gap-3">
           <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-teal">
             <span className="sm:hidden">Arcade</span>
@@ -189,7 +189,10 @@ export function ArcadeStep() {
         </div>
       </div>
 
-      <div className="relative mt-3 flex flex-1 items-center justify-center sm:mt-5">
+      {/* Playfield: absorbs all the slack, and is the only thing allowed to scroll if a minigame
+          still can't fit (very short landscape). `overflow-y-auto` keeps that scroll inside the
+          cabinet frame instead of dragging the header and action bar off-screen with it. */}
+      <div className="relative mt-3 flex min-h-0 flex-1 items-center justify-center overflow-y-auto overflow-x-hidden [container-type:size] sm:mt-5">
         <RemoveGameProvider value={setPendingRemoval}>
           <AnimatePresence mode="wait">
             {Minigame && view ? (
@@ -215,8 +218,8 @@ export function ArcadeStep() {
         </RemoveGameProvider>
       </div>
 
-      <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/70 pt-3 sm:mt-5 sm:pt-4">
-        <Button variant="ghost" onClick={goBack}>
+      <div className="mt-3 flex shrink-0 items-center justify-between gap-2 border-t border-border/70 pb-[env(safe-area-inset-bottom)] pt-3 sm:mt-5 sm:gap-3 sm:pt-4">
+        <Button variant="ghost" onClick={goBack} className="px-3 sm:px-5">
           ← Games
         </Button>
 
@@ -224,9 +227,10 @@ export function ArcadeStep() {
           <button
             type="button"
             {...tapProps(() => advance([{ type: 'skip', gameIds: view.games.map((g) => g.igdbId) }]))}
-            className="select-none rounded-tile px-3 py-1.5 font-mono text-xs uppercase tracking-[0.16em] text-muted transition-colors hover:text-fg focus-visible:outline-none"
+            className="select-none whitespace-nowrap rounded-tile px-2 py-1.5 font-mono text-xs uppercase tracking-[0.16em] text-muted transition-colors hover:text-fg focus-visible:outline-none sm:px-3"
           >
-            Skip round
+            Skip
+            <span className="hidden sm:inline"> round</span>
           </button>
         ) : (
           <span />
@@ -284,13 +288,18 @@ function RevealCta({
     return (
       <motion.span
         className={cn(
-          'font-mono text-[0.7rem] uppercase tracking-[0.16em]',
+          'text-right font-mono text-[0.7rem] uppercase tracking-[0.16em]',
           near ? 'text-teal' : 'text-muted/70',
         )}
         animate={near && !reduce ? { opacity: [0.6, 1, 0.6] } : { opacity: 1 }}
         transition={near && !reduce ? { duration: 1.6, repeat: Infinity, ease: 'easeInOut' } : undefined}
       >
-        {near ? 'Almost there — keep playing' : 'Keep playing to unlock'}
+        {/* Short form on phones — the full sentence wraps to two lines next to Back + Skip at
+            375px, which visibly grows the action bar. */}
+        <span className="sm:hidden">{near ? 'Almost there' : 'Keep playing'}</span>
+        <span className="hidden sm:inline">
+          {near ? 'Almost there — keep playing' : 'Keep playing to unlock'}
+        </span>
       </motion.span>
     );
   }
@@ -319,7 +328,9 @@ function RevealCta({
         }
         transition={reduce ? undefined : { duration: 2, repeat: Infinity, ease: 'easeInOut' }}
       >
-        <Button onClick={onReveal}>Reveal my tier list →</Button>
+        <Button onClick={onReveal} className="whitespace-nowrap px-4 sm:px-5">
+          Reveal<span className="hidden sm:inline"> my tier list</span> →
+        </Button>
       </motion.div>
     </motion.div>
   );

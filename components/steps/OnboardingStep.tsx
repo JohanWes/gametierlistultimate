@@ -110,10 +110,13 @@ export function OnboardingStep() {
       <p className="mb-2 mt-5 font-mono text-xs uppercase tracking-[0.22em] text-muted sm:mb-3 sm:mt-8">
         Tune the vibe
       </p>
-      <div className="grid gap-2.5 sm:grid-cols-2">
+      {/* Two columns on every size: six full-width rows with descriptions ran ~420px on a phone,
+          which was most of why this step needed scrolling. */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
         {FLAGS.map((f) => (
           <Toggle
             key={f.key}
+            compact
             label={f.label}
             description={f.description}
             checked={!!flags[f.key]}

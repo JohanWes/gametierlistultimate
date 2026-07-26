@@ -143,12 +143,15 @@ export function WelcomeStep() {
       variants={container}
       initial="hidden"
       animate="show"
-      className="grid flex-1 items-center gap-4 py-1 text-center sm:gap-8 sm:py-2 lg:grid-cols-2 lg:gap-12 lg:text-left"
+      // Mobile is a single ordered column (headline → CTA → cabinet → explainer); `lg` restores the
+      // original two-column composition, now over three rows since the CTA and the explainer are
+      // separate grid items rather than one stacked block.
+      className="flex flex-1 flex-col items-center gap-4 py-1 text-center sm:gap-6 sm:py-2 lg:grid lg:grid-cols-2 lg:grid-rows-[auto_auto_auto] lg:items-center lg:gap-x-12 lg:gap-y-6 lg:text-left"
     >
       {/* Headline — row 1, left column on desktop; first on mobile. */}
       <motion.div
         variants={item}
-        className="flex flex-col items-center lg:col-start-1 lg:row-start-1 lg:items-start"
+        className="order-1 flex flex-col items-center lg:order-none lg:col-start-1 lg:row-start-1 lg:items-start"
       >
         <h1 className="font-display text-4xl font-black uppercase leading-[0.9] tracking-[0.02em] text-fg sm:text-6xl">
           Game Tier List Ultimate
@@ -159,30 +162,38 @@ export function WelcomeStep() {
         <SpectrumRule />
       </motion.div>
 
-      {/* Cabinet — right column spanning both rows on desktop; second on mobile (the eye-catcher). */}
+      {/* CTA — on mobile this is pulled above the cabinet so "Insert coin" is reachable without
+          scrolling past seven cabinet rows and four explainer cards; the cabinet and the
+          explainer then continue below for anyone who wants them. Welcome is a one-time screen,
+          so scrolling *is* fine here — being unable to start without it was not. On desktop the
+          original order is restored via grid placement. */}
       <motion.div
         variants={item}
-        className="w-full lg:col-start-2 lg:row-span-2 lg:self-center"
+        className="relative order-2 mx-auto lg:order-none lg:col-start-1 lg:row-start-3 lg:mx-0 lg:justify-self-start"
+      >
+        {!reduce ? (
+          <span
+            aria-hidden
+            className="absolute -inset-1 rounded-control bg-accent/30 blur-md animate-pulse-glow"
+          />
+        ) : null}
+        <StartButton />
+      </motion.div>
+
+      {/* Cabinet — right column spanning both rows on desktop; below the CTA on mobile. */}
+      <motion.div
+        variants={item}
+        className="order-3 w-full lg:order-none lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:self-center"
       >
         <AttractCabinet active={step === 'welcome'} />
       </motion.div>
 
-      {/* How it works + CTA — row 2, left column on desktop; last on mobile. */}
-      <div className="flex flex-col items-center gap-4 sm:gap-6 lg:col-start-1 lg:row-start-2 lg:items-start">
-        <motion.div variants={item} className="w-full max-w-xl">
-          <HowItWorks itemVariants={item} />
-        </motion.div>
-
-        <motion.div variants={item} className="relative">
-          {!reduce ? (
-            <span
-              aria-hidden
-              className="absolute -inset-1 rounded-control bg-accent/30 blur-md animate-pulse-glow"
-            />
-          ) : null}
-          <StartButton />
-        </motion.div>
-      </div>
+      <motion.div
+        variants={item}
+        className="order-4 w-full max-w-xl lg:order-none lg:col-start-1 lg:row-start-2 lg:self-start"
+      >
+        <HowItWorks itemVariants={item} />
+      </motion.div>
     </motion.div>
   );
 }

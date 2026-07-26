@@ -50,12 +50,31 @@
    * stops covers collapsing to unusable sizes on extreme (very short landscape) viewports; there the
    * playfield may scroll a little rather than vanish.
    */
-  --fit-cap: max(3rem, calc((100dvh - 20rem) * 0.72)); /* single row of hero covers */
-  --fit-cap-tall: max(3rem, calc((100dvh - 23rem) * 0.4)); /* games that stack two cover rows */
-  --fit-cap-pool: max(3.5rem, calc((100dvh - 23rem) * 0.72)); /* pool builder: card + action bar below */
+  /*
+   * The arcade caps measure the *playfield* (`100cqh` — the size container declared on the arcade's
+   * round area) rather than the viewport. This replaces a guessed chrome budget: the old form
+   * subtracted a hardcoded 20–23rem for header + step header + action bar + paddings, which drifted
+   * out of date and left several minigames overflowing on short phones. The only thing still
+   * subtracted is the minigame's own header, which lives *inside* the playfield.
+   *
+   * Card height = width * 4/3, so a row of covers costs `width * 1.33` of vertical space; the
+   * multipliers below invert that (0.72 ≈ 1/1.33 with margin, halved again for two-row boards).
+   */
+  --fit-cap: max(3rem, calc((100cqh - 5.5rem) * 0.72)); /* single row of hero covers */
+  --fit-cap-tall: max(3rem, calc((100cqh - 7.5rem) * 0.34)); /* games that stack two cover rows */
+  /* The pool builder's mobile card sizes itself off its flex slot (see PoolSwipeCard), so this cap
+     only feeds the desktop 3-up grid — it stays viewport-based. `svh` (smallest viewport height,
+     browser chrome expanded) rather than `dvh` so a cover never resizes under the player's finger
+     when the mobile URL bar collapses mid-swipe. */
+  --fit-cap-pool: max(3.5rem, calc((100svh - 23rem) * 0.72));
 
-  --cover-zone: min(24vw, clamp(6rem, 11.5vh, 8.75rem), var(--fit-cap-tall)); /* bucket/higher-lower/podium/bracket/vibe — kept lean: these stack dense zones */
-  --cover-lineup: min(24vw, clamp(6rem, 12.5vh, 9rem), var(--fit-cap-tall)); /* lineup: two rows of exactly five covers, so it can breathe more than dense zones */
+  /* The `clamp()` lower bound is the floor below which the *viewport-height* term stops shrinking.
+     At 6rem (96px) that term bottomed out well above what a 667px-tall phone can spare, so the
+     cover size came down to the `24vw` and fit-cap terms alone and stayed too large. Lowering it to
+     4.5rem lets the `vh` term keep tracking the screen on small viewports. (The floor never blocked
+     the fit cap itself — these are all arguments to one `min()`, so the smallest always wins.) */
+  --cover-zone: min(24vw, clamp(4.5rem, 11.5vh, 8.75rem), var(--fit-cap-tall)); /* bucket/higher-lower/podium/bracket/vibe — kept lean: these stack dense zones */
+  --cover-lineup: min(24vw, clamp(4.5rem, 12.5vh, 9rem), var(--fit-cap-tall)); /* lineup: two rows of exactly five covers, so it can breathe more than dense zones */
   --cover-row: min(44vw, clamp(6rem, 18vh, 13rem), var(--fit-cap)); /* champion/keep-two/sacrifice — on phones these render as a swipe rail (CoverRail), so the wider vw shows ~2 covers + a peek; sm/lg below revert to grid widths */
   --cover-duo: min(34vw, clamp(7rem, 24vh, 14rem), var(--fit-cap)); /* two-up versus: duel/rivalry/promotion, gauntlet */
   --cover-solo: min(60vw, clamp(7.5rem, 26vh, 14rem), var(--fit-cap)); /* single hero card: replay test */

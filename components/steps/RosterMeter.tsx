@@ -108,7 +108,10 @@ export function RosterMeter({ count, className, compact = false }: RosterMeterPr
           })}
         </div>
 
-        <p className="text-[0.62rem] leading-snug text-muted">{line}</p>
+        {/* The coaching line is two wrapped lines on a phone (~30px) and largely restates the
+            count + band chip above it, so on the pool step — where every pixel is cover art —
+            it only shows once there's room. */}
+        <p className="hidden text-[0.62rem] leading-snug text-muted sm:block">{line}</p>
       </div>
     );
   }

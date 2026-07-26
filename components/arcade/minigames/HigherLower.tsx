@@ -155,7 +155,9 @@ export function HigherLower({ games, anchorId, onComplete }: MinigameProps) {
         tone="teal"
         eyebrow="The scale"
         title="Where do these land?"
-        hint="Drag both covers onto the scale — left is bad, right is great"
+        // The "left is bad, right is great" half wrapped to a second line on phones and only
+        // restated the Bad / Mid / Great labels printed directly under the bands.
+        hint="Drag both covers onto the scale"
       />
 
       {/* The scale: 3 drop zones in a row, with the ruler bar + labels directly beneath. */}
@@ -182,7 +184,7 @@ export function HigherLower({ games, anchorId, onComplete }: MinigameProps) {
                 animate={pulsed === i ? { scale: [1, 1.03, 1] } : { scale: 1 }}
                 transition={{ duration: 0.36 }}
                 className={cn(
-                  'flex min-h-[calc(var(--cover-zone)*4/3_+_0.75rem)] flex-col items-center justify-center rounded-tile border p-2 transition-colors',
+                  'flex min-h-[calc(var(--cover-zone)*4/3_+_0.25rem)] flex-col items-center justify-center rounded-tile border p-1.5 transition-colors sm:min-h-[calc(var(--cover-zone)*4/3_+_0.75rem)] sm:p-2',
                   contents.length > 0
                     ? 'border-border/70 bg-surface/15'
                     : 'border-dashed border-border/40',
@@ -240,12 +242,19 @@ export function HigherLower({ games, anchorId, onComplete }: MinigameProps) {
       </div>
 
       {/* Live readout — tells the player what their placement means right now. */}
-      <p className="mt-4 min-h-5 text-center font-display text-sm font-bold uppercase tracking-[0.06em] text-fg">
+      <p className="mt-2 min-h-5 text-center font-display text-sm font-bold uppercase tracking-[0.06em] text-fg sm:mt-4">
         {readout}
       </p>
 
-      {/* Tray of unplaced covers (or a nudge once both are down). */}
-      <div className="mt-4 flex min-h-[calc(var(--cover-zone)*4/3)] w-full max-w-2xl flex-wrap items-center justify-center gap-3 border-t border-border pt-4">
+      {/* Tray of unplaced covers (or a nudge once both are down). Only two covers here, so this
+          never wraps — the height came from the fixed `min-h` reserving a full cover row even
+          when the tray is empty. It now only reserves that space while covers are in it. */}
+      <div
+        className={cn(
+          'mt-3 flex w-full max-w-2xl flex-wrap items-center justify-center gap-3 border-t border-border pt-3 sm:mt-4 sm:pt-4',
+          tray.length > 0 && 'min-h-[calc(var(--cover-zone)*4/3)]',
+        )}
+      >
         {tray.length > 0 ? (
           tray.map((g) => (
             <DraggableArcadeCard
@@ -265,7 +274,7 @@ export function HigherLower({ games, anchorId, onComplete }: MinigameProps) {
       </div>
 
       {/* Persistent actions: lock in the placement, or skip the round. */}
-      <div className="mt-4 flex items-center justify-center gap-2.5">
+      <div className="mt-2 flex items-center justify-center gap-2.5 sm:mt-4">
         <Button onClick={lockIn} disabled={!allPlaced}>
           Lock in placement →
         </Button>

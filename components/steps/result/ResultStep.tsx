@@ -18,13 +18,14 @@ import {
 } from '@/lib/ranking';
 import { playSound } from '@/lib/sound';
 import { useStore } from '@/lib/store';
+import { useIsMobile } from '@/lib/use-is-mobile';
 import { cn } from '@/lib/utils';
 
 import { Button } from '../../ui/Button';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 import { CommunityComparison } from './CommunityComparison';
 import { moveInTierMap, removeFromTierMap } from './dnd';
-import { ShareBar } from './ShareBar';
+import { ShareBar, useShare } from './ShareBar';
 import { TierBoard } from './TierBoard';
 import { TierPicker } from './TierPicker';
 import { useReveal } from './useReveal';
@@ -44,6 +45,7 @@ function tierOf(tiers: TierMap, gameId: number): Tier | null {
  */
 export function ResultStep() {
   const reduce = useReducedMotion();
+  const isMobile = useIsMobile();
   const pool = useStore((s) => s.pool);
   const setScores = useStore((s) => s.setScores);
   const removeFromPool = useStore((s) => s.removeFromPool);
@@ -69,6 +71,9 @@ export function ResultStep() {
   }
 
   const [tiers, setTiers] = useState<TierMap>(() => computeTiers(rankingRef.current as RankingState));
+  // Owned here, not inside ShareBar: the compact (header) and full (below-board) presentations sit
+  // on opposite sides of the mobile breakpoint, so state held inside would be lost on rotate.
+  const share = useShare({ tiers, gamesById });
   const [picking, setPicking] = useState<{ game: Game; from: Tier } | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<Game | null>(null);
 
@@ -196,6 +201,12 @@ export function ResultStep() {
             ) : null}
           </div>
           {done ? <CommunityComparison key={visit} tiers={tiers} gamesById={gamesById} /> : null}
+          {/* Mobile only: sharing is the payoff of this screen and the full bar below the board is
+              a long scroll away on a phone. Rendered here *instead of* below (not as well as), so
+              there is only ever one publish state. */}
+          {done && isMobile ? (
+            <ShareBar compact share={share} tiers={tiers} gamesById={gamesById} />
+          ) : null}
         </div>
       </div>
 
@@ -218,7 +229,12 @@ export function ResultStep() {
         </div>
       </motion.div>
 
-      {done ? <ShareBar tiers={tiers} gamesById={gamesById} /> : null}
+      {/* The full bar keeps the "Start over" action, so it still renders on mobile — just without
+          a second publish control (the header's compact one owns that on phones). Both share the
+          one lifted controller, so a published link survives crossing the breakpoint. */}
+      {done ? (
+        <ShareBar share={share} tiers={tiers} gamesById={gamesById} hidePublish={isMobile} />
+      ) : null}
 
       <TierPicker
         game={picking?.game ?? null}

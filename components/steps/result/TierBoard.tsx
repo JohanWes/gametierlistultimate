@@ -5,6 +5,8 @@ import { useMemo, useRef } from 'react';
 
 import type { Game } from '@/lib/games/types';
 import { TIER_ORDER, type Tier, type TierMap } from '@/lib/ranking';
+import { tapProps } from '@/lib/tap';
+import { useIsMobile } from '@/lib/use-is-mobile';
 import { cn } from '@/lib/utils';
 
 import { GameCard } from '../../ui/GameCard';
@@ -142,7 +144,14 @@ export function TierBoard({
                     </span>
                     <span className="font-mono text-[0.65rem] text-black/60">{ids.length}</span>
                   </div>
-                  <div className="flex min-h-[140px] flex-1 flex-wrap content-center items-center gap-2.5 py-3 pr-3">
+                  {/* On phones a row is a fixed-height horizontal strip (matching the read-only
+                      `Row`): a 16-game tier wrapped to eight rows of two, which is most of why the
+                      board ran ~2900px. Tap-to-pick-a-tier is the mobile edit path, so nothing
+                      depends on wrapping here. From `sm` up it wraps and stays drag-reorderable. */}
+                  {/* `min-w-0` is required: a `flex-1` item defaults to `min-width: auto`, so
+                      without it the strip refuses to shrink below its content and pushes the whole
+                      document sideways instead of scrolling inside itself. */}
+                  <div className="flex min-h-[132px] min-w-0 flex-1 items-center gap-2.5 overflow-x-auto py-3 pr-3 [scrollbar-width:none] sm:min-h-[140px] sm:flex-wrap sm:content-center sm:overflow-x-visible [&::-webkit-scrollbar]:hidden">
                     {ids.map((id, idx) => {
                       const game = gamesById.get(id);
                       if (!game) return null;
@@ -237,6 +246,8 @@ function MovableCard({
   onRemove?: (game: Game, from: Tier) => void;
 }) {
   const reduce = useReducedMotion();
+  const isMobile = useIsMobile();
+  const dragEnabled = !reduce && !isMobile;
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const draggedRef = useRef(false);
@@ -272,7 +283,11 @@ function MovableCard({
       tabIndex={0}
       aria-label={`Move ${game.title}`}
       layout="position"
-      drag={!reduce}
+      // Same rail conflict as the arcade's DraggableArcadeCard: the row is a horizontal scroller
+      // on phones, and a Framer-draggable card with `touch-none` swallows the pan gesture, so the
+      // row could not be scrolled by touching a cover. Tap-to-pick-a-tier is the mobile edit path
+      // (the TierPicker sheet); drag-to-reorder stays the desktop path.
+      drag={dragEnabled}
       dragMomentum={false}
       style={reduce ? undefined : { x, y }}
       whileDrag={{ scale: 1.08, zIndex: 50 }}
@@ -301,12 +316,21 @@ function MovableCard({
           draggedRef.current = false;
         }, 60);
       }}
-      onClick={open}
-      onTouchEnd={(e) => {
-        e.preventDefault();
-        open();
-      }}
-      className="relative cursor-grab touch-none rounded-tile focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+      {...(dragEnabled
+        ? {
+            onClick: open,
+            onTouchEnd: (e: React.TouchEvent) => {
+              e.preventDefault();
+              open();
+            },
+          }
+        : // `tapProps` drops a touch that travelled >10px, so scrolling the row never opens the
+          // tier picker by accident.
+          tapProps(open))}
+      className={cn(
+        'relative rounded-tile focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        dragEnabled ? 'cursor-grab touch-none active:cursor-grabbing' : 'touch-pan-x',
+      )}
     >
       <GameCard game={game} size="sm" />
       {onRemove ? <RemoveButton onClick={() => onRemove(game, from)} title={game.title} /> : null}
