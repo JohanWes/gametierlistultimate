@@ -24,14 +24,14 @@ describe('Gauntlet', () => {
     );
   });
 
-  it('completes a full climb when the challenger beats everyone (via touch)', async () => {
+  it('completes a full climb when the challenger beats everyone', async () => {
     const games = makeGames(4);
     const onComplete = vi.fn();
     renderWithProviders(<Gauntlet games={games} onComplete={onComplete} />);
 
-    fireEvent.touchEnd(screen.getByRole('button', { name: /keeps climbing/i }));
-    fireEvent.touchEnd(screen.getByRole('button', { name: /keeps climbing/i }));
-    fireEvent.touchEnd(screen.getByRole('button', { name: /keeps climbing/i }));
+    fireEvent.click(screen.getByRole('button', { name: /keeps climbing/i }));
+    fireEvent.click(screen.getByRole('button', { name: /keeps climbing/i }));
+    fireEvent.click(screen.getByRole('button', { name: /keeps climbing/i }));
 
     await waitFor(() =>
       expect(onComplete).toHaveBeenCalledWith([

@@ -48,7 +48,7 @@ const STRONG_GAP = 2;
  * in the better (higher-index) band. Same band = about-equal; ≥ `STRONG_GAP` bands apart = weighted.
  * With three bands the only landslide is Bad vs Great.
  */
-export function outcomeForBands(
+function outcomeForBands(
   anchor: Game,
   challenger: Game,
   anchorBand: number,

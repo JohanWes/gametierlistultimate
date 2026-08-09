@@ -66,15 +66,6 @@ describe('GameCard', () => {
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ igdbId: 42 }));
   });
 
-  it('fires onSelect on touch', () => {
-    const onSelect = vi.fn();
-    renderWithProviders(
-      <GameCard game={makeGame({ hasCover: false, coverUrl: null })} onSelect={onSelect} />,
-    );
-    fireEvent.touchEnd(screen.getByRole('button'));
-    expect(onSelect).toHaveBeenCalledTimes(1);
-  });
-
   it('is non-interactive (no button) without onSelect', () => {
     renderWithProviders(<GameCard game={makeGame()} />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();

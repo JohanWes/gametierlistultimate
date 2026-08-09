@@ -49,7 +49,7 @@ describe('POST /api/lists', () => {
     expect(res.status).toBe(201);
     const { shareId, url } = await res.json();
 
-    expect(shareId).toMatch(/^[\w-]{6,}$/);
+    expect(shareId).toMatch(/^[A-Za-z0-9_-]{10}$/);
     expect(url).toContain(`/s/${shareId}`);
   });
 

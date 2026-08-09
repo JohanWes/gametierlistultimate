@@ -4,12 +4,11 @@
  *
  *   npm run inspect:schema
  *
- * Reads MONGODB_URI from .env (loaded via dotenv). Prints each database/collection with its
+ * Reads MONGODB_URI from .env (loaded via the Node/tsx `--env-file` flag). Prints each database/collection with its
  * document count and the top-level field keys of one sample doc. Collections whose docs have
  * an unreasonable number of keys (keyed-map style, e.g. an id→value lookup) are summarised
  * only, and a compact sample of the games collection is printed for normalizer design.
  */
-import 'dotenv/config';
 import { MongoClient } from 'mongodb';
 
 import { getEnv } from '../lib/env';

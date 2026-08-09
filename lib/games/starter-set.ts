@@ -23,26 +23,6 @@
  * anchored by the curated persona data only.
  */
 
-export type StarterCategory =
-  | 'RPG'
-  | 'Soulslike'
-  | 'Adventure'
-  | 'Indie'
-  | 'Cozy'
-  | 'Horror'
-  | 'Story'
-  | 'Shooter'
-  | 'Roguelike'
-  | 'JRPG'
-  | 'Racing'
-  | 'Strategy'
-  | 'Puzzle';
-
-export interface StarterEntry {
-  name: string;
-  category: StarterCategory;
-}
-
 /**
  * The curated shelf, in the exact genre-interleaved order the API should return them.
  * Invariant: no two entries with the same category share any window of 5 consecutive positions
@@ -58,7 +38,7 @@ export interface StarterEntry {
  *   7: Story · Roguelike · JRPG · Racing · Strategy
  *   8: Puzzle
  */
-export const STARTER_ENTRIES: readonly StarterEntry[] = [
+export const STARTER_ENTRIES = [
   { name: 'The Witcher 3: Wild Hunt', category: 'RPG' },
   { name: 'Elden Ring', category: 'Soulslike' },
   { name: 'The Legend of Zelda: Breath of the Wild', category: 'Adventure' },
@@ -102,7 +82,7 @@ export const STARTER_ENTRIES: readonly StarterEntry[] = [
   { name: 'XCOM 2', category: 'Strategy' },
 
   { name: 'Inside', category: 'Puzzle' },
-];
+] as const;
 
 /** The starter game names in shelf order. Convenience view over `STARTER_ENTRIES`. */
 export const STARTER_GAME_NAMES: readonly string[] = STARTER_ENTRIES.map((e) => e.name);

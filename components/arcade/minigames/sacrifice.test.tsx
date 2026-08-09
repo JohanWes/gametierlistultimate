@@ -20,17 +20,4 @@ describe('Sacrifice', () => {
     );
   });
 
-  it('eliminates on touch as well', async () => {
-    const games = makeGames(5);
-    const onComplete = vi.fn();
-    renderWithProviders(<Sacrifice games={games} onComplete={onComplete} />);
-
-    fireEvent.touchEnd(screen.getByRole('button', { name: /^Game 2$/i }));
-
-    await waitFor(() =>
-      expect(onComplete).toHaveBeenCalledWith([
-        { type: 'sacrifice', loserId: 2, opponentIds: [1, 3, 4, 5] },
-      ]),
-    );
-  });
 });

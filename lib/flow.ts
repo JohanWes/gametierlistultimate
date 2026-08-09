@@ -9,27 +9,13 @@ export const STEP_ORDER: Step[] = ['welcome', 'pool', 'arcade', 'reveal'];
 /** Smallest pool that unlocks the arcade. Below this the Continue button stays gated. */
 export const MIN_POOL = 12;
 
-const STEP_SET = new Set<string>(STEP_ORDER);
-
-export function isStep(value: unknown): value is Step {
-  return typeof value === 'string' && STEP_SET.has(value);
-}
-
-export function parseStep(value: unknown): Step | null {
-  return isStep(value) ? value : null;
-}
-
-function stepRequiresPool(step: Step): boolean {
-  return step === 'arcade' || step === 'reveal';
-}
-
 /**
  * Clamp a saved resume step against the state we were able to restore. Advanced steps need the
  * live pool rebuilt first; otherwise they would render empty ranking/result screens.
  */
 export function resolveResumeStep(saved: unknown, poolCount: number): Step {
-  const step = parseStep(saved);
-  if (!step) return 'welcome';
-  if (stepRequiresPool(step) && poolCount < MIN_POOL) return 'pool';
+  const step: Step =
+    typeof saved === 'string' && STEP_ORDER.includes(saved as Step) ? (saved as Step) : 'welcome';
+  if ((step === 'arcade' || step === 'reveal') && poolCount < MIN_POOL) return 'pool';
   return step;
 }

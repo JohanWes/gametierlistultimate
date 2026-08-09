@@ -1,4 +1,4 @@
-import { nanoid } from 'nanoid';
+import { randomBytes } from 'node:crypto';
 
 import { COLLECTIONS, getDb } from './mongo';
 
@@ -108,7 +108,7 @@ async function incrementGameStats(tiers: TierMap): Promise<void> {
  */
 export async function createList(input: ListInput): Promise<{ shareId: string }> {
   const tiers = normalizeTiers(input.tiers);
-  const shareId = nanoid(10);
+  const shareId = randomBytes(8).toString('base64url').slice(0, 10);
   const coll = await listsCollection();
 
   await coll.insertOne({

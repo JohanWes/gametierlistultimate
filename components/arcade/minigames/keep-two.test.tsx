@@ -22,16 +22,16 @@ describe('KeepTwo', () => {
     );
   });
 
-  it('supports touch and lets a pick be undone before locking', async () => {
+  it('lets a pick be undone before locking', async () => {
     const games = makeGames(5);
     const onComplete = vi.fn();
     renderWithProviders(<KeepTwo games={games} onComplete={onComplete} />);
 
     // Pick then unpick Game 1, then commit Game 3 + Game 4.
-    fireEvent.touchEnd(screen.getByRole('button', { name: /^Game 1$/i }));
-    fireEvent.touchEnd(screen.getByRole('button', { name: /^Game 1$/i }));
-    fireEvent.touchEnd(screen.getByRole('button', { name: /^Game 3$/i }));
-    fireEvent.touchEnd(screen.getByRole('button', { name: /^Game 4$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Game 1$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Game 1$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Game 3$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Game 4$/i }));
 
     await waitFor(() =>
       expect(onComplete).toHaveBeenCalledWith([

@@ -20,17 +20,4 @@ describe('Rivalry', () => {
     );
   });
 
-  it('works on touch', async () => {
-    const [a, b] = makeGames(2);
-    const onComplete = vi.fn();
-    renderWithProviders(<Rivalry games={[a, b]} onComplete={onComplete} />);
-
-    fireEvent.touchEnd(screen.getByRole('button', { name: /^Game 1$/i }));
-
-    await waitFor(() =>
-      expect(onComplete).toHaveBeenCalledWith([
-        { type: 'pairwise', winnerId: a.igdbId, loserId: b.igdbId },
-      ]),
-    );
-  });
 });

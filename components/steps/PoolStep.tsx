@@ -7,6 +7,7 @@ import { fetchSuggestions } from '@/lib/games/client';
 import { peekAdaptiveBatch, peekStarterBatch, preloadCovers } from '@/lib/games/prefetch';
 import type { Game } from '@/lib/games/types';
 import { STARTER_GAME_NAMES } from '@/lib/games/starter-set';
+import { playSound } from '@/lib/sound';
 import { useIsMobile } from '@/lib/use-is-mobile';
 import { useStore } from '@/lib/store';
 
@@ -17,7 +18,6 @@ import { ManualSearch } from './ManualSearch';
 import { PoolCard, type PoolDecision } from './PoolCard';
 import { PoolSwipeDeck } from './PoolSwipeDeck';
 import { MIN_POOL, RosterMeter } from './RosterMeter';
-import { StepScaffold } from './StepScaffold';
 
 export const VISIBLE_SLOTS = 3;
 /** Refill the backlog once it drops below this many cards. */
@@ -67,6 +67,8 @@ interface SlotEntry {
  */
 export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
   const poolCount = useStore((s) => s.pool.length);
+  const goNext = useStore((s) => s.goNext);
+  const goBack = useStore((s) => s.goBack);
   const reduce = useReducedMotion();
   const isMobile = useIsMobile();
 
@@ -410,113 +412,147 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
   const showExhausted = exhausted && slots.every((s) => s === null) && backlog.length === 0;
 
   return (
-    <StepScaffold
-      compact
-      eyebrow="Step 2 · Your games"
-      title="Add the games you've played."
-      description="Wave through suggestions or search for anything — aim for 20+ games you've actually played."
-      nextLabel="Enter the arcade →"
-      nextDisabled={poolCount < MIN_POOL}
-      headerAside={<RosterMeter compact count={poolCount} />}
-    >
-      <div className="flex min-h-0 flex-1 flex-col gap-3 sm:gap-4">
-        <div className="shrink-0">
-          <ManualSearch fetchImpl={fetchImpl} />
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex w-full shrink-0 flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-border/70 pb-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            {/* The step eyebrow duplicates the header's progress rail; on a phone this is a
+                playfield step, so the row it costs is worth more as cover art. */}
+            <p className="hidden font-mono text-[0.7rem] uppercase tracking-[0.22em] text-teal sm:block">
+              Step 2 · Your games
+            </p>
+            <h1 className="font-display text-lg font-black uppercase leading-none tracking-[0.02em] text-fg sm:text-3xl">
+              Add the games you&rsquo;ve played.
+            </h1>
+          </div>
+          <p className="mt-1.5 hidden max-w-2xl text-sm leading-snug text-muted sm:block">
+            Wave through suggestions or search for anything — aim for 20+ games you&rsquo;ve
+            actually played.
+          </p>
         </div>
-
-        {/* The playfield. `min-h-0` lets it shrink to whatever the shell leaves over, which is what
-            the mobile swipe deck measures itself against; the `sm:` floor keeps the desktop grid
-            from collapsing on a short window. */}
-        <div className="flex min-h-0 flex-1 flex-col justify-center sm:min-h-[18rem]">
-          {isMobile ? (
-            <PoolSwipeDeck
-              slots={slots}
-              error={error}
-              exhausted={exhausted && backlog.length === 0}
-              onDecide={handleSwipeDecide}
-              onRetry={() => void ensureBacklog()}
-              onWatch={(g, rect) => setVideo({ game: g, rect })}
-              random={random}
-            />
-          ) : showSkeletons ? (
-            <div className="mx-auto grid w-fit grid-cols-3 gap-6 lg:gap-8">
-              {Array.from({ length: VISIBLE_SLOTS }).map((_, i) => (
-                <div
-                  key={i}
-                  className="relative mx-auto w-[var(--cover-pool)] overflow-hidden rounded-card border-2 border-border bg-surface shadow-cabinet"
-                >
-                  <GameCard loading size="pool" className="w-full rounded-none" />
-                  <div className="grid grid-cols-2 gap-2.5 border-t-2 border-black/50 bg-panel px-3 py-3">
-                    <div className="h-10 rounded-control border-2 border-border bg-surface-elevated" />
-                    <div className="h-10 rounded-control border-2 border-teal/40 bg-teal/10" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : showError ? (
-            <div className="flex h-full flex-col items-center justify-center gap-3 rounded-card border border-dashed border-coin/50 bg-surface/40 p-10 text-center">
-              <p className="font-display text-lg font-bold uppercase tracking-[0.04em] text-fg">
-                Couldn&rsquo;t load suggestions
-              </p>
-              <p className="max-w-sm text-sm text-muted">
-                The game library didn&rsquo;t respond — this can happen on the first load. Retrying
-                automatically…
-              </p>
-              <Button variant="secondary" onClick={() => void ensureBacklog()}>
-                Retry now
-              </Button>
-            </div>
-          ) : showExhausted ? (
-            <div className="flex h-full flex-col items-center justify-center gap-2 rounded-card border border-dashed border-border bg-surface/40 p-10 text-center">
-              <p className="font-display text-lg font-bold uppercase tracking-[0.04em] text-fg">
-                That&rsquo;s our whole shelf for now
-              </p>
-              <p className="max-w-sm text-sm text-muted">
-                You&rsquo;ve reviewed every suggestion that fits. Use search above to add any game
-                by name, then enter the arcade.
-              </p>
-            </div>
-          ) : (
-            <div className="mx-auto grid w-fit grid-cols-3 gap-6 lg:gap-8">
-              {slots.map((entry, i) => (
-                <div
-                  key={i}
-                  className="relative flex w-[var(--cover-pool)] items-start justify-center"
-                  style={{ minHeight: 'calc(var(--cover-pool) * 4 / 3 + 4rem)' }}
-                >
-                  <AnimatePresence mode="wait">
-                    {entry ? (
-                      <PoolCard
-                        key={entry.game.igdbId}
-                        game={entry.game}
-                        random={random}
-                        onDecide={(action) => handleDecide(entry.game.igdbId, action)}
-                        onWatch={(g, rect) => setVideo({ game: g, rect })}
-                      />
-                    ) : (
-                      <motion.div
-                        key={`placeholder-${i}`}
-                        initial={reduce ? false : { opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={reduce ? { opacity: 0 } : { opacity: 0 }}
-                        className="mx-auto flex w-[var(--cover-pool)] items-center justify-center self-stretch rounded-card border-2 border-dashed border-border bg-surface/30 p-4"
-                      >
-                        {loading ? (
-                          <GameCard loading size="pool" className="w-full" />
-                        ) : (
-                          <p className="py-8 text-center text-xs text-muted">No more suggestions</p>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="shrink-0">
+          <RosterMeter compact count={poolCount} />
         </div>
       </div>
 
-      <GameplayVideoModal video={video} onClose={() => setVideo(null)} fetchImpl={fetchImpl} />
-    </StepScaffold>
+      <div className="mt-3 flex min-h-0 w-full flex-1 flex-col sm:mt-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 sm:gap-4">
+          <div className="shrink-0">
+            <ManualSearch fetchImpl={fetchImpl} />
+          </div>
+
+          {/* The playfield. `min-h-0` lets it shrink to whatever the shell leaves over, which is what
+              the mobile swipe deck measures itself against; the `sm:` floor keeps the desktop grid
+              from collapsing on a short window. */}
+          <div className="flex min-h-0 flex-1 flex-col justify-center sm:min-h-[18rem]">
+            {isMobile ? (
+              <PoolSwipeDeck
+                slots={slots}
+                error={error}
+                exhausted={exhausted && backlog.length === 0}
+                onDecide={handleSwipeDecide}
+                onRetry={() => void ensureBacklog()}
+                onWatch={(g, rect) => setVideo({ game: g, rect })}
+                random={random}
+              />
+            ) : showSkeletons ? (
+              <div className="mx-auto grid w-fit grid-cols-3 gap-6 lg:gap-8">
+                {Array.from({ length: VISIBLE_SLOTS }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="relative mx-auto w-[var(--cover-pool)] overflow-hidden rounded-card border-2 border-border bg-surface shadow-cabinet"
+                  >
+                    <GameCard loading size="pool" className="w-full rounded-none" />
+                    <div className="grid grid-cols-2 gap-2.5 border-t-2 border-black/50 bg-panel px-3 py-3">
+                      <div className="h-10 rounded-control border-2 border-border bg-surface-elevated" />
+                      <div className="h-10 rounded-control border-2 border-teal/40 bg-teal/10" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : showError ? (
+              <div className="flex h-full flex-col items-center justify-center gap-3 rounded-card border border-dashed border-coin/50 bg-surface/40 p-10 text-center">
+                <p className="font-display text-lg font-bold uppercase tracking-[0.04em] text-fg">
+                  Couldn&rsquo;t load suggestions
+                </p>
+                <p className="max-w-sm text-sm text-muted">
+                  The game library didn&rsquo;t respond — this can happen on the first load. Retrying
+                  automatically…
+                </p>
+                <Button variant="secondary" onClick={() => void ensureBacklog()}>
+                  Retry now
+                </Button>
+              </div>
+            ) : showExhausted ? (
+              <div className="flex h-full flex-col items-center justify-center gap-2 rounded-card border border-dashed border-border bg-surface/40 p-10 text-center">
+                <p className="font-display text-lg font-bold uppercase tracking-[0.04em] text-fg">
+                  That&rsquo;s our whole shelf for now
+                </p>
+                <p className="max-w-sm text-sm text-muted">
+                  You&rsquo;ve reviewed every suggestion that fits. Use search above to add any game
+                  by name, then enter the arcade.
+                </p>
+              </div>
+            ) : (
+              <div className="mx-auto grid w-fit grid-cols-3 gap-6 lg:gap-8">
+                {slots.map((entry, i) => (
+                  <div
+                    key={i}
+                    className="relative flex w-[var(--cover-pool)] items-start justify-center"
+                    style={{ minHeight: 'calc(var(--cover-pool) * 4 / 3 + 4rem)' }}
+                  >
+                    <AnimatePresence mode="wait">
+                      {entry ? (
+                        <PoolCard
+                          key={entry.game.igdbId}
+                          game={entry.game}
+                          random={random}
+                          onDecide={(action) => handleDecide(entry.game.igdbId, action)}
+                          onWatch={(g, rect) => setVideo({ game: g, rect })}
+                        />
+                      ) : (
+                        <motion.div
+                          key={`placeholder-${i}`}
+                          initial={reduce ? false : { opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={reduce ? { opacity: 0 } : { opacity: 0 }}
+                          className="mx-auto flex w-[var(--cover-pool)] items-center justify-center self-stretch rounded-card border-2 border-dashed border-border bg-surface/30 p-4"
+                        >
+                          {loading ? (
+                            <GameCard loading size="pool" className="w-full" />
+                          ) : (
+                            <p className="py-8 text-center text-xs text-muted">No more suggestions</p>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <GameplayVideoModal video={video} onClose={() => setVideo(null)} fetchImpl={fetchImpl} />
+      </div>
+
+      {/* Action bar: `shrink-0` is what actually pins it — the playfield above absorbs every
+          pixel of slack, so this row can never be pushed below the fold. The safe-area pad
+          keeps it clear of the iOS home indicator once the shell owns the viewport. */}
+      <div className="mt-auto flex w-full shrink-0 items-center justify-between gap-3 pb-[env(safe-area-inset-bottom)] pt-3 sm:pt-5">
+        <Button variant="ghost" onClick={goBack}>
+          ← Back
+        </Button>
+        <Button
+          disabled={poolCount < MIN_POOL}
+          onClick={() => {
+            playSound('blip');
+            goNext();
+          }}
+        >
+          Enter the arcade →
+        </Button>
+      </div>
+    </div>
   );
 }

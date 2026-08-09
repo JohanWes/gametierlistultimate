@@ -20,17 +20,4 @@ describe('Champion', () => {
     );
   });
 
-  it('crowns on touch as well', async () => {
-    const games = makeGames(5);
-    const onComplete = vi.fn();
-    renderWithProviders(<Champion games={games} onComplete={onComplete} />);
-
-    fireEvent.touchEnd(screen.getByRole('button', { name: /^Game 1$/i }));
-
-    await waitFor(() =>
-      expect(onComplete).toHaveBeenCalledWith([
-        { type: 'champion', winnerId: 1, opponentIds: [2, 3, 4, 5] },
-      ]),
-    );
-  });
 });

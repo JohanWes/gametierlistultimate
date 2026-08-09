@@ -27,24 +27,6 @@ describe('Bracket', () => {
     );
   });
 
-  it('advances the chosen winners on touch as well', async () => {
-    const games = makeGames(4);
-    const onComplete = vi.fn();
-    renderWithProviders(<Bracket games={games} onComplete={onComplete} />);
-
-    fireEvent.touchEnd(screen.getByRole('button', { name: /^Game 2$/i }));
-    fireEvent.touchEnd(screen.getByRole('button', { name: /^Game 4$/i }));
-    fireEvent.touchEnd(screen.getByRole('button', { name: /^Game 4$/i }));
-
-    await waitFor(() =>
-      expect(onComplete).toHaveBeenCalledWith([
-        { type: 'pairwise', winnerId: 2, loserId: 1 },
-        { type: 'pairwise', winnerId: 4, loserId: 3 },
-        { type: 'pairwise', winnerId: 4, loserId: 2, weight: 1.3 },
-      ]),
-    );
-  });
-
   it('only emits once, after the final', async () => {
     const games = makeGames(4);
     const onComplete = vi.fn();

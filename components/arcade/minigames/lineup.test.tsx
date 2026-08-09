@@ -71,13 +71,13 @@ describe('Lineup — tap-to-order fallback', () => {
     );
   });
 
-  it('places via touch and supports removing a placed card', async () => {
+  it('places via tap and supports removing a placed card', async () => {
     const games = makeGames(5);
     const onComplete = vi.fn();
     renderWithProviders(<Lineup games={games} onComplete={onComplete} />);
 
     for (const id of [1, 2, 3, 4, 5]) {
-      fireEvent.touchEnd(screen.getByRole('button', { name: new RegExp(`^Game ${id}$`, 'i') }));
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`^Game ${id}$`, 'i') }));
     }
 
     // Tap Game 1's card (was rank 1) to remove it — it returns to the pool, so lock-in disappears.

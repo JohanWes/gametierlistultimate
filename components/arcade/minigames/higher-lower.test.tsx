@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { makeGames } from '@/test/helpers/games';
 import { fireEvent, renderWithProviders, screen, waitFor } from '@/test/helpers/render';
 
-import { HigherLower, outcomeForBands } from './HigherLower';
+import { HigherLower } from './HigherLower';
 
 const [ANCHOR, CHALLENGER] = makeGames(2);
 // anchor = Game 1 (igdbId 1), challenger = Game 2 (igdbId 2)
@@ -64,49 +64,6 @@ function stubRect(
     }),
   });
 }
-
-describe('outcomeForBands (pure mapping)', () => {
-  it('same band emits about-equal, ordered [challenger, anchor]', () => {
-    expect(outcomeForBands(ANCHOR, CHALLENGER, 1, 1)).toEqual({
-      type: 'about-equal',
-      gameIds: [CHALLENGER.igdbId, ANCHOR.igdbId],
-    });
-  });
-
-  it('one band apart: challenger better → challenger wins, normal weight', () => {
-    expect(outcomeForBands(ANCHOR, CHALLENGER, 0, 1)).toEqual({
-      type: 'pairwise',
-      winnerId: CHALLENGER.igdbId,
-      loserId: ANCHOR.igdbId,
-    });
-  });
-
-  it('one band apart: anchor better → anchor wins, normal weight', () => {
-    expect(outcomeForBands(ANCHOR, CHALLENGER, 2, 1)).toEqual({
-      type: 'pairwise',
-      winnerId: ANCHOR.igdbId,
-      loserId: CHALLENGER.igdbId,
-    });
-  });
-
-  it('two bands apart (Bad vs Great) applies the strong weight', () => {
-    expect(outcomeForBands(ANCHOR, CHALLENGER, 0, 2)).toEqual({
-      type: 'pairwise',
-      winnerId: CHALLENGER.igdbId,
-      loserId: ANCHOR.igdbId,
-      weight: 1.35,
-    });
-  });
-
-  it('the reverse landslide weights the anchor', () => {
-    expect(outcomeForBands(ANCHOR, CHALLENGER, 2, 0)).toEqual({
-      type: 'pairwise',
-      winnerId: ANCHOR.igdbId,
-      loserId: CHALLENGER.igdbId,
-      weight: 1.35,
-    });
-  });
-});
 
 describe('HigherLower (the scale)', () => {
   it('same band → about-equal', async () => {

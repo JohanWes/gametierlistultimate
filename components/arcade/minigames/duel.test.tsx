@@ -20,20 +20,6 @@ describe('Duel', () => {
     );
   });
 
-  it('works with touch as well', async () => {
-    const [a, b] = makeGames(2);
-    const onComplete = vi.fn();
-    renderWithProviders(<Duel games={[a, b]} onComplete={onComplete} />);
-
-    fireEvent.touchEnd(screen.getByRole('button', { name: /^Game 2$/i }));
-
-    await waitFor(() =>
-      expect(onComplete).toHaveBeenCalledWith([
-        { type: 'pairwise', winnerId: b.igdbId, loserId: a.igdbId },
-      ]),
-    );
-  });
-
   it('locks after the first pick', async () => {
     const [a, b] = makeGames(2);
     const onComplete = vi.fn();

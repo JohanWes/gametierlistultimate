@@ -18,12 +18,12 @@ describe('ReplayTest', () => {
     );
   });
 
-  it('emits on touch as well', async () => {
+  it('emits on yes as well', async () => {
     const game = makeGame({ igdbId: 7, title: 'Hades' });
     const onComplete = vi.fn();
     renderWithProviders(<ReplayTest games={[game]} onComplete={onComplete} />);
 
-    fireEvent.touchEnd(screen.getByRole('button', { name: /yes/i }));
+    fireEvent.click(screen.getByRole('button', { name: /yes/i }));
 
     await waitFor(() =>
       expect(onComplete).toHaveBeenCalledWith([

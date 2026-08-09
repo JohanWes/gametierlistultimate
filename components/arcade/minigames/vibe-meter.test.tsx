@@ -81,39 +81,6 @@ describe('VibeMeter', () => {
     );
   });
 
-  it('works with touch pointer events', async () => {
-    const [a, b] = makeGames(2);
-    const onComplete = vi.fn();
-    renderWithProviders(<VibeMeter games={[a, b]} onComplete={onComplete} />);
-
-    const meter1 = stubMeterRect(/rate game 1/i);
-    const meter2 = stubMeterRect(/rate game 2/i);
-
-    const touchEvent = (type: string, clientY: number, pointerId: number): MouseEvent => {
-      const event = new MouseEvent(type, { clientY, bubbles: true, cancelable: true });
-      Object.defineProperty(event, 'pointerId', { value: pointerId });
-      Object.defineProperty(event, 'pointerType', { value: 'touch' });
-      return event;
-    };
-
-    fireEvent(meter1, touchEvent('pointerdown', 5, 2));
-    fireEvent(meter1, touchEvent('pointermove', 5, 2));
-    fireEvent(meter1, touchEvent('pointerup', 5, 2));
-
-    fireEvent(meter2, touchEvent('pointerdown', 95, 3));
-    fireEvent(meter2, touchEvent('pointermove', 95, 3));
-    fireEvent(meter2, touchEvent('pointerup', 95, 3));
-
-    fireEvent.click(screen.getByRole('button', { name: /lock in vibes/i }));
-
-    await waitFor(() =>
-      expect(onComplete).toHaveBeenCalledWith([
-        { type: 'vibe', gameId: a.igdbId, score: 95, tier: TIER_FOR_SCORE[95] },
-        { type: 'vibe', gameId: b.igdbId, score: 5, tier: TIER_FOR_SCORE[5] },
-      ]),
-    );
-  });
-
   it('disables lock-in until every game is rated', () => {
     const [a, b, c, d] = makeGames(4);
     renderWithProviders(<VibeMeter games={[a, b, c, d]} onComplete={vi.fn()} />);

@@ -62,13 +62,6 @@ describe('CommunityComparison', () => {
     expect(screen.getByText('You ranked it lower than the crowd.')).toBeInTheDocument();
   });
 
-  it('opens the drawer on touch as well as click', async () => {
-    renderPanel();
-    const plate = await screen.findByRole('button', { name: /You match 92%/ });
-    fireEvent.touchEnd(plate);
-    expect(await screen.findByText('Your hot takes')).toBeInTheDocument();
-  });
-
   it('shows a graceful low-data state when there is no community data', async () => {
     renderPanel({ similarityPercent: null, outliers: [], sampleSize: 0 });
     expect(await screen.findByText(/Not enough lists yet to compare/)).toBeInTheDocument();

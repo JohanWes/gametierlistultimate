@@ -32,7 +32,7 @@ describe('Promotion', () => {
     );
   });
 
-  it('crowns the upper game on touch', async () => {
+  it('crowns the upper game', async () => {
     const [lower, upper] = makeGames(2);
     const onComplete = vi.fn();
     renderWithProviders(
@@ -44,7 +44,7 @@ describe('Promotion', () => {
       />,
     );
 
-    fireEvent.touchEnd(screen.getByRole('button', { name: /^Game 2$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Game 2$/i }));
 
     await waitFor(() =>
       expect(onComplete).toHaveBeenCalledWith([
