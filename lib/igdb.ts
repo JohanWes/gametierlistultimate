@@ -53,7 +53,7 @@ async function getAccessToken(): Promise<string> {
 }
 
 function escapeQuery(query: string): string {
-  return query.replace(/"/g, '\\"');
+  return query.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 /**

@@ -201,6 +201,9 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
 
   const saveNow = () => {
     const s = useStore.getState();
+    // A debounced write can still be queued when Start over unhydrates (its deadline may
+    // elapse before the reload's pagehide) — never persist while unhydrated.
+    if (!s.ui.hydrated) return;
     saveLocalSession({
       pool: s.pool,
       rejected: s.rejected,
@@ -213,8 +216,10 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
   // Flush synchronously when the tab is hidden/closed so an action inside the debounce window
   // (e.g. decide a card, immediately close the tab) is never lost.
   const flush = () => {
-    if (!useStore.getState().ui.hydrated) return;
+    // Cancel first: a pending debounced write must never fire after Start over, where the
+    // hydration gate would let stale in-memory state resurrect the cleared session.
     persist.cancel();
+    if (!useStore.getState().ui.hydrated) return;
     saveNow();
   };
   const onVisibilityChange = () => {
@@ -251,6 +256,15 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
       prev = next;
       prevPoolKey = nextPoolKey;
       syncedPoolIds = poolEntryIds(state);
+      return;
+    }
+    if (wasHydrated && !state.ui.hydrated) {
+      // Start over unhydrated the store: drop any pending autosave and reset the baseline
+      // so a later hydration transition re-establishes a clean one.
+      wasHydrated = false;
+      persist.cancel();
+      prev = next;
+      prevPoolKey = nextPoolKey;
       return;
     }
     if (

@@ -60,6 +60,27 @@ describe('searchIgdb', () => {
     expect(second).toHaveLength(1);
   });
 
+  it('escapes backslashes before quotes in the outbound search body', async () => {
+    let body = '';
+    mswServer.use(
+      http.post(IGDB_TOKEN_URL, () =>
+        HttpResponse.json({ access_token: 't0ken', expires_in: 3600 }),
+      ),
+      http.post(IGDB_GAMES_URL, async ({ request }) => {
+        body = await request.text();
+        return HttpResponse.json([]);
+      }),
+    );
+
+    await searchIgdb('foo "bar\\"baz"', 5);
+
+    expect(body).toBe(
+      'search "foo \\"bar\\\\\\"baz\\""; ' +
+        'fields name, cover.image_id, genres.name, platforms.name, first_release_date, rating, total_rating, total_rating_count, summary, category; ' +
+        'where version_parent = null; limit 5;',
+    );
+  });
+
   it('returns [] for an empty query without hitting the network', async () => {
     let hit = false;
     mswServer.use(http.post(IGDB_TOKEN_URL, () => ((hit = true), HttpResponse.json({}))));

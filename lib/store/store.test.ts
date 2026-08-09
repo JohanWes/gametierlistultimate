@@ -174,6 +174,44 @@ describe('store', () => {
       expect(readLocalSession()).toBeNull();
       stop();
     });
+
+    it('does not resurrect a cleared session when Start over unhydrates before pagehide', () => {
+      const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
+      const stop = startAutosave({ waitMs: 500, fetchImpl });
+
+      // A hydrated, seeded session with a debounced save still inside its window.
+      useStore.getState().hydrate({ pool: poolEntries(2), step: 'pool' });
+      useStore.getState().setScores({ stale: 'ranking' });
+
+      // Start over: unhydrate, clear the saved session, then reload. The queued debounce
+      // may hit its deadline before the reload's pagehide — neither it nor the lifecycle
+      // flush may write the in-memory state back.
+      useStore.getState().setHydrated(false);
+      window.localStorage.removeItem(LOCAL_SESSION_KEY);
+
+      vi.advanceTimersByTime(500); // deadline elapses before pagehide
+      expect(readLocalSession()).toBeNull();
+
+      window.dispatchEvent(new Event('pagehide'));
+      expect(readLocalSession()).toBeNull();
+      stop();
+    });
+
+    it('flushes current state synchronously on pagehide after hydration', () => {
+      const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
+      const stop = startAutosave({ waitMs: 500, fetchImpl });
+
+      useStore.getState().setHydrated(true);
+      useStore.getState().setScores({ final: 'ranking' }); // inside the debounce window
+
+      expect(readLocalSession()).toBeNull();
+      window.dispatchEvent(new Event('pagehide'));
+
+      // Written immediately, not after the debounce window.
+      expect(readLocalSession().scores).toEqual({ final: 'ranking' });
+      vi.advanceTimersByTime(500);
+      stop();
+    });
   });
 
   describe('hydration', () => {

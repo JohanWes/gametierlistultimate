@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TierMap } from '@/lib/ranking';
-import { resetStore } from '@/lib/store';
+import { LOCAL_SESSION_KEY } from '@/lib/session-local';
+import { resetStore, useStore } from '@/lib/store';
 import { makeGame } from '@/test/helpers/games';
-import { fireEvent, renderWithProviders, screen, waitFor } from '@/test/helpers/render';
+import { fireEvent, renderWithProviders, screen, waitFor, within } from '@/test/helpers/render';
 
 import { ShareBar } from './ShareBar';
 
@@ -54,5 +55,39 @@ describe('ShareBar', () => {
     fireEvent.click(screen.getByRole('button', { name: /share my list/i }));
 
     await waitFor(() => expect(screen.getByText(/try again/i)).toBeInTheDocument());
+  });
+
+  it('unhydrates the store and clears the saved session when Start over is confirmed', () => {
+    window.localStorage.setItem(
+      LOCAL_SESSION_KEY,
+      JSON.stringify({ pool: [], rejected: [], scores: {}, step: 'pool' }),
+    );
+    useStore.getState().setHydrated(true);
+
+    // Record whether the session key still exists at the moment the store flips to
+    // unhydrated: the confirm handler must unhydrate before clearing, otherwise the
+    // lifecycle flush could resurrect the cleared session.
+    let keyPresentAtUnhydrate: boolean | null = null;
+    const unsub = useStore.subscribe((s) => {
+      if (keyPresentAtUnhydrate === null && !s.ui.hydrated) {
+        keyPresentAtUnhydrate = window.localStorage.getItem(LOCAL_SESSION_KEY) !== null;
+      }
+    });
+
+    try {
+      renderWithProviders(<ShareBar tiers={tiers} gamesById={gamesById} />);
+      // jsdom reports its unimplemented reload through console.error after the handler completes.
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      fireEvent.click(screen.getByRole('button', { name: /start over/i }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /start over/i }));
+      consoleError.mockRestore();
+
+      expect(keyPresentAtUnhydrate).toBe(true);
+      expect(useStore.getState().ui.hydrated).toBe(false);
+      expect(window.localStorage.getItem(LOCAL_SESSION_KEY)).toBeNull();
+    } finally {
+      unsub();
+    }
   });
 });

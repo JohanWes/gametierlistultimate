@@ -48,16 +48,23 @@ const MAX_SNAPSHOT_GAMES = 1000;
 const MAX_TITLE_LEN = 300;
 const MAX_URL_LEN = 600;
 
+/** Accepted IGDB id at this trust boundary: a real number, a safe integer, and positive. */
+function isIgdbId(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
 /** Normalize an arbitrary tiers object into a complete TierMap with numeric ids only. */
 export function normalizeTiers(input: unknown): TierMap {
   const source = (input ?? {}) as Record<string, unknown>;
   const out = {} as TierMap;
+  const seen = new Set<number>();
   for (const tier of TIERS) {
     const raw = Array.isArray(source[tier]) ? (source[tier] as unknown[]) : [];
-    out[tier] = raw
-      .slice(0, MAX_TIER_ROW)
-      .map((v) => Number(v))
-      .filter((n) => Number.isFinite(n));
+    out[tier] = raw.slice(0, MAX_TIER_ROW).filter((value): value is number => {
+      if (!isIgdbId(value) || seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    });
   }
   return out;
 }
@@ -68,10 +75,8 @@ function normalizeSnapshotGames(input: SnapshotGame[] | undefined): SnapshotGame
   const out: SnapshotGame[] = [];
   for (const raw of input.slice(0, MAX_SNAPSHOT_GAMES)) {
     if (!raw || typeof raw !== 'object') continue;
-    const igdbId = Number((raw as SnapshotGame).igdbId);
-    const title = (raw as SnapshotGame).title;
-    const coverUrl = (raw as SnapshotGame).coverUrl;
-    if (!Number.isFinite(igdbId) || typeof title !== 'string') continue;
+    const { igdbId, title, coverUrl } = raw as SnapshotGame;
+    if (!isIgdbId(igdbId) || typeof title !== 'string') continue;
     out.push({
       igdbId,
       title: title.slice(0, MAX_TITLE_LEN),

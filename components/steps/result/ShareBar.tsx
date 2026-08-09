@@ -202,8 +202,11 @@ export function ShareBar({
         confirmLabel="Start over"
         cancelLabel="Cancel"
         onConfirm={() => {
-          // Reload after clearing: keep-alive steps hold in-memory state (pool slots, engine,
-          // board) that a store reset alone would leave stale.
+          // Unhydrate first so the autosave lifecycle flush (pagehide) can't write the stale
+          // in-memory pool/scores/step back over the cleared session; then clear and reload —
+          // keep-alive steps hold in-memory state (pool slots, engine, board) that a store
+          // reset alone would leave stale.
+          useStore.getState().setHydrated(false);
           clearLocalSession();
           window.location.reload();
         }}
