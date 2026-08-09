@@ -39,7 +39,7 @@ function tierOf(tiers: TierMap, gameId: number): Tier | null {
 }
 
 /**
- * Step 5 — the payoff. Computes the final tiers, reveals them bottom-up (S last), then hands the
+ * Step 4 — the payoff. Computes the final tiers, reveals them bottom-up (S last), then hands the
  * same board over for free editing: drag a cover to another row, or tap it to pick a tier. A share
  * action at the bottom publishes a link. Phases 8 + 9 live on this one screen.
  */
@@ -166,7 +166,7 @@ export function ResultStep() {
       <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="mb-3 font-mono text-xs uppercase tracking-[0.22em] text-teal">
-            Step 5 · Your tier list
+            Step 4 · Your tier list
           </p>
           <h1 className="font-display text-4xl font-black uppercase leading-[0.95] tracking-[0.02em] text-fg sm:text-5xl">
             <AnimatePresence mode="wait" initial={false}>

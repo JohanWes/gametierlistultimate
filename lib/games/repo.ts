@@ -6,7 +6,7 @@ import { YOUTUBE_RESOLVER_VERSION } from '../youtube';
 import { DLC_CATEGORIES, isDlc, normalizeMongoDoc } from './normalize';
 import { STARTER_COVERS } from './starter-covers';
 import { setResolvedStarterIds, STARTER_GAME_NAMES } from './starter-set';
-import type { Game, Preferences, SuggestionContext } from './types';
+import type { Game, SuggestionContext } from './types';
 
 let indexesEnsured = false;
 
@@ -48,40 +48,6 @@ const REMASTERED_SUFFIX_PATTERN = /\s*(?:[:\-]\s*)?remastered$/i;
 function caseInsensitiveRegex(query: string): RegExp {
   // Escape regex metacharacters in the user-supplied query.
   return new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-}
-
-/**
- * Onboarding shows friendly genre labels, but the dataset stores IGDB genre strings
- * ("Role-playing (RPG)", "Simulator", "Sport", "Platform", …). Map each label to the
- * substring(s) that actually appear in the data so a selection isn't silently ignored.
- * Labels with no genre equivalent (they're IGDB themes/keywords) map to the closest genres.
- */
-const GENRE_TERMS: Record<string, string[]> = {
-  RPG: ['Role-playing', 'RPG'],
-  Action: ['Hack and slash', 'Fighting', 'Arcade'],
-  Adventure: ['Adventure', 'Point-and-click'],
-  Strategy: ['Strategy', 'Tactical'],
-  Shooter: ['Shooter'],
-  Platformer: ['Platform'],
-  Horror: ['Horror'],
-  Racing: ['Racing'],
-  Fighting: ['Fighting'],
-  Puzzle: ['Puzzle'],
-  Simulation: ['Simulat'],
-  Sports: ['Sport'],
-  Indie: ['Indie'],
-  Multiplayer: ['MOBA'],
-  'Story-rich': ['Visual Novel', 'Adventure'],
-  'Open world': ['Adventure', 'Role-playing'],
-};
-
-/** Expand selected genre labels into the case-insensitive regexes that match the dataset. */
-function genreRegexes(genres: string[]): RegExp[] {
-  const terms = new Set<string>();
-  for (const genre of genres) {
-    for (const term of GENRE_TERMS[genre] ?? [genre]) terms.add(term);
-  }
-  return [...terms].map(caseInsensitiveRegex);
 }
 
 function normalizedIds(ids: number[] | undefined): number[] {
@@ -139,19 +105,6 @@ function dedupeSuggestions(games: Game[], limit: number): Game[] {
   }
 
   return deduped;
-}
-
-function preferenceScore(game: Game, prefs: Preferences): number {
-  let score = 0;
-  if (prefs.genres?.length) {
-    const regexes = genreRegexes(prefs.genres);
-    if (game.genres.some((genre) => regexes.some((re) => re.test(genre)))) score += 16;
-  }
-  if (prefs.platforms?.length) {
-    const platforms = prefs.platforms.map(caseInsensitiveRegex);
-    if (game.platforms.some((platform) => platforms.some((re) => re.test(platform)))) score += 8;
-  }
-  return score;
 }
 
 const TITLE_STOPWORDS = new Set([
@@ -213,12 +166,13 @@ function nearRejectedPenalty(game: Game, rejected: Game[]): number {
 }
 
 /**
- * Candidate games for the ranking pool, biased by onboarding preferences. Prioritizes games
- * with cover art and high rating, honors genre/platform preferences, excludes DLC and any
- * ids already in the pool, and respects the limit.
+ * Candidate games for the ranking pool. Personalization is inferred purely from behavior: games
+ * the player accepted (`seedIds`) steer via title/genre affinity plus community co-occurrence,
+ * and passed games (`rejectIds`) softly down-rank lookalikes. Cold starts serve top-rated
+ * cover-bearing games — or the curated starter shelf when `context.preset` is set. Excludes DLC
+ * and any ids already in the pool, and respects the limit.
  */
 export async function getSuggestions(
-  prefs: Preferences = {},
   exclude: number[] = [],
   limit = 30,
   context: SuggestionContext = {},
@@ -231,14 +185,6 @@ export async function getSuggestions(
     { cover: { $type: 'string', $ne: '' } },
   ];
   if (exclude.length) and.push({ id: { $nin: exclude } });
-
-  const prefOr: Document[] = [];
-  if (prefs.genres?.length) {
-    prefOr.push({ genre: { $in: genreRegexes(prefs.genres) } });
-  }
-  if (prefs.platforms?.length) {
-    prefOr.push({ platform: { $in: prefs.platforms.map(caseInsensitiveRegex) } });
-  }
 
   const seedIds = normalizedIds(context.seedIds);
   const rejectIds = normalizedIds(context.rejectIds);
@@ -292,7 +238,6 @@ export async function getSuggestions(
           coScore +
           titleAffinity(game, seedGames) +
           genreAffinity(game, seedGames) +
-          preferenceScore(game, prefs) +
           popularityScore(game) -
           nearRejectedPenalty(game, rejectedGames);
         return { game, score };
@@ -303,38 +248,14 @@ export async function getSuggestions(
     return dedupeSuggestions(scored, limit);
   }
 
-  // When preferences are given, fetch a preference-matching batch first, then top up with
-  // generally-strong games so the pool is never empty even for narrow tastes.
-
-  if (prefOr.length === 0) {
-    const docs = await coll
-      .find({ $and: and }, { projection })
-      .sort(sort)
-      .limit(fetchLimit)
-      .toArray();
-    return dedupeSuggestions(docs.map(normalizeMongoDoc), limit);
-  }
-
-  const preferred = await coll
-    .find({ $and: [...and, { $or: prefOr }] }, { projection })
+  // Cold start: top-rated cover-bearing games. Once the user has any seeds, the adaptive
+  // context above takes over and personalization is inferred from their accepts/rejects.
+  const docs = await coll
+    .find({ $and: and }, { projection })
     .sort(sort)
     .limit(fetchLimit)
     .toArray();
-
-  if (preferred.length >= limit) {
-    const dedupedPreferred = dedupeSuggestions(preferred.map(normalizeMongoDoc), limit);
-    if (dedupedPreferred.length >= limit) return dedupedPreferred;
-  }
-
-  const have = new Set(preferred.map((d) => d.id));
-  const fillerExclude = [...exclude, ...have];
-  const filler = await coll
-    .find({ $and: [...and.slice(0, 2), { id: { $nin: fillerExclude } }] }, { projection })
-    .sort(sort)
-    .limit(fetchLimit)
-    .toArray();
-
-  return dedupeSuggestions([...preferred, ...filler].map(normalizeMongoDoc), limit);
+  return dedupeSuggestions(docs.map(normalizeMongoDoc), limit);
 }
 
 /** Case-insensitive partial-title search over the local collection. */
@@ -477,7 +398,7 @@ export async function getByNames(names: string[]): Promise<Game[]> {
 /**
  * Process-wide cache of the fully-resolved starter shelf. The shelf is a fixed curated list, so
  * resolving it once per process avoids re-scanning Mongo on every preset batch (the pool builder
- * fetches several preset batches as the user works through Step 3). Reset in tests via
+ * fetches several preset batches as the user works through the pool step). Reset in tests via
  * `resetStarterSetCache`. A new serverless instance / deploy re-resolves naturally.
  */
 let starterSetCache: Game[] | null = null;

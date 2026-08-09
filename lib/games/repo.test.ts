@@ -87,7 +87,7 @@ beforeEach(async () => {
 
 describe('getSuggestions', () => {
   it('excludes given ids, DLC, and coverless games', async () => {
-    const games = await getSuggestions({}, [6], 10);
+    const games = await getSuggestions([6], 10);
     const ids = games.map((g) => g.igdbId);
     expect(ids).not.toContain(6); // excluded
     expect(ids).not.toContain(5); // DLC (category 1)
@@ -95,20 +95,8 @@ describe('getSuggestions', () => {
     expect(games.every((g) => g.hasCover)).toBe(true);
   });
 
-  it('prefers preferred genres but tops up to honor the limit', async () => {
-    const games = await getSuggestions({ genres: ['role-playing (rpg)'] }, [], 3);
-    expect(games).toHaveLength(3);
-    // The two RPGs (ids 1,2) should come before non-RPG filler.
-    expect(
-      games
-        .slice(0, 2)
-        .map((g) => g.igdbId)
-        .sort(),
-    ).toEqual([1, 2]);
-  });
-
   it('respects the limit', async () => {
-    const games = await getSuggestions({}, [], 2);
+    const games = await getSuggestions([], 2);
     expect(games).toHaveLength(2);
   });
 
@@ -172,7 +160,7 @@ describe('getSuggestions', () => {
       },
     ]);
 
-    const games = await getSuggestions({}, [], 20);
+    const games = await getSuggestions([], 20);
     const ids = games.map((g) => g.igdbId);
 
     expect(ids).not.toContain(21);
@@ -201,15 +189,9 @@ describe('getSuggestions', () => {
       },
     ]);
 
-    const games = await getSuggestions({}, [], 20);
+    const games = await getSuggestions([], 20);
 
     expect(games.filter((g) => /bendy and the dark revival/i.test(g.title))).toHaveLength(1);
-  });
-
-  it('maps onboarding genre labels onto the dataset’s IGDB genre strings', async () => {
-    // "Sports" (label) must match the stored "Sport" genre, so FIFA leads the results.
-    const games = await getSuggestions({ genres: ['Sports'] }, [], 3);
-    expect(games[0].igdbId).toBe(3);
   });
 
   it('uses co-occurrence with selected seed games to rank likely follow-ups first', async () => {
@@ -221,13 +203,13 @@ describe('getSuggestions', () => {
       updatedAt: new Date(),
     });
 
-    const games = await getSuggestions({}, [1], 3, { seedIds: [1] });
+    const games = await getSuggestions([1], 3, { seedIds: [1] });
 
     expect(games[0].igdbId).toBe(3);
   });
 
   it('softly down-ranks games near rejected cards without hard-filtering them', async () => {
-    const games = await getSuggestions({}, [6], 5, { rejectIds: [6] });
+    const games = await getSuggestions([6], 5, { rejectIds: [6] });
     const ids = games.map((g) => g.igdbId);
 
     expect(ids).toContain(7);
@@ -241,7 +223,7 @@ describe('getSuggestions', () => {
       { id: 501, name: 'Elden Ring', genre: 'RPG', platform: 'PC', rating: 95, cover: 'https://x/er.jpg' },
     ]);
 
-    const games = await getSuggestions({}, [], 5, { preset: true });
+    const games = await getSuggestions([], 5, { preset: true });
     const ids = games.map((g) => g.igdbId);
     // The two starters must lead the batch; they're in shelf order (Witcher 3, Elden Ring, ...).
     expect(ids).toContain(501);
@@ -258,7 +240,7 @@ describe('getSuggestions', () => {
     ]);
 
     // With a seed id present, preset is ignored — the adaptive co-occurrence path runs instead.
-    const games = await getSuggestions({}, [], 5, { preset: true, seedIds: [1] });
+    const games = await getSuggestions([], 5, { preset: true, seedIds: [1] });
     // The adaptive path uses co-occurrence + title/genre affinity over the full collection;
     // it must NOT simply return the starter shelf. With no co-occurrence docs seeded, the
     // sort falls back to the affinity+popularity score, but either way the path is the
@@ -280,12 +262,12 @@ describe('getSuggestions', () => {
     ]);
 
     // First batch: no exclude — returns the first 5 resolved starters.
-    const first = await getSuggestions({}, [], 5, { preset: true });
+    const first = await getSuggestions([], 5, { preset: true });
     const firstIds = first.map((g) => g.igdbId);
     expect(firstIds).toHaveLength(5);
 
     // Second batch (backlog prefetch): exclude the first 5 — must NOT return the same 5.
-    const second = await getSuggestions({}, firstIds, 5, { preset: true });
+    const second = await getSuggestions(firstIds, 5, { preset: true });
     const secondIds = second.map((g) => g.igdbId);
     expect(secondIds).toHaveLength(5);
     // No overlap between the two batches — the exclude param was honored.

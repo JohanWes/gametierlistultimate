@@ -1,5 +1,5 @@
 import type { Step } from '@/lib/flow';
-import type { PlayedStatus, PoolEntry, PrefsState } from '@/lib/store';
+import type { PlayedStatus, PoolEntry } from '@/lib/store';
 
 /**
  * Fully local, browser-persisted in-progress flow state. This replaces the old server-side
@@ -9,7 +9,6 @@ import type { PlayedStatus, PoolEntry, PrefsState } from '@/lib/store';
 export const LOCAL_SESSION_KEY = 'gtl_session_state';
 
 export interface LocalSessionState {
-  prefs: PrefsState;
   /** Full game objects (with played status) so resume never refetches. */
   pool: PoolEntry[];
   /** Every game id passed on, so resume keeps them suppressed (see lib/store `rejected`). */
@@ -55,9 +54,7 @@ export function loadLocalSession(): LocalSessionState | null {
     if (!raw) return null;
     const data = JSON.parse(raw) as Partial<LocalSessionState>;
     if (!data || typeof data !== 'object') return null;
-    const prefs = data.prefs && typeof data.prefs === 'object' ? (data.prefs as PrefsState) : null;
     return {
-      prefs: prefs ?? { genres: [], platforms: [], flags: {} },
       pool: parsePool(data.pool),
       rejected: parseIds(data.rejected),
       scores:

@@ -66,7 +66,7 @@ function toScores(state: RankingState): Record<string, unknown> {
 }
 
 /**
- * Step 4 — the Ranking Arcade. Drives a varied sequence of minigames off the trusted ranking
+ * Step 3 — the Ranking Arcade. Drives a varied sequence of minigames off the trusted ranking
  * engine: pick a round for the current pacing phase, render it, fold its outcome(s) back into
  * the engine, autosave, and repeat. A confidence meter shows momentum; the reveal unlocks once
  * the list is "good enough."
@@ -180,7 +180,7 @@ export function ArcadeStep() {
         <div className="flex items-center gap-3">
           <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-teal">
             <span className="sm:hidden">Arcade</span>
-            <span className="hidden sm:inline">Step 4 · Ranking arcade</span>
+            <span className="hidden sm:inline">Step 3 · Ranking arcade</span>
           </p>
           <PhaseBadge phase={phase} round={ranking.round} />
         </div>

@@ -45,7 +45,7 @@ describe('StoreHydrator', () => {
       game: game(i + 1),
       status: 'played-a-lot' as const,
     }));
-    seedLocalSession({ prefs: { genres: [], platforms: [], flags: {} }, pool, rejected: [], scores: {}, step: 'arcade' });
+    seedLocalSession({ pool, rejected: [], scores: {}, step: 'arcade' });
 
     renderWithProviders(<StoreHydrator />);
 
@@ -62,7 +62,6 @@ describe('StoreHydrator', () => {
     vi.stubGlobal('fetch', fetchImpl);
 
     seedLocalSession({
-      prefs: { genres: [], platforms: [], flags: {} },
       pool: [],
       rejected: [101, 102, 103],
       scores: {},
@@ -78,7 +77,7 @@ describe('StoreHydrator', () => {
 
   it('falls back to the pool step when the saved pool is too small for an advanced step', async () => {
     const pool = [1, 2, 3].map((id) => ({ game: game(id), status: 'finished' as const }));
-    seedLocalSession({ prefs: { genres: [], platforms: [], flags: {} }, pool, rejected: [], scores: {}, step: 'reveal' });
+    seedLocalSession({ pool, rejected: [], scores: {}, step: 'reveal' });
 
     renderWithProviders(<StoreHydrator />);
 

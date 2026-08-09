@@ -41,7 +41,7 @@ export interface AppShellProps {
    * Lock the shell to the viewport instead of letting the document grow (the "playfield" steps —
    * pool and arcade). The step then owns its own vertical budget: a fixed header, a flexible
    * playfield, and an action bar that can never be pushed below the fold. Steps that are read
-   * top-to-bottom once (welcome, onboarding, reveal) stay in normal document flow, where page
+   * top-to-bottom once (welcome, reveal) stay in normal document flow, where page
    * scrolling is the right affordance and an inner scroller would just fight the browser.
    *
    * Note this only works if every wrapper between here and the stage root carries `min-h-0` —

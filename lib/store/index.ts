@@ -18,13 +18,6 @@ export interface PoolEntry {
   status: PlayedStatus;
 }
 
-/** Onboarding preferences. `flags` holds the boolean toggles (older, indie, chaos, …). */
-export interface PrefsState {
-  genres: string[];
-  platforms: string[];
-  flags: Record<string, boolean>;
-}
-
 export type ArcadePhase = 'early' | 'late';
 
 export interface ArcadeState {
@@ -41,7 +34,6 @@ export interface UiState {
 /* ------------------------------------------------------------------ store */
 
 export interface StoreState {
-  prefs: PrefsState;
   /** Games the user has added, with played status. Live UI source of truth. */
   pool: PoolEntry[];
   /**
@@ -53,11 +45,6 @@ export interface StoreState {
   scores: Record<string, unknown>;
   arcade: ArcadeState;
   ui: UiState;
-
-  // prefs actions
-  toggleGenre: (genre: string) => void;
-  setPlatforms: (platforms: string[]) => void;
-  setFlag: (flag: string, value: boolean) => void;
 
   // pool actions
   addToPool: (game: Game, status?: PlayedStatus) => void;
@@ -79,7 +66,6 @@ export interface StoreState {
 
   // persistence
   hydrate: (saved: {
-    prefs?: unknown;
     pool?: unknown;
     rejected?: unknown;
     scores?: unknown;
@@ -100,10 +86,9 @@ function persistSoundPref(on: boolean): void {
 
 function initialState(): Pick<
   StoreState,
-  'prefs' | 'pool' | 'rejected' | 'scores' | 'arcade' | 'ui'
+  'pool' | 'rejected' | 'scores' | 'arcade' | 'ui'
 > {
   return {
-    prefs: { genres: [], platforms: [], flags: {} },
     pool: [],
     rejected: [],
     scores: {},
@@ -114,22 +99,6 @@ function initialState(): Pick<
 
 export const useStore = create<StoreState>((set, get) => ({
   ...initialState(),
-
-  toggleGenre: (genre) =>
-    set((s) => {
-      const has = s.prefs.genres.includes(genre);
-      return {
-        prefs: {
-          ...s.prefs,
-          genres: has ? s.prefs.genres.filter((g) => g !== genre) : [...s.prefs.genres, genre],
-        },
-      };
-    }),
-
-  setPlatforms: (platforms) => set((s) => ({ prefs: { ...s.prefs, platforms } })),
-
-  setFlag: (flag, value) =>
-    set((s) => ({ prefs: { ...s.prefs, flags: { ...s.prefs.flags, [flag]: value } } })),
 
   addToPool: (game, status = 'finished') =>
     set((s) => {
@@ -185,14 +154,6 @@ export const useStore = create<StoreState>((set, get) => ({
 
   hydrate: (saved) => {
     const patch: Partial<StoreState> = {};
-    if (saved.prefs && typeof saved.prefs === 'object') {
-      const p = saved.prefs as Partial<PrefsState>;
-      patch.prefs = {
-        genres: Array.isArray(p.genres) ? p.genres : get().prefs.genres,
-        platforms: Array.isArray(p.platforms) ? p.platforms : get().prefs.platforms,
-        flags: p.flags && typeof p.flags === 'object' ? p.flags : get().prefs.flags,
-      };
-    }
     if (Array.isArray(saved.pool)) {
       // Full pool entries (game + played status) are stored locally, so resume restores both
       // without any network round-trip.
@@ -225,7 +186,7 @@ function poolEntryIds(s: StoreState): number[] {
 }
 
 /**
- * Subscribe to prefs/pool/scores/step changes and persist them. On any change we debounce a
+ * Subscribe to pool/scores/step changes and persist them. On any change we debounce a
  * write of the full state to localStorage (instant, offline resume). When the pool *ids* change
  * we also debounce a fire-and-forget POST /api/pool-stats carrying the previous→next delta — the
  * only remaining server write, feeding the community co-occurrence aggregates.
@@ -241,7 +202,6 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
   const saveNow = () => {
     const s = useStore.getState();
     saveLocalSession({
-      prefs: s.prefs,
       pool: s.pool,
       rejected: s.rejected,
       scores: s.scores,
@@ -294,7 +254,6 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
       return;
     }
     if (
-      next.prefs !== prev.prefs ||
       next.pool !== prev.pool ||
       next.rejected !== prev.rejected ||
       next.scores !== prev.scores ||
@@ -320,7 +279,7 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
 }
 
 function pickPersisted(s: StoreState) {
-  return { prefs: s.prefs, pool: s.pool, rejected: s.rejected, scores: s.scores, step: s.ui.step };
+  return { pool: s.pool, rejected: s.rejected, scores: s.scores, step: s.ui.step };
 }
 
 /** Test-only: reset the store's data slices to initial values (actions are preserved). */

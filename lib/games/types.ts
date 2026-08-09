@@ -30,14 +30,6 @@ export interface GameResult extends Game {
   source: 'local' | 'igdb';
 }
 
-/** Onboarding preferences that bias suggestions. */
-export interface Preferences {
-  /** Preferred genres (matched case-insensitively against a game's genres). */
-  genres?: string[];
-  /** Preferred platforms. */
-  platforms?: string[];
-}
-
 /** Session-local context used to make pool suggestions adapt after each decision. */
 export interface SuggestionContext {
   /** Games the player has already confirmed as played. */

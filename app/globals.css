@@ -34,7 +34,7 @@
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 
   /*
-   * Arcade cover-art sizing. The boxart is the decision surface in Step 4, so each token grows the
+   * Arcade cover-art sizing. The boxart is the decision surface in Step 3, so each token grows the
    * card with the viewport (`vh`) to fill vertical space, `clamp` bounds it on tiny/huge screens,
    * and the `min(vw, …)` guard prevents horizontal overflow. The `vw` term is redefined per
    * breakpoint below where a minigame's column count changes. Card height = width * 4/3
@@ -83,7 +83,7 @@
      a 16:9 desktop (vh guard keeps the grown card + chrome within the arcade panel height). */
   --cover-bracket-active: min(36vw, clamp(7rem, 20vh, 10.5rem), var(--fit-cap));
 
-  /* Step 3 pool builder: three large boxart cards. Bounded by width (vw guard, so 3 + gaps stay
+  /* Step 2 pool builder: three large boxart cards. Bounded by width (vw guard, so 3 + gaps stay
      inside the panel with breathing room) and height (clamp `vh`, so the card + chrome fits the
      vertical space on a 16:9 screen without overflow). */
   --cover-pool: min(27vw, clamp(7rem, 34vh, 15rem), var(--fit-cap-pool));
@@ -169,7 +169,7 @@ body::before {
 
 /*
  * ── Reveal payoff: CRT power-on per row + S-tier coronation ──────────────────
- * Step 5's reveal is the brand's one big delight moment. Each tier "boots" in like a CRT channel
+ * Step 4's reveal is the brand's one big delight moment. Each tier "boots" in like a CRT channel
  * (scanline sweep + brightness surge + RGB-fringe glitch settling), and the S row lands with a
  * crescendo: bloom, glow ring, a luminous marquee chase, and a coin burst. All transform/filter +
  * one masked conic gradient — no WebGL. The reduced-motion block below neutralizes every keyframe,

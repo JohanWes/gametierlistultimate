@@ -19,7 +19,7 @@ describe('Flow keep-alive', () => {
     resetStarterBatchPrefetch();
   });
 
-  it('keeps PoolStep mounted when toggling between steps 2 and 3 (no re-fetch)', async () => {
+  it('keeps PoolStep mounted when toggling between pool and arcade (no re-fetch)', async () => {
     let calls = 0;
     mswServer.use(
       http.get(/\/api\/games\/suggestions/, () => {
@@ -41,13 +41,13 @@ describe('Flow keep-alive', () => {
     await waitFor(() => expect(calls).toBe(2));
     const callsAfterFirstVisit = calls;
 
-    // Navigate to onboarding — PoolStep should be hidden, not unmounted.
+    // Navigate to the arcade — PoolStep should be hidden, not unmounted.
     act(() => {
-      useStore.getState().setStep('onboarding');
+      useStore.getState().setStep('arcade');
     });
-    // Wait for OnboardingStep to mount (visited effect adds it).
+    // Wait for ArcadeStep to mount (visited effect adds it).
     await waitFor(() => {
-      expect(screen.getByText(/Step 2 · Preferences/i)).toBeInTheDocument();
+      expect(screen.getByText(/Step 3 · Ranking arcade/i)).toBeInTheDocument();
     });
     // PoolStep's buttons should be inaccessible (hidden attribute → display:none) but
     // the content stays in the DOM — that's the keep-alive guarantee.
@@ -92,6 +92,6 @@ describe('Flow keep-alive', () => {
     // Welcome's headline should NOT be in the DOM — the user skipped it.
     expect(screen.queryByRole('heading', { name: /game tier list ultimate/i })).toBeNull();
     // Pool's eyebrow should be present.
-    expect(screen.getByText(/Step 3/i)).toBeInTheDocument();
+    expect(screen.getByText(/Step 2/i)).toBeInTheDocument();
   });
 });

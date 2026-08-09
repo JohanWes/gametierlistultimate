@@ -60,13 +60,12 @@ interface SlotEntry {
 }
 
 /**
- * Step 3 — build the pool of games you've played. Three large fixed slots always stay on screen.
+ * Step 2 — build the pool of games you've played. Three large fixed slots always stay on screen.
  * Deciding a card fades it out and a fresh one from a hidden backlog fades into the same slot;
  * the other two never move. The backlog is prefetched in the background so replacements
  * appear instantly. (Mobile uses a separate single-card swipe deck — see PoolSwipeDeck.)
  */
 export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
-  const prefs = useStore((s) => s.prefs);
   const poolCount = useStore((s) => s.pool.length);
   const reduce = useReducedMotion();
   const isMobile = useIsMobile();
@@ -198,7 +197,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
     try {
       const preset = shouldUsePreset();
       const games = await fetchSuggestions(
-        { prefs, exclude: buildApiExclude(), ...buildSuggestionContext(), preset, limit: BACKLOG_BATCH },
+        { exclude: buildApiExclude(), ...buildSuggestionContext(), preset, limit: BACKLOG_BATCH },
         fetchImpl ?? fetch,
       );
 
@@ -242,7 +241,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
         if (chain && !exhaustedRef.current) void ensureBacklog();
       }
     }
-  }, [prefs, fetchImpl, buildApiExclude, buildSuggestionContext, filterFreshGames, fillEmptySlots, shouldUsePreset]);
+  }, [fetchImpl, buildApiExclude, buildSuggestionContext, filterFreshGames, fillEmptySlots, shouldUsePreset]);
 
   // Bootstrap: load the first batch straight into the five slots, then top up the backlog.
   useEffect(() => {
@@ -291,7 +290,6 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
             ? prefetched
             : await fetchSuggestions(
                 {
-                  prefs,
                   exclude: [...decidedRef.current].slice(-MAX_API_EXCLUDE),
                   ...ctx,
                   preset,
@@ -414,7 +412,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
   return (
     <StepScaffold
       compact
-      eyebrow="Step 3 · Your games"
+      eyebrow="Step 2 · Your games"
       title="Add the games you've played."
       description="Wave through suggestions or search for anything — aim for 20+ games you've actually played."
       nextLabel="Enter the arcade →"

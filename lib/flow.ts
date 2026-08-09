@@ -1,10 +1,10 @@
-export type Step = 'welcome' | 'onboarding' | 'pool' | 'arcade' | 'reveal';
+export type Step = 'welcome' | 'pool' | 'arcade' | 'reveal';
 
 /**
  * Linear order of the flow. `goNext`/`goBack` walk this array. `reveal` is terminal: it hosts the
  * animated reveal, the editable tier list, and the share action on one screen.
  */
-export const STEP_ORDER: Step[] = ['welcome', 'onboarding', 'pool', 'arcade', 'reveal'];
+export const STEP_ORDER: Step[] = ['welcome', 'pool', 'arcade', 'reveal'];
 
 /** Smallest pool that unlocks the arcade. Below this the Continue button stays gated. */
 export const MIN_POOL = 12;

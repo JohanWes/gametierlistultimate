@@ -78,10 +78,9 @@ const TIER_BG: Record<Tier, string> = {
   F: 'bg-tier-f',
 };
 
-// The flow, as a real four-beat sequence — numbered markers are earned here.
+// The flow, as a real three-beat sequence — numbered markers are earned here.
 const STEPS: { label: string; detail: string }[] = [
-  { label: 'Pick genres', detail: 'Tell us what you reach for.' },
-  { label: 'Choose games', detail: 'Add the ones you’ve played.' },
+  { label: 'Choose games', detail: 'Tap the ones you’ve played.' },
   { label: 'Play rounds', detail: 'Quick matchups, no forms.' },
   { label: 'Get your list', detail: 'A personal S–F ranking.' },
 ];
@@ -163,7 +162,7 @@ export function WelcomeStep() {
       </motion.div>
 
       {/* CTA — on mobile this is pulled above the cabinet so "Insert coin" is reachable without
-          scrolling past seven cabinet rows and four explainer cards; the cabinet and the
+          scrolling past seven cabinet rows and three explainer cards; the cabinet and the
           explainer then continue below for anyone who wants them. Welcome is a one-time screen,
           so scrolling *is* fine here — being unable to start without it was not. On desktop the
           original order is restored via grid placement. */}

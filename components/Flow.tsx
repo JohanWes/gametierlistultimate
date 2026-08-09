@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react';
 import { STEP_ORDER, type Step, useStore } from '@/lib/store';
 
 import { ArcadeStep } from './arcade/ArcadeStep';
-import { OnboardingStep } from './steps/OnboardingStep';
 import { PoolStep } from './steps/PoolStep';
 import { ResultStep } from './steps/result/ResultStep';
 import { WelcomeStep } from './steps/WelcomeStep';
@@ -14,7 +13,6 @@ import { AppShell } from './ui/AppShell';
 
 const SCREENS: Record<Step, () => React.JSX.Element> = {
   welcome: WelcomeStep,
-  onboarding: OnboardingStep,
   pool: PoolStep,
   arcade: ArcadeStep,
   reveal: ResultStep,

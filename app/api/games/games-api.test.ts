@@ -89,10 +89,4 @@ describe('GET /api/games/suggestions', () => {
     expect(body.games).toHaveLength(2);
     expect(body.games.map((g: { igdbId: number }) => g.igdbId)).not.toContain(4);
   });
-
-  it('biases toward preferred genres', async () => {
-    const res = await suggestionsGET(req('/api/games/suggestions?genres=rpg&limit=3'));
-    const body = await res.json();
-    expect(body.games[0].genres).toContain('RPG');
-  });
 });

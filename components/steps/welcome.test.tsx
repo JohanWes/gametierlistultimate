@@ -17,18 +17,18 @@ describe('WelcomeStep', () => {
     expect(
       screen.getByRole('heading', { name: /game tier list ultimate/i }),
     ).toBeInTheDocument();
-    for (const beat of ['Pick genres', 'Choose games', 'Play rounds', 'Get your list']) {
+    for (const beat of ['Choose games', 'Play rounds', 'Get your list']) {
       expect(screen.getByText(beat)).toBeInTheDocument();
     }
   });
 
-  it('advances the flow to onboarding after the coin-insert beat', async () => {
+  it('advances the flow to the pool after the coin-insert beat', async () => {
     renderWithProviders(<WelcomeStep />);
     expect(useStore.getState().ui.step).toBe('welcome');
     fireEvent.click(screen.getByRole('button', { name: /press start/i }));
     // The coin-drop beat holds the step briefly before advancing.
     expect(useStore.getState().ui.step).toBe('welcome');
-    await waitFor(() => expect(useStore.getState().ui.step).toBe('onboarding'), {
+    await waitFor(() => expect(useStore.getState().ui.step).toBe('pool'), {
       timeout: 2000,
     });
   });
@@ -39,11 +39,11 @@ describe('WelcomeStep', () => {
     fireEvent.click(button);
     fireEvent.click(button);
     fireEvent.click(button);
-    await waitFor(() => expect(useStore.getState().ui.step).toBe('onboarding'), {
+    await waitFor(() => expect(useStore.getState().ui.step).toBe('pool'), {
       timeout: 2000,
     });
-    // A double-fire would have advanced past onboarding — give it a beat to prove it doesn't.
+    // A double-fire would have advanced past the pool — give it a beat to prove it doesn't.
     await new Promise((r) => setTimeout(r, 100));
-    expect(useStore.getState().ui.step).toBe('onboarding');
+    expect(useStore.getState().ui.step).toBe('pool');
   });
 });

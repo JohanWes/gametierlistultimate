@@ -1,8 +1,8 @@
 import { fetchSuggestions } from './client';
-import type { Game, Preferences } from './types';
+import type { Game } from './types';
 
 /**
- * Warm the first pool-step batch before the user reaches Step 3, so the pool builder opens with
+ * Warm the first pool-step batch before the user reaches the pool step, so the pool builder opens with
  * no perceptible loading. Two flavors:
  *
  *  - **Starter** (cold pool, no accepted games): the curated starter shelf is fixed and
@@ -58,7 +58,6 @@ export interface AdaptiveBatchQuery {
   seedIds: number[];
   rejectIds: number[];
   exclude: number[];
-  prefs: Preferences;
   limit: number;
 }
 
@@ -66,7 +65,7 @@ export interface AdaptiveBatchQuery {
  * Kick off an adaptive-batch prefetch (warm/returning pool) if it hasn't started yet.
  * Safe to call repeatedly. The batch is seeded by the user's accepted games and excludes
  * already-decided ids, mirroring what PoolStep's bootstrap would fetch — so the first
- * step-3 paint reuses this instead of doing a live adaptive round-trip.
+ * pool-step paint reuses this instead of doing a live adaptive round-trip.
  */
 export function prefetchAdaptiveBatch(
   query: AdaptiveBatchQuery,
@@ -78,7 +77,6 @@ export function prefetchAdaptiveBatch(
       seedIds: query.seedIds,
       rejectIds: query.rejectIds,
       exclude: query.exclude,
-      prefs: query.prefs,
       limit: query.limit,
     },
     fetchImpl,

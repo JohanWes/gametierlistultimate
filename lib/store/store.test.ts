@@ -38,11 +38,11 @@ describe('store', () => {
       const s = useStore.getState();
       expect(s.ui.step).toBe('welcome');
       s.goNext();
-      expect(useStore.getState().ui.step).toBe('onboarding');
-      useStore.getState().goNext();
       expect(useStore.getState().ui.step).toBe('pool');
+      useStore.getState().goNext();
+      expect(useStore.getState().ui.step).toBe('arcade');
       useStore.getState().goBack();
-      expect(useStore.getState().ui.step).toBe('onboarding');
+      expect(useStore.getState().ui.step).toBe('pool');
     });
 
     it('clamps at the ends and supports setStep', () => {
@@ -96,14 +96,14 @@ describe('store', () => {
       const stop = startAutosave({ waitMs: 500, fetchImpl });
 
       useStore.getState().setHydrated(true); // ui-only change must NOT trigger a save
-      useStore.getState().toggleGenre('RPG');
-      useStore.getState().toggleGenre('Action'); // rapid changes collapse into one write
+      useStore.getState().setScores({ some: 'ranking' });
+      useStore.getState().setScores({ some: 'other' }); // rapid changes collapse into one write
 
       expect(readLocalSession()).toBeNull(); // still within debounce window
       vi.advanceTimersByTime(500);
 
-      expect(readLocalSession().prefs.genres).toEqual(['RPG', 'Action']);
-      expect(fetchImpl).not.toHaveBeenCalled(); // a pref change is local-only
+      expect(readLocalSession().scores).toEqual({ some: 'other' });
+      expect(fetchImpl).not.toHaveBeenCalled(); // a local state change is local-only
       stop();
     });
 
@@ -148,7 +148,7 @@ describe('store', () => {
       useStore.getState().goNext();
       vi.advanceTimersByTime(500);
 
-      expect(readLocalSession().step).toBe('onboarding');
+      expect(readLocalSession().step).toBe('pool');
       stop();
     });
 
@@ -156,7 +156,7 @@ describe('store', () => {
       const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
       const stop = startAutosave({ waitMs: 500, fetchImpl });
 
-      useStore.getState().hydrate({ prefs: { genres: ['RPG'] }, step: 'pool' });
+      useStore.getState().hydrate({ step: 'pool' });
       vi.advanceTimersByTime(500);
 
       expect(readLocalSession()).toBeNull();
@@ -168,7 +168,7 @@ describe('store', () => {
       const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
       const stop = startAutosave({ waitMs: 500, fetchImpl });
 
-      useStore.getState().toggleGenre('RPG'); // hydrated is still false
+      useStore.getState().setScores({ early: true }); // hydrated is still false
       vi.advanceTimersByTime(500);
 
       expect(readLocalSession()).toBeNull();

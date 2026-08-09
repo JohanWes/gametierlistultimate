@@ -1,4 +1,4 @@
-import type { Game, GameResult, Preferences } from './types';
+import type { Game, GameResult } from './types';
 
 /**
  * Browser-side wrappers around the game API routes. Both accept an injectable `fetchImpl`
@@ -8,7 +8,6 @@ import type { Game, GameResult, Preferences } from './types';
  */
 
 export interface SuggestionQuery {
-  prefs?: Preferences;
   /** IGDB ids to keep out of the results (already decided/added). */
   exclude?: number[];
   /** Confirmed played games that should steer follow-up suggestions. */
@@ -24,7 +23,8 @@ export interface SuggestionQuery {
 }
 
 /**
- * GET /api/games/suggestions — preference-biased candidate games, minus the exclude list.
+ * GET /api/games/suggestions — candidate games biased by what the user already accepted
+ * (seedIds) and passed on (rejectIds), minus the exclude list.
  * Throws on a failed request so the caller can distinguish "no games left" (an empty array)
  * from "the request failed" (a transient error worth retrying) rather than dead-ending the UI.
  */
@@ -33,8 +33,6 @@ export async function fetchSuggestions(
   fetchImpl: typeof fetch = fetch,
 ): Promise<Game[]> {
   const params = new URLSearchParams();
-  if (query.prefs?.genres?.length) params.set('genres', query.prefs.genres.join(','));
-  if (query.prefs?.platforms?.length) params.set('platforms', query.prefs.platforms.join(','));
   if (query.exclude?.length) params.set('exclude', query.exclude.join(','));
   if (query.seedIds?.length) params.set('seedIds', query.seedIds.join(','));
   if (query.rejectIds?.length) params.set('rejectIds', query.rejectIds.join(','));

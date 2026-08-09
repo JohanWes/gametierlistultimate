@@ -37,7 +37,7 @@ const SIZES = {
   sm: 'w-[104px]',
   md: 'w-[150px]',
   lg: 'w-[220px]',
-  // Pool builder (Step 3): viewport-responsive large boxart (see --cover-pool in app/globals.css).
+  // Pool builder (Step 2): viewport-responsive large boxart (see --cover-pool in app/globals.css).
   pool: 'w-[var(--cover-pool)]',
   // Arcade tokens: viewport-responsive widths (see --cover-* in app/globals.css).
   row: 'w-[var(--cover-row)]',

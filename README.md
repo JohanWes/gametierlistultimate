@@ -11,7 +11,7 @@ session and your final list is shareable via a short link.
 - **Next.js 15** (App Router) + **React 19** + **TypeScript**
 - **Tailwind CSS** design system wired to CSS variables
 - **Zustand** for client flow state
-- **MongoDB** for the game catalog, sessions, and shared lists
+- **MongoDB** for the game catalog, shared lists, and community statistics
 - **IGDB** as a fallback search + enrichment source
 - **Vitest** for unit, component, and API tests
 
