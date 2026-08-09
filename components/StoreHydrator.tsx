@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 
 import { prefetchAdaptiveBatch, prefetchStarterBatch } from '@/lib/games/prefetch';
 import { loadLocalSession } from '@/lib/session-local';
-import { initAudio, setMuted } from '@/lib/sound';
 import { startAutosave, useStore } from '@/lib/store';
 
 import { VISIBLE_SLOTS } from './steps/PoolStep';
@@ -16,11 +15,12 @@ const RESUME_EXCLUDE = 300;
 
 /**
  * Side-effect-only component: restores in-progress state from localStorage (no network),
- * restores the mute preference, starts debounced autosave, syncs mute into the sound module,
- * and lazily initializes Web Audio on the first user gesture. Renders nothing.
+ * starts debounced autosave, and kicks off the first pool-step batch prefetch (cold starter
+ * shelf or adaptive for a returning user) so the pool builder opens with no perceptible
+ * loading — see lib/games/prefetch.ts. Renders nothing.
  *
- * Also kicks off the first pool-step batch prefetch (cold starter shelf or adaptive for a
- * returning user) so the pool builder opens with no perceptible loading — see lib/games/prefetch.ts.
+ * Mounted on the home page only, so shared pages never touch the user's session, autosave,
+ * or prefetch. Mute/audio live in the root layout's SoundHydrator.
  */
 export function StoreHydrator() {
   useEffect(() => {
@@ -55,38 +55,9 @@ export function StoreHydrator() {
       }
     }
 
-    // Restore the persisted mute preference (defaults to on).
-    try {
-      if (window.localStorage.getItem('gtl_sound') === 'off') {
-        useStore.getState().setSoundOn(false);
-      }
-    } catch {
-      /* storage unavailable */
-    }
-
-    // Keep the sound module's mute flag in sync with the store.
-    setMuted(!useStore.getState().ui.soundOn);
-    const unsubSound = useStore.subscribe((s) => setMuted(!s.ui.soundOn));
-
-    // Web Audio can only start after a user gesture — initialize once, then forget.
-    const onFirstGesture = () => {
-      initAudio();
-      removeGestureListeners();
-    };
-    const removeGestureListeners = () => {
-      window.removeEventListener('pointerdown', onFirstGesture);
-      window.removeEventListener('keydown', onFirstGesture);
-      window.removeEventListener('touchstart', onFirstGesture);
-    };
-    window.addEventListener('pointerdown', onFirstGesture);
-    window.addEventListener('keydown', onFirstGesture);
-    window.addEventListener('touchstart', onFirstGesture);
-
     const stopAutosave = startAutosave();
 
     return () => {
-      unsubSound();
-      removeGestureListeners();
       stopAutosave();
     };
   }, []);

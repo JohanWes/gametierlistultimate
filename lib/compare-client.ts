@@ -19,7 +19,7 @@ async function readResult(res: Response): Promise<ComparisonResult> {
 }
 
 /**
- * Browser wrappers around the comparison endpoints, mirroring `lib/games/client.ts`: an
+ * Browser wrapper around the comparison endpoint, mirroring `lib/games/client.ts`: an
  * injectable `fetchImpl` for unit tests, and tolerant parsing so a transient failure degrades to
  * the low-data state rather than throwing into the reveal UI.
  */
@@ -35,21 +35,6 @@ export async function fetchComparison(
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
       body: JSON.stringify({ tiers }),
-    });
-    return await readResult(res);
-  } catch {
-    return EMPTY;
-  }
-}
-
-/** GET /api/lists/:shareId/comparison — how a published list compares to the community. */
-export async function fetchSharedComparison(
-  shareId: string,
-  fetchImpl: typeof fetch = fetch,
-): Promise<ComparisonResult> {
-  try {
-    const res = await fetchImpl(`/api/lists/${shareId}/comparison`, {
-      credentials: 'same-origin',
     });
     return await readResult(res);
   } catch {

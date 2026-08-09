@@ -82,3 +82,68 @@ describe('POST /api/pool-stats', () => {
     expect(ids).toEqual(expect.arrayContaining([20, 30, 40]));
   });
 });
+
+describe('unique indexes', () => {
+  it('awaits index creation on gamePoolStats and gameCooccurrence before writing', async () => {
+    // Exercise the write path — the memoized index promises must be awaited before any upsert.
+    const res = await POST(postReq({ previous: [], next: [10, 20, 30] }));
+    expect(await res.json()).toEqual({ ok: true });
+
+    const statsIndexes = await mongo.db
+      .collection(COLLECTIONS.gamePoolStats)
+      .listIndexes()
+      .toArray();
+    const gameIdIndex = statsIndexes.find((i) => i.name === 'gameId_unique');
+    expect(gameIdIndex?.key).toEqual({ gameId: 1 });
+    expect(gameIdIndex?.unique).toBe(true);
+
+    const pairIndexes = await mongo.db
+      .collection(COLLECTIONS.gameCooccurrence)
+      .listIndexes()
+      .toArray();
+    const pairKeyIndex = pairIndexes.find((i) => i.name === 'pairKey_unique');
+    expect(pairKeyIndex?.key).toEqual({ pairKey: 1 });
+    expect(pairKeyIndex?.unique).toBe(true);
+
+    const gameAIndex = pairIndexes.find((i) => i.name === 'gameA_idx');
+    expect(gameAIndex?.key).toEqual({ gameA: 1 });
+    expect(gameAIndex?.unique).not.toBe(true);
+
+    const gameBIndex = pairIndexes.find((i) => i.name === 'gameB_idx');
+    expect(gameBIndex?.key).toEqual({ gameB: 1 });
+    expect(gameBIndex?.unique).not.toBe(true);
+  });
+});
+
+describe('concurrent writes', () => {
+  it('sums identical concurrent pool updates into one identity document each', async () => {
+    const runs = 4;
+    const results = await Promise.all(
+      Array.from({ length: runs }, () => POST(postReq({ previous: [], next: [10, 20, 30] }))),
+    );
+    for (const res of results) {
+      expect(await res.json()).toEqual({ ok: true });
+    }
+
+    // One identity document per game with every run summed — no duplicates from the race.
+    const stats = await mongo.db
+      .collection(COLLECTIONS.gamePoolStats)
+      .find({}, { projection: { _id: 0, gameId: 1, includedCount: 1 } })
+      .sort({ gameId: 1 })
+      .toArray();
+    expect(stats.map((s) => s.gameId)).toEqual([10, 20, 30]);
+    for (const s of stats) {
+      expect(s.includedCount).toBe(runs);
+    }
+
+    const pairs = await mongo.db
+      .collection(COLLECTIONS.gameCooccurrence)
+      .find({}, { projection: { _id: 0, pairKey: 1, count: 1 } })
+      .sort({ pairKey: 1 })
+      .toArray();
+    expect(pairs.map((p) => p.pairKey)).toEqual(['10:20', '10:30', '20:30']);
+    for (const p of pairs) {
+      expect(p.count).toBe(runs);
+    }
+  });
+});

@@ -1,17 +1,40 @@
 'use client';
 
 import { motion, useReducedMotion } from 'framer-motion';
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 
 import { STEP_ORDER, type Step, useStore } from '@/lib/store';
 
-import { ArcadeStep } from './arcade/ArcadeStep';
 import { PoolStep } from './steps/PoolStep';
-import { ResultStep } from './steps/result/ResultStep';
 import { WelcomeStep } from './steps/WelcomeStep';
 import { AppShell } from './ui/AppShell';
 
-const SCREENS: Record<Step, () => React.JSX.Element> = {
+/**
+ * Renders while a lazily-loaded step's chunk is still on the wire. Sits inside the same
+ * `flex min-h-0 flex-1` wrapper as the real screen, so it fills the shell identically —
+ * the contained arcade layout can never collapse while its chunk streams in.
+ */
+function StepFallback() {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-20">
+      <p className="font-mono text-xs uppercase tracking-[0.22em] text-muted">Loading…</p>
+    </div>
+  );
+}
+
+/**
+ * Arcade and result are split into their own chunks: the homepage never ships them, and a
+ * dwell-time preload warms each one before the user steps into it.
+ */
+const ArcadeStep = dynamic(() => import('./arcade/ArcadeStep').then((m) => m.ArcadeStep), {
+  loading: StepFallback,
+});
+const ResultStep = dynamic(() => import('./steps/result/ResultStep').then((m) => m.ResultStep), {
+  loading: StepFallback,
+});
+
+const SCREENS: Record<Step, React.ComponentType> = {
   welcome: WelcomeStep,
   pool: PoolStep,
   arcade: ArcadeStep,
@@ -76,6 +99,17 @@ export function Flow() {
     if (!hydrated) return;
     setVisited((prev) => (prev.has(step) ? prev : new Set(prev).add(step)));
   }, [step, hydrated]);
+
+  // Warm the next step's chunk during the current one's dwell: pool dwell streams the arcade
+  // bundle in, arcade dwell streams the result bundle in, so the next step mounts the moment
+  // the user taps forward. Welcome preloads nothing — its only successor is static PoolStep.
+  useEffect(() => {
+    if (step === 'pool') {
+      void import('./arcade/ArcadeStep');
+    } else if (step === 'arcade') {
+      void import('./steps/result/ResultStep');
+    }
+  }, [step]);
 
   if (!hydrated) {
     return (

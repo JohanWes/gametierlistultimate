@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { igdbCoverUrl, isDlc, normalizeIgdb, normalizeMongoDoc } from './normalize';
+import { igdbCoverUrl, igdbCoverUrlAtSize, isDlc, normalizeIgdb, normalizeMongoDoc } from './normalize';
 
 describe('normalizeMongoDoc', () => {
   const doc = {
@@ -114,5 +114,40 @@ describe('igdbCoverUrl', () => {
   it('returns null for missing image id', () => {
     expect(igdbCoverUrl(undefined)).toBeNull();
     expect(igdbCoverUrl('abc')).toContain('/t_cover_big_2x/abc.jpg');
+  });
+});
+
+describe('igdbCoverUrlAtSize', () => {
+  const igdb = 'https://images.igdb.com/igdb/image/upload';
+  const image = 'co1r7f.jpg';
+
+  it('downgrades both t_cover_big and t_cover_big_2x inputs to t_cover_big (sm surfaces)', () => {
+    expect(igdbCoverUrlAtSize(`${igdb}/t_cover_big/${image}`, 't_cover_big')).toBe(
+      `${igdb}/t_cover_big/${image}`,
+    );
+    expect(igdbCoverUrlAtSize(`${igdb}/t_cover_big_2x/${image}`, 't_cover_big')).toBe(
+      `${igdb}/t_cover_big/${image}`,
+    );
+  });
+
+  it('upgrades t_cover_big and keeps t_cover_big_2x for larger surfaces', () => {
+    expect(igdbCoverUrlAtSize(`${igdb}/t_cover_big/${image}`, 't_cover_big_2x')).toBe(
+      `${igdb}/t_cover_big_2x/${image}`,
+    );
+    expect(igdbCoverUrlAtSize(`${igdb}/t_cover_big_2x/${image}`, 't_cover_big_2x')).toBe(
+      `${igdb}/t_cover_big_2x/${image}`,
+    );
+  });
+
+  it('leaves local starter and non-IGDB URLs unchanged', () => {
+    expect(igdbCoverUrlAtSize('/assets/boxart/undertale.jpg', 't_cover_big')).toBe(
+      '/assets/boxart/undertale.jpg',
+    );
+    expect(igdbCoverUrlAtSize('/assets/boxart/undertale.jpg', 't_cover_big_2x')).toBe(
+      '/assets/boxart/undertale.jpg',
+    );
+    expect(igdbCoverUrlAtSize('https://images.example/cover.jpg', 't_cover_big_2x')).toBe(
+      'https://images.example/cover.jpg',
+    );
   });
 });

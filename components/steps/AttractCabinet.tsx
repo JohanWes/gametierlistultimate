@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, stagger, useAnimate, useReducedMotion } from 'framer-motion';
+import Image from 'next/image';
 import { useEffect } from 'react';
 
 import { cn } from '@/lib/utils';
@@ -182,12 +183,14 @@ export function AttractCabinet({ active = true }: AttractCabinetProps) {
                       scale: reduce ? 1 : 0.86,
                     }}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <Image
                       src={`/assets/boxart/${cover.slug}.jpg`}
                       alt={cover.title}
                       draggable={false}
-                      className="h-full w-full select-none object-cover"
+                      fill
+                      sizes="(min-width: 1024px) 48px, (min-width: 640px) 41px, 35px"
+                      quality={60}
+                      className="select-none object-cover"
                     />
                   </motion.div>
                 ))}

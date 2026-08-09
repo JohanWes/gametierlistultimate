@@ -208,6 +208,50 @@ describe('getSuggestions', () => {
     expect(games[0].igdbId).toBe(3);
   });
 
+  it('hydrates the adaptive path to full games — cover, platforms, and summary survive ranking', async () => {
+    // The selected game carries every field the scoring pass does not project: cover,
+    // platforms, year, and a synopsis. Ranking must run on lean docs, then re-hydrate so
+    // the returned batch is the complete Game shape, never a partial scoring record.
+    await mongo.db.collection(COLLECTIONS.games).insertOne({
+      id: 40,
+      name: 'Baldurs Gate 3',
+      genres: ['Role-playing (RPG)', 'Adventure'],
+      platforms: ['PC', 'PS5'],
+      year: 2023,
+      rating: 97,
+      popularity: 900,
+      cover: 'https://img/bg3.jpg',
+      synopsis: 'Gather your party and venture forth.',
+      category: 0,
+    });
+    await mongo.db.collection(COLLECTIONS.gameCooccurrence).insertOne({
+      pairKey: '1:40',
+      gameA: 1,
+      gameB: 40,
+      count: 5,
+      updatedAt: new Date(),
+    });
+
+    const games = await getSuggestions([1], 3, { seedIds: [1] });
+    const selected = games.find((g) => g.igdbId === 40);
+
+    // Co-occurrence ranks the seeded follow-up first.
+    expect(games[0].igdbId).toBe(40);
+    expect(selected).toMatchObject({
+      igdbId: 40,
+      title: 'Baldurs Gate 3',
+      coverUrl: 'https://img/bg3.jpg',
+      genres: ['Role-playing (RPG)', 'Adventure'],
+      platforms: ['PC', 'PS5'],
+      releaseYear: 2023,
+      rating: 97,
+      popularity: 900,
+      summary: 'Gather your party and venture forth.',
+      category: 0,
+      hasCover: true,
+    });
+  });
+
   it('softly down-ranks games near rejected cards without hard-filtering them', async () => {
     const games = await getSuggestions([6], 5, { rejectIds: [6] });
     const ids = games.map((g) => g.igdbId);

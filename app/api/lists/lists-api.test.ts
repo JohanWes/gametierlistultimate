@@ -175,3 +175,21 @@ describe('GET /api/lists/:shareId', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('unique indexes', () => {
+  it('awaits unique index creation on lists.shareId and gameStats.gameId before writing', async () => {
+    // Exercise the write path — the memoized index promises must be awaited before any insert.
+    const res = await POST(postReq(payload));
+    expect(res.status).toBe(201);
+
+    const listsIndexes = await mongo.db.collection(COLLECTIONS.lists).listIndexes().toArray();
+    const shareIdIndex = listsIndexes.find((i) => i.name === 'shareId_unique');
+    expect(shareIdIndex?.key).toEqual({ shareId: 1 });
+    expect(shareIdIndex?.unique).toBe(true);
+
+    const statsIndexes = await mongo.db.collection(COLLECTIONS.gameStats).listIndexes().toArray();
+    const gameIdIndex = statsIndexes.find((i) => i.name === 'gameId_unique');
+    expect(gameIdIndex?.key).toEqual({ gameId: 1 });
+    expect(gameIdIndex?.unique).toBe(true);
+  });
+});

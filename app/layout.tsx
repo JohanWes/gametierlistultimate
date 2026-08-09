@@ -3,7 +3,7 @@ import { IBM_Plex_Sans, JetBrains_Mono, Saira_Condensed } from 'next/font/google
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
-import { StoreHydrator } from '@/components/StoreHydrator';
+import { SoundHydrator } from '@/components/SoundHydrator';
 
 import './globals.css';
 
@@ -47,7 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${sairaCondensed.variable} ${ibmPlexSans.variable} ${jetbrains.variable}`}
     >
       <body className="min-h-dvh bg-bg font-sans text-fg">
-        <StoreHydrator />
+        <SoundHydrator />
         {children}
         <Analytics />
         <SpeedInsights />

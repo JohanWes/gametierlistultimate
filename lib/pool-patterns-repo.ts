@@ -14,12 +14,47 @@ export interface GameCooccurrenceDoc {
   updatedAt: Date;
 }
 
+/**
+ * Memoized index creation for the `gamePoolStats` collection. Every identity write awaits this
+ * before upserting; a rejection resets the promise so the next access retries.
+ */
+let poolStatsIndexesPromise: Promise<string> | null = null;
+
 async function poolStatsCollection() {
-  return (await getDb()).collection<GamePoolStatsDoc>(COLLECTIONS.gamePoolStats);
+  const coll = (await getDb()).collection<GamePoolStatsDoc>(COLLECTIONS.gamePoolStats);
+  if (!poolStatsIndexesPromise) {
+    poolStatsIndexesPromise = coll
+      .createIndex({ gameId: 1 }, { unique: true, name: 'gameId_unique' })
+      .catch((err) => {
+        poolStatsIndexesPromise = null;
+        throw err;
+      });
+  }
+  await poolStatsIndexesPromise;
+  return coll;
 }
 
+/**
+ * Memoized index creation for the `gameCooccurrence` collection: the unique `pairKey` identity
+ * plus the `gameA`/`gameB` read indexes. A rejection resets the promise so the next access
+ * retries.
+ */
+let cooccurrenceIndexesPromise: Promise<string[]> | null = null;
+
 async function cooccurrenceCollection() {
-  return (await getDb()).collection<GameCooccurrenceDoc>(COLLECTIONS.gameCooccurrence);
+  const coll = (await getDb()).collection<GameCooccurrenceDoc>(COLLECTIONS.gameCooccurrence);
+  if (!cooccurrenceIndexesPromise) {
+    cooccurrenceIndexesPromise = Promise.all([
+      coll.createIndex({ pairKey: 1 }, { unique: true, name: 'pairKey_unique' }),
+      coll.createIndex({ gameA: 1 }, { name: 'gameA_idx' }),
+      coll.createIndex({ gameB: 1 }, { name: 'gameB_idx' }),
+    ]).catch((err) => {
+      cooccurrenceIndexesPromise = null;
+      throw err;
+    });
+  }
+  await cooccurrenceIndexesPromise;
+  return coll;
 }
 
 function cleanIds(ids: unknown): number[] {
@@ -168,10 +203,13 @@ export async function getCooccurrenceScores(seedIds: number[]): Promise<Map<numb
 
   const coll = await cooccurrenceCollection();
   const docs = await coll
-    .find({
-      count: { $gt: 0 },
-      $or: [{ gameA: { $in: seeds } }, { gameB: { $in: seeds } }],
-    })
+    .find(
+      {
+        count: { $gt: 0 },
+        $or: [{ gameA: { $in: seeds } }, { gameB: { $in: seeds } }],
+      },
+      { projection: { _id: 0, gameA: 1, gameB: 1, count: 1 } },
+    )
     .toArray();
 
   const seedSet = new Set(seeds);

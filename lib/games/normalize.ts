@@ -38,6 +38,15 @@ export function sharpenIgdbCoverUrl(url: string): string {
 }
 
 /**
+ * Size-aware IGDB cover URL. Rewrites the upload transform segment to `size` whether the
+ * input already carries `t_cover_big` or `t_cover_big_2x`; non-IGDB/local paths pass through.
+ */
+export function igdbCoverUrlAtSize(url: string, size: 't_cover_big' | 't_cover_big_2x'): string {
+  if (!url.startsWith(`${IGDB_IMAGE_BASE}/`)) return url;
+  return url.replace(/\/t_cover_big(?:_2x)?\//, `/${size}/`);
+}
+
+/**
  * Normalize a MongoDB games document. The legacy dataset stores: `id` (IGDB id), `name`,
  * `year`, `platform` (single string), `genre` (single string), `rating` (0–100), `cover`
  * (already a full URL), `synopsis`. `popularity` and `category` are absent → null.

@@ -63,9 +63,37 @@ describe('CommunityComparison', () => {
   });
 
   it('shows a graceful low-data state when there is no community data', async () => {
-    renderPanel({ similarityPercent: null, outliers: [], sampleSize: 0 });
+    const fetchImpl = vi.fn(
+      jsonFetch({ similarityPercent: null, outliers: [], sampleSize: 0 }),
+    );
+    renderWithProviders(
+      <CommunityComparison
+        tiers={tiers as never}
+        games={games}
+        fetchImpl={fetchImpl as unknown as typeof fetch}
+        animateCount={false}
+      />,
+    );
     expect(await screen.findByText(/Not enough lists yet to compare/)).toBeInTheDocument();
     expect(screen.queryByText('%')).not.toBeInTheDocument();
+    // Owner mode (no server-provided result) still fetches the live comparison.
+    expect(fetchImpl).toHaveBeenCalledWith('/api/compare', expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('renders a server-provided initialResult immediately without loading or fetching', async () => {
+    const fetchImpl = vi.fn();
+    renderWithProviders(
+      <CommunityComparison
+        initialResult={result}
+        games={games}
+        fetchImpl={fetchImpl as unknown as typeof fetch}
+        animateCount={false}
+      />,
+    );
+    expect(await screen.findByText('92')).toBeInTheDocument();
+    expect(screen.getByText(/based on 1,204 lists/)).toBeInTheDocument();
+    expect(screen.queryByTestId('comparison-loading')).not.toBeInTheDocument();
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it('plays one reveal cue when sound is on', async () => {

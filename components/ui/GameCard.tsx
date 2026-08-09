@@ -3,7 +3,7 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { useState } from 'react';
 
-import { sharpenIgdbCoverUrl } from '@/lib/games/normalize';
+import { igdbCoverUrlAtSize } from '@/lib/games/normalize';
 import type { Game } from '@/lib/games/types';
 import { playSound } from '@/lib/sound';
 import { tapProps } from '@/lib/tap';
@@ -87,7 +87,12 @@ export function GameCard({
 
   const interactive = typeof onSelect === 'function';
   const showCover = game.hasCover && !!game.coverUrl;
-  const coverUrl = game.coverUrl ? sharpenIgdbCoverUrl(game.coverUrl) : null;
+  // Dense sm surfaces (shared shelf, tier rows) render at ~104px wide; 264px `t_cover_big`
+  // is already 2.5× that, so the smaller transform saves bandwidth without visible loss.
+  // Everything larger keeps the crisp 528px `t_cover_big_2x`.
+  const coverUrl = game.coverUrl
+    ? igdbCoverUrlAtSize(game.coverUrl, size === 'sm' ? 't_cover_big' : 't_cover_big_2x')
+    : null;
 
   const select = () => {
     if (!interactive) return;

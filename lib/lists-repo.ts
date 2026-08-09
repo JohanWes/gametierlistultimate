@@ -33,12 +33,44 @@ export interface GameStatsDoc {
   total: number;
 }
 
+/**
+ * Memoized index creation for the `lists` collection. Every identity write awaits this before
+ * inserting; a rejection resets the promise so the next access retries.
+ */
+let listsIndexesPromise: Promise<string> | null = null;
+
 async function listsCollection() {
-  return (await getDb()).collection<ListDoc>(COLLECTIONS.lists);
+  const coll = (await getDb()).collection<ListDoc>(COLLECTIONS.lists);
+  if (!listsIndexesPromise) {
+    listsIndexesPromise = coll
+      .createIndex({ shareId: 1 }, { unique: true, name: 'shareId_unique' })
+      .catch((err) => {
+        listsIndexesPromise = null;
+        throw err;
+      });
+  }
+  await listsIndexesPromise;
+  return coll;
 }
 
+/**
+ * Memoized index creation for the `gameStats` collection. Every identity write awaits this
+ * before upserting; a rejection resets the promise so the next access retries.
+ */
+let gameStatsIndexesPromise: Promise<string> | null = null;
+
 async function gameStatsCollection() {
-  return (await getDb()).collection<GameStatsDoc>(COLLECTIONS.gameStats);
+  const coll = (await getDb()).collection<GameStatsDoc>(COLLECTIONS.gameStats);
+  if (!gameStatsIndexesPromise) {
+    gameStatsIndexesPromise = coll
+      .createIndex({ gameId: 1 }, { unique: true, name: 'gameId_unique' })
+      .catch((err) => {
+        gameStatsIndexesPromise = null;
+        throw err;
+      });
+  }
+  await gameStatsIndexesPromise;
+  return coll;
 }
 
 /** Upper bound on games per tier row — anonymous writes must not create unbounded documents. */

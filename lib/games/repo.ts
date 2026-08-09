@@ -32,6 +32,36 @@ const NOT_DLC_FILTER = {
   $or: [{ category: { $exists: false } }, { category: { $nin: [...DLC_CATEGORIES] } }],
 };
 
+/** Fields the suggestion ranker needs — no covers, platforms, or summaries so hot reads stay lean. */
+const SCORING_PROJECTION: Document = {
+  _id: 0,
+  id: 1,
+  name: 1,
+  genre: 1,
+  genres: 1,
+  rating: 1,
+  popularity: 1,
+  category: 1,
+};
+
+/** Every field `normalizeMongoDoc` consumes — the full Game shape returned to callers. */
+const FULL_GAME_PROJECTION: Document = {
+  _id: 0,
+  id: 1,
+  name: 1,
+  cover: 1,
+  genre: 1,
+  genres: 1,
+  platform: 1,
+  platforms: 1,
+  year: 1,
+  popularity: 1,
+  rating: 1,
+  synopsis: 1,
+  summary: 1,
+  category: 1,
+};
+
 const SUGGESTION_FETCH_MULTIPLIER = 4;
 const SUGGESTION_FETCH_FLOOR = 20;
 
@@ -190,7 +220,6 @@ export async function getSuggestions(
   const rejectIds = normalizedIds(context.rejectIds);
   const hasAdaptiveContext = seedIds.length > 0 || rejectIds.length > 0;
   const sort: Document = { rating: -1 };
-  const projection = undefined;
   const fetchLimit = suggestionFetchLimit(limit);
 
   // Curated starter shelf: when preset is requested and the pool is cold (no seeds), serve the
@@ -213,7 +242,7 @@ export async function getSuggestions(
       const fillerAnd: Document[] = [NOT_DLC_FILTER, { cover: { $type: 'string', $ne: '' } }];
       if (fillerExclude.length) fillerAnd.push({ id: { $nin: fillerExclude } });
       const filler = await coll
-        .find({ $and: fillerAnd }, { projection })
+        .find({ $and: fillerAnd }, { projection: FULL_GAME_PROJECTION })
         .sort(sort)
         .limit(suggestionFetchLimit(limit - starters.length))
         .toArray();
@@ -224,9 +253,9 @@ export async function getSuggestions(
 
   if (hasAdaptiveContext) {
     const [candidateDocs, seedGames, rejectedGames, coScores] = await Promise.all([
-      coll.find({ $and: and }, { projection }).toArray(),
-      getByIds(seedIds),
-      getByIds(rejectIds),
+      coll.find({ $and: and }, { projection: SCORING_PROJECTION }).toArray(),
+      getScoringByIds(seedIds),
+      getScoringByIds(rejectIds),
       getCooccurrenceScores(seedIds),
     ]);
 
@@ -245,13 +274,17 @@ export async function getSuggestions(
       .sort((a, b) => b.score - a.score || (b.game.rating ?? 0) - (a.game.rating ?? 0))
       .map((entry) => entry.game);
 
-    return dedupeSuggestions(scored, limit);
+    // Rank and dedupe on the lean scoring docs, then hydrate the selected ids so callers
+    // receive complete Games (cover, platforms, summary) in final score order — never the
+    // partial scoring shapes.
+    const selected = dedupeSuggestions(scored, limit);
+    return getByIds(selected.map((game) => game.igdbId));
   }
 
   // Cold start: top-rated cover-bearing games. Once the user has any seeds, the adaptive
   // context above takes over and personalization is inferred from their accepts/rejects.
   const docs = await coll
-    .find({ $and: and }, { projection })
+    .find({ $and: and }, { projection: FULL_GAME_PROJECTION })
     .sort(sort)
     .limit(fetchLimit)
     .toArray();
@@ -264,11 +297,26 @@ export async function searchLocal(query: string, limit = 20): Promise<Game[]> {
   if (!trimmed) return [];
   const coll = await gamesCollection();
   const docs = await coll
-    .find({ name: caseInsensitiveRegex(trimmed) })
+    .find({ name: caseInsensitiveRegex(trimmed) }, { projection: FULL_GAME_PROJECTION })
     .sort({ rating: -1 })
     .limit(limit)
     .toArray();
   return docs.map(normalizeMongoDoc);
+}
+
+/**
+ * Fetch games by IGDB ids with only the fields the suggestion ranker consumes — seeds and
+ * rejects never need covers or summaries. Order-preserving, skipping unknown ids.
+ */
+async function getScoringByIds(ids: number[]): Promise<Game[]> {
+  const valid = ids.filter((id) => Number.isFinite(id));
+  if (valid.length === 0) return [];
+  const coll = await gamesCollection();
+  const docs = await coll
+    .find({ id: { $in: valid } }, { projection: SCORING_PROJECTION })
+    .toArray();
+  const byId = new Map(docs.map((d) => [Number(d.id), normalizeMongoDoc(d)]));
+  return valid.map((id) => byId.get(id)).filter((g): g is Game => !!g);
 }
 
 /** Hydrate a set of games by their IGDB ids, preserving the requested order. */
@@ -276,7 +324,9 @@ export async function getByIds(ids: number[]): Promise<Game[]> {
   const valid = ids.filter((id) => Number.isFinite(id));
   if (valid.length === 0) return [];
   const coll = await gamesCollection();
-  const docs = await coll.find({ id: { $in: valid } }).toArray();
+  const docs = await coll
+    .find({ id: { $in: valid } }, { projection: FULL_GAME_PROJECTION })
+    .toArray();
   const byId = new Map(docs.map((d) => [Number(d.id), normalizeMongoDoc(d)]));
   return valid.map((id) => byId.get(id)).filter((g): g is Game => !!g);
 }
@@ -371,13 +421,15 @@ export async function getByNames(names: string[]): Promise<Game[]> {
   // the entire games collection. The curated starter names match a DB title verbatim in the
   // common case, so this resolves all of them from a small result set — the hot path for the
   // pool builder's preset batches.
-  const candidateDocs = await coll.find({ name: { $in: cleaned.map(exactTitleRegex) } }).toArray();
+  const candidateDocs = await coll
+    .find({ name: { $in: cleaned.map(exactTitleRegex) } }, { projection: FULL_GAME_PROJECTION })
+    .toArray();
   const missing = resolveByExactOrNormalized(cleaned, candidateDocs.map(normalizeMongoDoc), resolved);
 
   // Fuzzy fallback: only names the targeted query missed (punctuation/spelling variants between
   // the query and the DB title) pay for a full-collection scan with normalized + substring matching.
   if (missing.length > 0) {
-    const all = (await coll.find({}).toArray()).map(normalizeMongoDoc);
+    const all = (await coll.find({}, { projection: FULL_GAME_PROJECTION }).toArray()).map(normalizeMongoDoc);
     const stillMissing = resolveByExactOrNormalized(missing, all, resolved);
     resolveBySubstring(stillMissing, all, resolved);
   }

@@ -3,7 +3,7 @@
 import { AnimatePresence, animate, motion, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { fetchComparison, fetchSharedComparison, type ComparisonResult } from '@/lib/compare-client';
+import { fetchComparison, type ComparisonResult } from '@/lib/compare-client';
 import type { SnapshotGame } from '@/lib/lists-repo';
 import { type Tier, type TierMap } from '@/lib/ranking';
 import { playSound } from '@/lib/sound';
@@ -15,10 +15,10 @@ import { cn } from '@/lib/utils';
 type Meta = { title: string; coverUrl: string | null };
 
 export interface CommunityComparisonProps {
-  /** Owner, pre-publish: the live tiers to compare. Omit when `shareId` is set. */
+  /** Owner, pre-publish: the live tiers to compare. */
   tiers?: TierMap;
-  /** Published list: fetch the server-computed comparison for this shareId instead. */
-  shareId?: string;
+  /** Server-computed comparison for a published list; skips the client fetch entirely. */
+  initialResult?: ComparisonResult;
   /** Cover/title lookup for outliers (owner's live game map). */
   gamesById?: Map<number, Meta>;
   /** Cover/title lookup for outliers (published snapshot games). */
@@ -147,7 +147,7 @@ type LoadState = { kind: 'loading' } | { kind: 'ready'; result: ComparisonResult
  */
 export function CommunityComparison({
   tiers,
-  shareId,
+  initialResult,
   gamesById,
   games,
   fetchImpl,
@@ -156,7 +156,9 @@ export function CommunityComparison({
 }: CommunityComparisonProps) {
   const reduce = useReducedMotion();
   const soundOn = useStore((s) => s.ui.soundOn);
-  const [state, setState] = useState<LoadState>({ kind: 'loading' });
+  const [state, setState] = useState<LoadState>(() =>
+    initialResult ? { kind: 'ready', result: initialResult } : { kind: 'loading' },
+  );
   const [expanded, setExpanded] = useState(false);
   const announced = useRef(false);
 
@@ -167,12 +169,12 @@ export function CommunityComparison({
     return m;
   }, [gamesById, games]);
 
-  // Fetch once on mount — the panel mounts when the reveal finishes with the final tiers.
+  // A server-provided result (published share page) is ready on mount; only the owner's
+  // pre-publish panel fetches, once on mount, when the reveal finishes with the final tiers.
   useEffect(() => {
+    if (initialResult) return;
     let alive = true;
-    const run = shareId
-      ? fetchSharedComparison(shareId, fetchImpl)
-      : fetchComparison(tiers ?? ({} as TierMap), fetchImpl);
+    const run = fetchComparison(tiers ?? ({} as TierMap), fetchImpl);
     run.then((result) => {
       if (alive) setState({ kind: 'ready', result });
     });
