@@ -1,37 +1,11 @@
 import { COLLECTIONS, getDb } from './mongo';
 
-export interface GamePoolStatsDoc {
-  gameId: number;
-  includedCount: number;
-  updatedAt: Date;
-}
-
 export interface GameCooccurrenceDoc {
   pairKey: string;
   gameA: number;
   gameB: number;
   count: number;
   updatedAt: Date;
-}
-
-/**
- * Memoized index creation for the `gamePoolStats` collection. Every identity write awaits this
- * before upserting; a rejection resets the promise so the next access retries.
- */
-let poolStatsIndexesPromise: Promise<string> | null = null;
-
-async function poolStatsCollection() {
-  const coll = (await getDb()).collection<GamePoolStatsDoc>(COLLECTIONS.gamePoolStats);
-  if (!poolStatsIndexesPromise) {
-    poolStatsIndexesPromise = coll
-      .createIndex({ gameId: 1 }, { unique: true, name: 'gameId_unique' })
-      .catch((err) => {
-        poolStatsIndexesPromise = null;
-        throw err;
-      });
-  }
-  await poolStatsIndexesPromise;
-  return coll;
 }
 
 /**
@@ -91,75 +65,24 @@ function parsePair(key: string): [number, number] {
 const MIN_POOL_SIZE = 3;
 
 /**
- * Update anonymous pool-pattern aggregates from an autosaved session-pool delta.
- * The aggregate stores counts only, while the session document remains the only
- * place that knows which games belong to a specific anonymous restore state.
- *
- * Pools below MIN_POOL_SIZE are never recorded. If a pool shrinks below the
- * threshold, all of its previous contributions are removed. Docs that decay to
- * zero or below are deleted so the collections stay lean and the reader (which
- * filters `count > 0`) doesn't scan dead entries.
+ * Update the anonymous co-occurrence aggregate from a previous→next pool delta. Pools below
+ * MIN_POOL_SIZE are never recorded; if a pool shrinks below the threshold, all of its previous
+ * contributions are removed. Pairs that decay to zero are deleted so the reader (which filters
+ * `count > 0`) doesn't scan dead entries.
  */
 export async function updatePoolPatternAggregates(previousPool: unknown, nextPool: unknown) {
   const previous = cleanIds(previousPool);
   const next = cleanIds(nextPool);
-
-  const previousRecorded = previous.length >= MIN_POOL_SIZE;
-  const nextRecorded = next.length >= MIN_POOL_SIZE;
-
-  // Neither pool meets the threshold — nothing to add or remove.
-  if (!previousRecorded && !nextRecorded) return;
+  const prevPairs = previous.length >= MIN_POOL_SIZE ? pairSet(previous) : new Set<string>();
+  const nextPairs = next.length >= MIN_POOL_SIZE ? pairSet(next) : new Set<string>();
+  const pairsAdded = [...nextPairs].filter((key) => !prevPairs.has(key));
+  const pairsRemoved = [...prevPairs].filter((key) => !nextPairs.has(key));
+  if (pairsAdded.length === 0 && pairsRemoved.length === 0) return;
 
   const now = new Date();
-  const previousIds = new Set(previous);
-  const nextIds = new Set(next);
-
-  let statsAdded: number[];
-  let statsRemoved: number[];
-  let pairsAdded: Set<string>;
-  let pairsRemoved: Set<string>;
-
-  if (nextRecorded && previousRecorded) {
-    // Both meet threshold — process the diff.
-    statsAdded = next.filter((id) => !previousIds.has(id));
-    statsRemoved = previous.filter((id) => !nextIds.has(id));
-    const prevPairs = pairSet(previous);
-    const nextPairs = pairSet(next);
-    pairsAdded = new Set([...nextPairs].filter((key) => !prevPairs.has(key)));
-    pairsRemoved = new Set([...prevPairs].filter((key) => !nextPairs.has(key)));
-  } else if (nextRecorded) {
-    // Previous was below threshold (never recorded) — add everything in the new pool.
-    statsAdded = [...next];
-    statsRemoved = [];
-    pairsAdded = pairSet(next);
-    pairsRemoved = new Set();
-  } else {
-    // Next is below threshold but previous was recorded — remove all previous contributions.
-    statsAdded = [];
-    statsRemoved = [...previous];
-    pairsAdded = new Set();
-    pairsRemoved = pairSet(previous);
-  }
-
-  const statsOps = [
-    ...statsAdded.map((gameId) => ({
-      updateOne: {
-        filter: { gameId },
-        update: { $inc: { includedCount: 1 }, $set: { updatedAt: now } },
-        upsert: true,
-      },
-    })),
-    ...statsRemoved.map((gameId) => ({
-      updateOne: {
-        filter: { gameId },
-        update: { $inc: { includedCount: -1 }, $set: { updatedAt: now } },
-        upsert: true,
-      },
-    })),
-  ];
-
-  const pairOps = [
-    ...[...pairsAdded].map((key) => {
+  const cooccurrence = await cooccurrenceCollection();
+  await cooccurrence.bulkWrite([
+    ...pairsAdded.map((key) => {
       const [gameA, gameB] = parsePair(key);
       return {
         updateOne: {
@@ -169,31 +92,19 @@ export async function updatePoolPatternAggregates(previousPool: unknown, nextPoo
         },
       };
     }),
-    ...[...pairsRemoved].map((key) => {
-      const [gameA, gameB] = parsePair(key);
-      return {
-        updateOne: {
-          filter: { pairKey: key },
-          update: { $inc: { count: -1 }, $set: { gameA, gameB, updatedAt: now } },
-          upsert: true,
-        },
-      };
-    }),
-  ];
-
-  const stats = await poolStatsCollection();
-  const cooccurrence = await cooccurrenceCollection();
-  await Promise.all([
-    statsOps.length ? stats.bulkWrite(statsOps) : Promise.resolve(),
-    pairOps.length ? cooccurrence.bulkWrite(pairOps) : Promise.resolve(),
+    // Decrements never upsert, so a pair that was never counted can't become a negative doc.
+    ...pairsRemoved.map((key) => ({
+      updateOne: {
+        filter: { pairKey: key },
+        update: { $inc: { count: -1 }, $set: { updatedAt: now } },
+        upsert: false,
+      },
+    })),
   ]);
 
-  // Delete any docs that have decayed to zero or below so the collections stay lean
-  // and the reader (which filters count > 0) doesn't scan dead entries.
-  await Promise.all([
-    stats.deleteMany({ includedCount: { $lte: 0 } }),
-    cooccurrence.deleteMany({ count: { $lte: 0 } }),
-  ]);
+  if (pairsRemoved.length) {
+    await cooccurrence.deleteMany({ pairKey: { $in: pairsRemoved }, count: { $lte: 0 } });
+  }
 }
 
 /** Sum co-occurrence edge counts from the current session seeds to every candidate game. */

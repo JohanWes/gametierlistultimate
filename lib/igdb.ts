@@ -11,6 +11,9 @@ export const IGDB_GAMES_URL = 'https://api.igdb.com/v4/games';
 const IGDB_FIELDS =
   'fields name, cover.image_id, genres.name, platforms.name, first_release_date, rating, total_rating, total_rating_count, summary, category;';
 
+/** Upper bound per IGDB request so a slow upstream can't hang a search. */
+const IGDB_TIMEOUT_MS = 5000;
+
 interface CachedToken {
   token: string;
   /** epoch ms at which the token should be considered expired. */
@@ -38,7 +41,10 @@ async function getAccessToken(): Promise<string> {
     grant_type: 'client_credentials',
   });
 
-  const res = await fetch(`${IGDB_TOKEN_URL}?${params.toString()}`, { method: 'POST' });
+  const res = await fetch(`${IGDB_TOKEN_URL}?${params.toString()}`, {
+    method: 'POST',
+    signal: AbortSignal.timeout(IGDB_TIMEOUT_MS),
+  });
   if (!res.ok) {
     throw new Error(`IGDB token request failed: ${res.status} ${res.statusText}`);
   }
@@ -76,6 +82,7 @@ export async function searchIgdb(query: string, limit = 20): Promise<Game[]> {
       Accept: 'application/json',
     },
     body,
+    signal: AbortSignal.timeout(IGDB_TIMEOUT_MS),
   });
 
   if (!res.ok) {

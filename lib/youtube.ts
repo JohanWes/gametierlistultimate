@@ -8,9 +8,6 @@
  * client (it scrapes a third-party page with a desktop UA).
  */
 
-/** Bump when the resolver logic changes so cached rows can be re-resolved if ever needed. */
-export const YOUTUBE_RESOLVER_VERSION = 1;
-
 const YOUTUBE_RESULTS_URL = 'https://www.youtube.com/results';
 const REQUEST_TIMEOUT_MS = 5000;
 const DESKTOP_UA =

@@ -49,7 +49,6 @@ describe('GET /api/games/search', () => {
     const res = await searchGET(req('/api/games/search?q=witcher'));
     const body = await res.json();
 
-    expect(body.source).toBe('local');
     expect(body.results.length).toBeGreaterThanOrEqual(3);
     expect(body.results.every((r: { source: string }) => r.source === 'local')).toBe(true);
     expect(igdbHit).toBe(false);
@@ -68,7 +67,6 @@ describe('GET /api/games/search', () => {
     const res = await searchGET(req('/api/games/search?q=ObscureIndieGem'));
     const body = await res.json();
 
-    expect(body.source).toBe('igdb');
     expect(body.results.some((r: { igdbId: number; source: string }) => r.igdbId === 9001 && r.source === 'igdb')).toBe(true);
 
     // Assert the IGDB result was persisted to Mongo.
@@ -78,7 +76,16 @@ describe('GET /api/games/search', () => {
 
   it('returns empty results for a blank query', async () => {
     const res = await searchGET(req('/api/games/search?q='));
-    expect(await res.json()).toEqual({ results: [], source: 'local' });
+    expect(await res.json()).toEqual({ results: [] });
+  });
+
+  it('still returns local hits when IGDB fails', async () => {
+    mswServer.use(http.post(IGDB_GAMES_URL, () => new HttpResponse(null, { status: 500 })));
+
+    const res = await searchGET(req('/api/games/search?q=halo'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.results.map((r: { igdbId: number }) => r.igdbId)).toEqual([4]);
   });
 });
 

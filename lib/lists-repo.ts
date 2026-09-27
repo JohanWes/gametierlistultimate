@@ -79,9 +79,11 @@ const MAX_TIER_ROW = 500;
 const MAX_SNAPSHOT_GAMES = 1000;
 const MAX_TITLE_LEN = 300;
 const MAX_URL_LEN = 600;
+/** Snapshot covers may only point at IGDB's CDN or the app's own predownloaded starter art. */
+const COVER_URL_PATTERN = /^(?:https:\/\/images\.igdb\.com\/|\/assets\/)/;
 
 /** Accepted IGDB id at this trust boundary: a real number, a safe integer, and positive. */
-function isIgdbId(value: unknown): value is number {
+export function isIgdbId(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 }
 
@@ -112,7 +114,10 @@ function normalizeSnapshotGames(input: SnapshotGame[] | undefined): SnapshotGame
     out.push({
       igdbId,
       title: title.slice(0, MAX_TITLE_LEN),
-      coverUrl: typeof coverUrl === 'string' ? coverUrl.slice(0, MAX_URL_LEN) : null,
+      coverUrl:
+        typeof coverUrl === 'string' && COVER_URL_PATTERN.test(coverUrl)
+          ? coverUrl.slice(0, MAX_URL_LEN)
+          : null,
     });
   }
   return out;
@@ -175,5 +180,5 @@ export async function getGameStats(gameIds: number[]): Promise<GameStatsDoc[]> {
 /** Total published lists — the "based on N lists" sample size for the comparison stat. */
 export async function countLists(): Promise<number> {
   const coll = await listsCollection();
-  return coll.countDocuments();
+  return coll.estimatedDocumentCount();
 }

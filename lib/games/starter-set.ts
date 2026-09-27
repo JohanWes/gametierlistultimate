@@ -11,16 +11,14 @@
  *   - The set is genre-interleaved so every 5-card batch is diverse and the first batch alone
  *     spans five distinct taste clusters.
  *
- * Every name below is also referenced by at least one persona in `scripts/seed-pool-patterns.ts`
+ * Every game below is also referenced by at least one persona in `scripts/seed-pool-patterns.ts`
  * (so co-occurrence edges already exist for it), except Limbo and Inside which are added to the
- * Indie + Cinematic personas by the same script. Names resolve against the `games` Mongo
- * collection at runtime via `getByNames` (fuzzy: exact → NFKD-normalized → substring), so a
- * missing game is silently skipped rather than crashing the shelf.
+ * Indie + Cinematic personas by the same script. `getStarterSet` loads them by IGDB id, so a game
+ * missing from the `games` collection is silently skipped rather than crashing the shelf.
  *
- * Predictor guardrail: `getStarterSetIds()` returns the resolved IGDB ids and is used by
- * `lib/pool-stats-service.ts` to exclude starter games from `updatePoolPatternAggregates` writes —
- * real users can't inflate Witcher 3 et al. into universal popularity hubs. Starter edges stay
- * anchored by the curated persona data only.
+ * Predictor guardrail: `lib/pool-stats-service.ts` excludes `STARTER_IDS` from
+ * `updatePoolPatternAggregates` writes — real users can't inflate Witcher 3 et al. into universal
+ * popularity hubs. Starter edges stay anchored by the curated persona data only.
  */
 
 /**
@@ -39,74 +37,53 @@
  *   8: Puzzle
  */
 export const STARTER_ENTRIES = [
-  { name: 'The Witcher 3: Wild Hunt', category: 'RPG' },
-  { name: 'Elden Ring', category: 'Soulslike' },
-  { name: 'The Legend of Zelda: Breath of the Wild', category: 'Adventure' },
-  { name: 'Hades', category: 'Indie' },
-  { name: 'Animal Crossing: New Horizons', category: 'Cozy' },
+  { igdbId: 1942, name: 'The Witcher 3: Wild Hunt', category: 'RPG' },
+  { igdbId: 119133, name: 'Elden Ring', category: 'Soulslike' },
+  { igdbId: 237895, name: 'The Legend of Zelda: Breath of the Wild', category: 'Adventure' },
+  { igdbId: 113112, name: 'Hades', category: 'Indie' },
+  { igdbId: 109462, name: 'Animal Crossing: New Horizons', category: 'Cozy' },
 
-  { name: 'Resident Evil 2', category: 'Horror' },
-  { name: 'The Last of Us', category: 'Story' },
-  { name: 'Doom Eternal', category: 'Shooter' },
-  { name: 'The Binding of Isaac: Rebirth', category: 'Roguelike' },
-  { name: 'Persona 5 Royal', category: 'JRPG' },
+  { igdbId: 19686, name: 'Resident Evil 2', category: 'Horror' },
+  { igdbId: 1009, name: 'The Last of Us', category: 'Story' },
+  { igdbId: 103298, name: 'Doom Eternal', category: 'Shooter' },
+  { igdbId: 7789, name: 'The Binding of Isaac: Rebirth', category: 'Roguelike' },
+  { igdbId: 114283, name: 'Persona 5 Royal', category: 'JRPG' },
 
-  { name: 'Forza Horizon 5', category: 'Racing' },
-  { name: "Sid Meier's Civilization VI", category: 'Strategy' },
-  { name: 'Portal 2', category: 'Puzzle' },
-  { name: 'The Elder Scrolls 5: Skyrim', category: 'RPG' },
-  { name: 'Bloodborne', category: 'Soulslike' },
+  { igdbId: 141503, name: 'Forza Horizon 5', category: 'Racing' },
+  { igdbId: 19130, name: "Sid Meier's Civilization VI", category: 'Strategy' },
+  { igdbId: 72, name: 'Portal 2', category: 'Puzzle' },
+  { igdbId: 472, name: 'The Elder Scrolls 5: Skyrim', category: 'RPG' },
+  { igdbId: 7334, name: 'Bloodborne', category: 'Soulslike' },
 
-  { name: 'Super Mario 64', category: 'Adventure' },
-  { name: 'Hollow Knight', category: 'Indie' },
-  { name: 'Minecraft', category: 'Cozy' },
-  { name: 'Silent Hill 2', category: 'Horror' },
-  { name: 'God of War', category: 'Story' },
+  { igdbId: 1074, name: 'Super Mario 64', category: 'Adventure' },
+  { igdbId: 14593, name: 'Hollow Knight', category: 'Indie' },
+  { igdbId: 135400, name: 'Minecraft', category: 'Cozy' },
+  { igdbId: 222341, name: 'Silent Hill 2', category: 'Horror' },
+  { igdbId: 19560, name: 'God of War', category: 'Story' },
 
-  { name: 'Half-Life 2', category: 'Shooter' },
-  { name: 'Slay the Spire', category: 'Roguelike' },
-  { name: 'Final Fantasy 7', category: 'JRPG' },
-  { name: 'Mario Kart 8', category: 'Racing' },
-  { name: 'Crusader Kings 3', category: 'Strategy' },
+  { igdbId: 233, name: 'Half-Life 2', category: 'Shooter' },
+  { igdbId: 40477, name: 'Slay the Spire', category: 'Roguelike' },
+  { igdbId: 427, name: 'Final Fantasy 7', category: 'JRPG' },
+  { igdbId: 2350, name: 'Mario Kart 8', category: 'Racing' },
+  { igdbId: 124954, name: 'Crusader Kings 3', category: 'Strategy' },
 
-  { name: 'Limbo', category: 'Puzzle' },
-  { name: "Baldur's Gate 3", category: 'RPG' },
-  { name: 'Sekiro: Shadows Die Twice', category: 'Soulslike' },
-  { name: 'Stardew Valley', category: 'Indie' },
-  { name: 'Amnesia: The Dark Descent', category: 'Horror' },
+  { igdbId: 1331, name: 'Limbo', category: 'Puzzle' },
+  { igdbId: 119171, name: "Baldur's Gate 3", category: 'RPG' },
+  { igdbId: 76882, name: 'Sekiro: Shadows Die Twice', category: 'Soulslike' },
+  { igdbId: 17000, name: 'Stardew Valley', category: 'Indie' },
+  { igdbId: 111, name: 'Amnesia: The Dark Descent', category: 'Horror' },
 
-  { name: 'Red Dead Redemption 2', category: 'Story' },
-  { name: 'Dead Cells', category: 'Roguelike' },
-  { name: 'NieR: Automata', category: 'JRPG' },
-  { name: 'Rocket League', category: 'Racing' },
-  { name: 'XCOM 2', category: 'Strategy' },
+  { igdbId: 25076, name: 'Red Dead Redemption 2', category: 'Story' },
+  { igdbId: 26855, name: 'Dead Cells', category: 'Roguelike' },
+  { igdbId: 11208, name: 'NieR: Automata', category: 'JRPG' },
+  { igdbId: 11198, name: 'Rocket League', category: 'Racing' },
+  { igdbId: 10919, name: 'XCOM 2', category: 'Strategy' },
 
-  { name: 'Inside', category: 'Puzzle' },
+  { igdbId: 7342, name: 'Inside', category: 'Puzzle' },
 ] as const;
 
 /** The starter game names in shelf order. Convenience view over `STARTER_ENTRIES`. */
 export const STARTER_GAME_NAMES: readonly string[] = STARTER_ENTRIES.map((e) => e.name);
 
-/**
- * Cache of resolved IGDB ids, populated by `getStarterSet` in `lib/games/repo.ts` on first
- * resolution. Used by the predictor guardrail in `lib/pool-stats-service.ts` to keep starter games
- * out of `updatePoolPatternAggregates` writes. Empty until `getStarterSet` has run.
- */
-const resolvedStarterIds = new Set<number>();
-
-/** Mark the given ids as belonging to the starter set (called by `getStarterSet`). */
-export function setResolvedStarterIds(ids: Iterable<number>): void {
-  resolvedStarterIds.clear();
-  for (const id of ids) {
-    if (Number.isFinite(id)) resolvedStarterIds.add(id);
-  }
-}
-
-/**
- * The IGDB ids that resolved from the starter set on the most recent `getStarterSet` call.
- * Empty until `getStarterSet` has run in this process. Predictor-guard callers should treat
- * an empty set as "no starters resolved / not yet initialized" (i.e. no filtering needed).
- */
-export function getStarterSetIds(): Set<number> {
-  return new Set(resolvedStarterIds);
-}
+/** The starter IGDB ids, iterating in shelf order. */
+export const STARTER_IDS: ReadonlySet<number> = new Set(STARTER_ENTRIES.map((e) => e.igdbId));

@@ -15,7 +15,7 @@ const LOCAL_SUFFICIENT_THRESHOLD = 3;
 export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get('q') ?? '').trim();
   if (!q) {
-    return NextResponse.json({ results: [], source: 'local' });
+    return NextResponse.json({ results: [] });
   }
 
   const limitRaw = Number(req.nextUrl.searchParams.get('limit'));
@@ -24,11 +24,12 @@ export async function GET(req: NextRequest) {
   const local = await searchLocal(q, limit);
   if (local.length >= LOCAL_SUFFICIENT_THRESHOLD) {
     const results: GameResult[] = local.map((g) => ({ ...g, source: 'local' }));
-    return NextResponse.json({ results, source: 'local' });
+    return NextResponse.json({ results });
   }
 
-  // Local is weak/empty → fall back to IGDB and persist anything new.
-  const igdb = await searchIgdb(q, limit);
+  // Local is weak/empty → fall back to IGDB and persist anything new. An IGDB failure still
+  // returns the local hits rather than a 500.
+  const igdb = await searchIgdb(q, limit).catch(() => []);
   if (igdb.length > 0) {
     await upsertGames(igdb);
   }
@@ -42,5 +43,5 @@ export async function GET(req: NextRequest) {
       .map((g) => ({ ...g, source: 'igdb' as const })),
   ];
 
-  return NextResponse.json({ results: merged, source: igdb.length > 0 ? 'igdb' : 'local' });
+  return NextResponse.json({ results: merged });
 }

@@ -2,10 +2,9 @@ import type { Collection, Document } from 'mongodb';
 
 import { COLLECTIONS, getDb } from '../mongo';
 import { getCooccurrenceScores } from '../pool-patterns-repo';
-import { YOUTUBE_RESOLVER_VERSION } from '../youtube';
-import { DLC_CATEGORIES, isDlc, normalizeMongoDoc } from './normalize';
+import { DLC_CATEGORIES, normalizeMongoDoc } from './normalize';
 import { STARTER_COVERS } from './starter-covers';
-import { setResolvedStarterIds, STARTER_GAME_NAMES } from './starter-set';
+import { STARTER_IDS } from './starter-set';
 import type { Game, SuggestionContext } from './types';
 
 let indexesEnsured = false;
@@ -157,13 +156,26 @@ function titleTokens(title: string): string[] {
     .filter((token) => token.length > 2 && !TITLE_STOPWORDS.has(token) && !/^\d+$/.test(token));
 }
 
-function titleAffinity(game: Game, seeds: Game[]): number {
-  const tokens = new Set(titleTokens(game.title));
+/** Title tokens and genres of a set of games (seeds or rejects), precomputed once per request. */
+interface AffinityProfile {
+  /** Title tokens per game, kept as arrays so repeated tokens count toward overlap. */
+  titleTokens: string[][];
+  /** Every lowercased genre across the games, repeats included. */
+  genres: string[];
+}
+
+function affinityProfile(games: Game[]): AffinityProfile {
+  return {
+    titleTokens: games.map((game) => titleTokens(game.title)),
+    genres: games.flatMap((game) => game.genres.map((g) => g.toLowerCase())),
+  };
+}
+
+function titleAffinity(tokens: Set<string>, profile: AffinityProfile): number {
   if (tokens.size === 0) return 0;
 
   let best = 0;
-  for (const seed of seeds) {
-    const seedTokens = titleTokens(seed.title);
+  for (const seedTokens of profile.titleTokens) {
     const shared = seedTokens.filter((token) => tokens.has(token)).length;
     if (shared >= 2) best = Math.max(best, 48);
     else if (shared === 1) best = Math.max(best, 22);
@@ -171,16 +183,9 @@ function titleAffinity(game: Game, seeds: Game[]): number {
   return best;
 }
 
-function genreAffinity(game: Game, seeds: Game[]): number {
-  const genres = new Set(game.genres.map((g) => g.toLowerCase()));
+function genreAffinity(genres: Set<string>, profile: AffinityProfile): number {
   if (genres.size === 0) return 0;
-
-  let shared = 0;
-  for (const seed of seeds) {
-    for (const genre of seed.genres) {
-      if (genres.has(genre.toLowerCase())) shared += 1;
-    }
-  }
+  const shared = profile.genres.filter((genre) => genres.has(genre)).length;
   return Math.min(shared * 5, 20);
 }
 
@@ -190,9 +195,15 @@ function popularityScore(game: Game): number {
   return rating / 10 + Math.log10(popularity + 1) * 4;
 }
 
-function nearRejectedPenalty(game: Game, rejected: Game[]): number {
-  if (rejected.length === 0) return 0;
-  return Math.min(titleAffinity(game, rejected) * 0.5 + genreAffinity(game, rejected) * 0.35, 24);
+function nearRejectedPenalty(
+  tokens: Set<string>,
+  genres: Set<string>,
+  rejected: AffinityProfile,
+): number {
+  return Math.min(
+    titleAffinity(tokens, rejected) * 0.5 + genreAffinity(genres, rejected) * 0.35,
+    24,
+  );
 }
 
 /**
@@ -229,8 +240,7 @@ export async function getSuggestions(
   // already-visible ids) gets the *next* starter games rather than the same batch again.
   if (context.preset && !hasAdaptiveContext) {
     const excludeSet = new Set(exclude);
-    // Resolve the full shelf once, then filter out excluded ids. This is a single full-collection
-    // scan (cached ids in starter-set.ts), and the shelf is only ~36 games, so slicing is cheap.
+    // The shelf is memoized and only ~36 games, so filtering + slicing per request is cheap.
     const allStarters = await getStarterSet();
     const starters = allStarters.filter((g) => !excludeSet.has(g.igdbId)).slice(0, limit);
     if (starters.length >= limit) {
@@ -260,15 +270,19 @@ export async function getSuggestions(
     ]);
 
     const candidates = candidateDocs.map(normalizeMongoDoc);
+    const seeds = affinityProfile(seedGames);
+    const rejected = affinityProfile(rejectedGames);
     const scored = candidates
       .map((game) => {
+        const tokens = new Set(titleTokens(game.title));
+        const genres = new Set(game.genres.map((g) => g.toLowerCase()));
         const coScore = Math.log2((coScores.get(game.igdbId) ?? 0) + 1) * 90;
         const score =
           coScore +
-          titleAffinity(game, seedGames) +
-          genreAffinity(game, seedGames) +
+          titleAffinity(tokens, seeds) +
+          genreAffinity(genres, seeds) +
           popularityScore(game) -
-          nearRejectedPenalty(game, rejectedGames);
+          nearRejectedPenalty(tokens, genres, rejected);
         return { game, score };
       })
       .sort((a, b) => b.score - a.score || (b.game.rating ?? 0) - (a.game.rating ?? 0))
@@ -332,126 +346,9 @@ export async function getByIds(ids: number[]): Promise<Game[]> {
 }
 
 /**
- * Resolve a set of display names to `Game` records, preserving the requested order. Matches
- * first by exact (case-insensitive) name, then by NFKD-normalized name (handles diacritics,
- * punctuation, and `&`/`and` differences), then by a substring fallback that prefers the
- * shortest matching DB name (more specific). Unresolved names are skipped silently — the
- * caller gets back only the games that exist in the collection, in the same relative order.
- *
- * Modeled on the fuzzy matcher in `scripts/seed-pool-patterns.ts` so the curated starter
- * shelf (`STARTER_GAME_NAMES`) resolves identically to how the persona seeding does.
- */
-/** Escape regex metacharacters and anchor for an exact, case-insensitive whole-title match. */
-function exactTitleRegex(name: string): RegExp {
-  return new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
-}
-
-/**
- * Resolve `names` against `pool` by exact (case-insensitive) then NFKD-normalized title. Hits are
- * written into `resolved`; returns the subset of `names` that matched neither.
- */
-function resolveByExactOrNormalized(
-  names: string[],
-  pool: Game[],
-  resolved: Map<string, Game>,
-): string[] {
-  const byExact = new Map<string, Game>();
-  const byNormalized = new Map<string, Game>();
-  for (const g of pool) {
-    const lower = g.title.toLowerCase();
-    if (!byExact.has(lower)) byExact.set(lower, g);
-    const norm = titleKey(g.title);
-    if (!byNormalized.has(norm)) byNormalized.set(norm, g);
-  }
-
-  const missing: string[] = [];
-  for (const name of names) {
-    if (resolved.has(name)) continue;
-    const exact = byExact.get(name.toLowerCase());
-    if (exact) {
-      resolved.set(name, exact);
-      continue;
-    }
-    const normMatch = byNormalized.get(titleKey(name));
-    if (normMatch) resolved.set(name, normMatch);
-    else missing.push(name);
-  }
-  return missing;
-}
-
-/**
- * Substring fallback over `pool` for the still-unresolved `names` — prefers the shortest matching
- * DB title (more specific). Guards against short common-word false positives by requiring the
- * normalized query to be at least 4 chars (all curated starter names are ≥ 5 chars, so this never
- * blocks them while preventing 1-3 char queries from matching unrelated games).
- */
-function resolveBySubstring(names: string[], pool: Game[], resolved: Map<string, Game>): void {
-  const MIN_SUBSTR_LEN = 4;
-  for (const name of names) {
-    if (resolved.has(name)) continue;
-    const norm = titleKey(name);
-    if (norm.length < MIN_SUBSTR_LEN) continue;
-    let best: Game | null = null;
-    let bestLen = Infinity;
-    for (const g of pool) {
-      const gNorm = titleKey(g.title);
-      if (gNorm === norm) {
-        best = g;
-        break;
-      }
-      if (gNorm.length >= MIN_SUBSTR_LEN && (gNorm.includes(norm) || norm.includes(gNorm))) {
-        if (g.title.length < bestLen) {
-          best = g;
-          bestLen = g.title.length;
-        }
-      }
-    }
-    if (best) resolved.set(name, best);
-  }
-}
-
-export async function getByNames(names: string[]): Promise<Game[]> {
-  const cleaned = [...new Set(names.map((n) => (typeof n === 'string' ? n.trim() : '')).filter(Boolean))];
-  if (cleaned.length === 0) return [];
-
-  const coll = await gamesCollection();
-  const resolved = new Map<string, Game>();
-
-  // Fast path: a targeted exact-title query (case-insensitive) instead of loading + normalizing
-  // the entire games collection. The curated starter names match a DB title verbatim in the
-  // common case, so this resolves all of them from a small result set — the hot path for the
-  // pool builder's preset batches.
-  const candidateDocs = await coll
-    .find({ name: { $in: cleaned.map(exactTitleRegex) } }, { projection: FULL_GAME_PROJECTION })
-    .toArray();
-  const missing = resolveByExactOrNormalized(cleaned, candidateDocs.map(normalizeMongoDoc), resolved);
-
-  // Fuzzy fallback: only names the targeted query missed (punctuation/spelling variants between
-  // the query and the DB title) pay for a full-collection scan with normalized + substring matching.
-  if (missing.length > 0) {
-    const all = (await coll.find({}, { projection: FULL_GAME_PROJECTION }).toArray()).map(normalizeMongoDoc);
-    const stillMissing = resolveByExactOrNormalized(missing, all, resolved);
-    resolveBySubstring(stillMissing, all, resolved);
-  }
-
-  return cleaned.map((name) => resolved.get(name)).filter((g): g is Game => !!g);
-}
-
-/**
- * Resolve the curated starter shelf (`STARTER_GAME_NAMES`) to full `Game` records in shelf
- * order. Used by `getSuggestions` when `context.preset === true` and the pool is cold
- * (no seed ids). Unresolved names are skipped, so a missing game shortens the shelf without
- * crashing. Side effect: caches the resolved IGDB ids via `setResolvedStarterIds` so the
- * predictor guardrail in `lib/pool-stats-service.ts` can exclude them from co-occurrence writes.
- *
- * DLC/expansions are filtered out defensively — the curated list is hand-picked main games,
- * but a fuzzy substring match could theoretically pull in an edition variant.
- */
-/**
- * Process-wide cache of the fully-resolved starter shelf. The shelf is a fixed curated list, so
- * resolving it once per process avoids re-scanning Mongo on every preset batch (the pool builder
- * fetches several preset batches as the user works through the pool step). Reset in tests via
- * `resetStarterSetCache`. A new serverless instance / deploy re-resolves naturally.
+ * Process-wide memo of the curated starter shelf (`STARTER_IDS`) in shelf order. It is a fixed
+ * list, so loading it once per process avoids a Mongo read on every preset batch. Reset in tests
+ * via `resetStarterSetCache`.
  */
 let starterSetCache: Game[] | null = null;
 
@@ -460,28 +357,19 @@ export function resetStarterSetCache(): void {
   starterSetCache = null;
 }
 
-export async function getStarterSet(limit?: number): Promise<Game[]> {
-  if (!starterSetCache) {
-    const resolved = await getByNames([...STARTER_GAME_NAMES]);
-    const filtered = resolved.filter((g) => !isDlc(g));
-    // Swap the remote images.igdb.com cover for a predownloaded same-origin copy (when available)
-    // so the pool builder opens with no external-CDN cover loading. A missing manifest entry simply
-    // keeps the remote URL. See scripts/fetch-starter-covers.ts + lib/games/starter-covers.ts.
-    starterSetCache = filtered.map((g) =>
-      STARTER_COVERS[g.igdbId] ? { ...g, coverUrl: STARTER_COVERS[g.igdbId] } : g,
-    );
-  }
-  setResolvedStarterIds(starterSetCache.map((g) => g.igdbId));
-  return typeof limit === 'number' && limit > 0
-    ? starterSetCache.slice(0, limit)
-    : starterSetCache;
+/**
+ * The curated starter shelf as full `Game` records in shelf order, used by `getSuggestions` when
+ * `context.preset` is set and the pool is cold. Ids missing from the collection are skipped.
+ * Covers are swapped for the predownloaded same-origin copies (see lib/games/starter-covers.ts)
+ * so the pool builder opens with no external-CDN cover loading.
+ */
+export async function getStarterSet(): Promise<Game[]> {
+  starterSetCache ??= (await getByIds([...STARTER_IDS])).map((g) =>
+    STARTER_COVERS[g.igdbId] ? { ...g, coverUrl: STARTER_COVERS[g.igdbId] } : g,
+  );
+  return starterSetCache;
 }
 
-/**
- * Upsert IGDB-sourced games into the local collection so future searches hit Mongo first.
- * Keyed on the IGDB `id`. Stores the normalized shape alongside the source fields the local
- * dataset uses (name/cover) so it blends with existing docs.
- */
 /** Cached gameplay-video resolution for a single game (see lib/youtube.ts). */
 export interface CachedVideo {
   /** Resolved YouTube id, or null when the last resolve found nothing. */
@@ -525,13 +413,17 @@ export async function setCachedVideo(igdbId: number, videoId: string | null): Pr
         youtubeVideoId: videoId,
         youtubeResolveStatus: videoId ? 'hit' : 'miss',
         youtubeResolvedAt: new Date(),
-        youtubeResolverVersion: YOUTUBE_RESOLVER_VERSION,
       },
     },
     { upsert: false },
   );
 }
 
+/**
+ * Insert IGDB-sourced games into the local collection so future searches hit Mongo first. Keyed
+ * on the IGDB `id`; existing docs are never modified (`$setOnInsert`), so IGDB search results
+ * can't clobber curated local data such as covers or ratings.
+ */
 export async function upsertGames(games: Game[]): Promise<void> {
   if (games.length === 0) return;
   const coll = await gamesCollection();
@@ -540,7 +432,7 @@ export async function upsertGames(games: Game[]): Promise<void> {
       updateOne: {
         filter: { id: g.igdbId },
         update: {
-          $set: {
+          $setOnInsert: {
             id: g.igdbId,
             name: g.title,
             cover: g.coverUrl,

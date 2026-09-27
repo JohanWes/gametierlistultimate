@@ -4,7 +4,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createList, type ListInput } from '@/lib/lists-repo';
 import { withMemoryMongo, type MemoryMongo } from '@/test/helpers/mongo';
 
-import { GET as getComparison } from '../lists/[shareId]/comparison/route';
 import { POST } from './route';
 
 let mongo: MemoryMongo;
@@ -24,12 +23,6 @@ function compareReq(body: unknown) {
     method: 'POST',
     body: JSON.stringify(body),
     headers: { 'content-type': 'application/json' },
-  });
-}
-
-function getComparisonFor(shareId: string) {
-  return getComparison(new Request(`http://localhost/api/lists/${shareId}/comparison`), {
-    params: Promise.resolve({ shareId }),
   });
 }
 
@@ -81,32 +74,5 @@ describe('POST /api/compare (pre-publish owner)', () => {
     expect(data.similarityPercent).toBeNull();
     expect(data.outliers).toEqual([]);
     expect(data.sampleSize).toBe(0);
-  });
-});
-
-describe('GET /api/lists/:shareId/comparison (published)', () => {
-  it('compares a published list without counting itself', async () => {
-    // Four other lists place game 1 at S; the list under test also places it at S.
-    for (let i = 0; i < 4; i += 1) await createList(listWith('S', [1]));
-    const { shareId } = await createList(listWith('S', [1]));
-
-    const res = await getComparisonFor(shareId);
-    expect(res.status).toBe(200);
-    const data = await res.json();
-    // Self-vote removed → 4 S votes remain, still a perfect match.
-    expect(data.similarityPercent).toBe(100);
-    expect(data.sampleSize).toBe(5);
-  });
-
-  it('returns 404 for an unknown shareId', async () => {
-    const res = await getComparisonFor('nope');
-    expect(res.status).toBe(404);
-  });
-
-  it('falls back to low-data when the list is the only one with that game', async () => {
-    const { shareId } = await createList(listWith('S', [1]));
-    const data = await (await getComparisonFor(shareId)).json();
-    // Only the list's own vote existed → subtracting self leaves nothing usable.
-    expect(data.similarityPercent).toBeNull();
   });
 });

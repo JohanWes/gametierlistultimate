@@ -1,16 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  STARTER_ENTRIES,
-  STARTER_GAME_NAMES,
-  getStarterSetIds,
-  setResolvedStarterIds,
-} from './starter-set';
+import { STARTER_ENTRIES, STARTER_GAME_NAMES, STARTER_IDS } from './starter-set';
 
 describe('STARTER_ENTRIES / STARTER_GAME_NAMES', () => {
   it('has 36 curated games across 13 categories', () => {
     expect(STARTER_ENTRIES).toHaveLength(36);
     expect(STARTER_GAME_NAMES).toHaveLength(36);
+    expect(STARTER_IDS.size).toBe(36);
 
     const categories = new Set(STARTER_ENTRIES.map((e) => e.category));
     expect(categories.size).toBe(13);
@@ -43,23 +39,5 @@ describe('STARTER_ENTRIES / STARTER_GAME_NAMES', () => {
 
   it('STARTER_GAME_NAMES is the names view of STARTER_ENTRIES in the same order', () => {
     expect(STARTER_GAME_NAMES).toEqual(STARTER_ENTRIES.map((e) => e.name));
-  });
-});
-
-describe('resolved starter id cache', () => {
-  it('is empty until setResolvedStarterIds is called', () => {
-    setResolvedStarterIds([]);
-    expect(getStarterSetIds().size).toBe(0);
-  });
-
-  it('reflects the ids passed to setResolvedStarterIds, ignoring non-finite values', () => {
-    setResolvedStarterIds([1, 2, Number.NaN, 3, Number.POSITIVE_INFINITY]);
-    expect([...getStarterSetIds()].sort()).toEqual([1, 2, 3]);
-  });
-
-  it('replaces the previous cache rather than appending', () => {
-    setResolvedStarterIds([1, 2, 3]);
-    setResolvedStarterIds([10, 20]);
-    expect([...getStarterSetIds()].sort()).toEqual([10, 20]);
   });
 });

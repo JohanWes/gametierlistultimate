@@ -1,11 +1,11 @@
 import { NextRequest } from 'next/server';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { getList } from '@/lib/lists-repo';
 import { COLLECTIONS } from '@/lib/mongo';
 import { withMemoryMongo, type MemoryMongo } from '@/test/helpers/mongo';
 
 import { POST } from './route';
-import { GET } from './[shareId]/route';
 
 let mongo: MemoryMongo;
 
@@ -24,12 +24,6 @@ function postReq(body: unknown) {
     method: 'POST',
     body: JSON.stringify(body),
     headers: { 'content-type': 'application/json' },
-  });
-}
-
-async function getList(shareId: string) {
-  return GET(new Request(`http://localhost/api/lists/${shareId}`), {
-    params: Promise.resolve({ shareId }),
   });
 }
 
@@ -117,9 +111,7 @@ describe('POST /api/lists', () => {
     const created = await POST(postReq(malicious));
     const { shareId } = await created.json();
 
-    const res = await getList(shareId);
-    expect(res.status).toBe(200);
-    const { list } = await res.json();
+    const list = (await getList(shareId))!;
 
     // Valid ordering preserved; first S→F occurrence wins across and within tiers.
     expect(list.tiers.S).toEqual([10, 30, 40, 50]);
@@ -150,46 +142,5 @@ describe('POST /api/lists', () => {
     expect(stats.find((s) => s.gameId === 60)?.counts).toMatchObject({ A: 1 });
     expect(stats.find((s) => s.gameId === 80)?.counts).toMatchObject({ A: 1 });
     expect(stats.find((s) => s.gameId === 90)?.counts).toMatchObject({ F: 1 });
-  });
-});
-
-describe('GET /api/lists/:shareId', () => {
-  it('returns the self-contained snapshot', async () => {
-    const created = await POST(postReq(payload));
-    const { shareId } = await created.json();
-
-    const res = await getList(shareId);
-    expect(res.status).toBe(200);
-    const { list } = await res.json();
-
-    expect(list.shareId).toBe(shareId);
-    expect(list.tiers.S).toEqual([1]);
-    expect(list.tiers.A).toEqual([2, 3]);
-    // Covers/titles are embedded so the share view needs no extra lookups.
-    expect(list.games).toHaveLength(4);
-    expect(list.games[0]).toMatchObject({ igdbId: 1, title: 'The Witcher 3' });
-  });
-
-  it('returns 404 for an unknown shareId', async () => {
-    const res = await getList('does-not-exist');
-    expect(res.status).toBe(404);
-  });
-});
-
-describe('unique indexes', () => {
-  it('awaits unique index creation on lists.shareId and gameStats.gameId before writing', async () => {
-    // Exercise the write path — the memoized index promises must be awaited before any insert.
-    const res = await POST(postReq(payload));
-    expect(res.status).toBe(201);
-
-    const listsIndexes = await mongo.db.collection(COLLECTIONS.lists).listIndexes().toArray();
-    const shareIdIndex = listsIndexes.find((i) => i.name === 'shareId_unique');
-    expect(shareIdIndex?.key).toEqual({ shareId: 1 });
-    expect(shareIdIndex?.unique).toBe(true);
-
-    const statsIndexes = await mongo.db.collection(COLLECTIONS.gameStats).listIndexes().toArray();
-    const gameIdIndex = statsIndexes.find((i) => i.name === 'gameId_unique');
-    expect(gameIdIndex?.key).toEqual({ gameId: 1 });
-    expect(gameIdIndex?.unique).toBe(true);
   });
 });

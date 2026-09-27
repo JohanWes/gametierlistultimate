@@ -35,7 +35,6 @@ export const COLLECTIONS = {
   games: 'games',
   lists: 'lists',
   gameStats: 'gameStats',
-  gamePoolStats: 'gamePoolStats',
   gameCooccurrence: 'gameCooccurrence',
 } as const;
 

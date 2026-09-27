@@ -5,6 +5,15 @@ import { searchGameplayVideo } from '@/lib/youtube';
 
 /** Re-resolve a cached miss after this long, in case footage has since been uploaded. */
 const MISS_RETRY_MS = 7 * 24 * 60 * 60 * 1000;
+/** Hits are stable per game, so the CDN may serve them; misses and errors are never cached. */
+const HIT_CACHE_CONTROL = 'public, s-maxage=86400, stale-while-revalidate=604800';
+
+function videoResponse(videoId: string | null) {
+  return NextResponse.json(
+    { videoId },
+    videoId ? { headers: { 'Cache-Control': HIT_CACHE_CONTROL } } : undefined,
+  );
+}
 
 /**
  * GET /api/games/:igdbId/video — resolve the game to a YouTube gameplay video id, cached per game.
@@ -25,7 +34,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ igdbId: string
   const cached = await getCachedVideo(igdbId);
   if (cached) {
     if (cached.status === 'hit') {
-      return NextResponse.json({ videoId: cached.videoId });
+      return videoResponse(cached.videoId);
     }
     if (Date.now() - cached.resolvedAt.getTime() < MISS_RETRY_MS) {
       return NextResponse.json({ videoId: null });
@@ -47,5 +56,5 @@ export async function GET(_req: Request, ctx: { params: Promise<{ igdbId: string
 
   const videoId = result.status === 'hit' ? result.videoId : null;
   await setCachedVideo(igdbId, videoId);
-  return NextResponse.json({ videoId });
+  return videoResponse(videoId);
 }
