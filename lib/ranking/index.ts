@@ -1,3 +1,5 @@
+import { clamp } from '@/lib/utils';
+
 export type RankingPhase = 'early' | 'late';
 
 export type Tier = 'S' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
@@ -66,7 +68,7 @@ export type RankingOutcome =
       answer: 'immediately' | 'maybe' | 'probably-not' | 'never';
       weight?: number;
     }
-  | { type: 'vibe'; gameId: number; tier: Tier; score?: number; weight?: number }
+  | { type: 'vibe'; gameId: number; score: number; weight?: number }
   | { type: 'bucket'; buckets: number[][]; weight?: number }
   | { type: 'skip'; gameIds?: number[] };
 
@@ -75,12 +77,6 @@ export type TierMap = Record<Tier, number[]>;
 export interface ConfidenceResult {
   global: number;
   perGame: Record<string, number>;
-}
-
-interface ScoringOpts {
-  weight?: number;
-  markSeen?: boolean;
-  countComparison?: boolean;
 }
 
 const VERSION = 1 as const;
@@ -115,8 +111,8 @@ const SIGMA_MAX = 130;
 /**
  * Comparisons at which the coverage ramp saturates. Below this a game's confidence is damped toward
  * zero (a never-played game reads 0), so the global meter does not inflate from priors alone; above
- * it, confidence is governed purely by tier-placement certainty. Deliberately small (≪ the old
- * "6 direct comparisons" coverage target) so well-separated games stop needing redundant sampling.
+ * it, confidence is governed purely by tier-placement certainty. Deliberately small so
+ * well-separated games stop needing redundant sampling.
  */
 const COVERAGE_FULL_AT = 3;
 
@@ -143,7 +139,7 @@ const REPLAY_CONFIDENCE_CREDIT = 1.2;
  * vibe 5, replay 6, podium 7, gauntlet 8, bracket 9), so a breather never
  * shadows a special and the run stays mostly multi-item.
  */
-export const PAIR_BREAK_EVERY = 11;
+const PAIR_BREAK_EVERY = 11;
 
 export function createRankingState(
   games: Array<number | GamePrior>,
@@ -177,59 +173,9 @@ export function createRankingState(
   };
 }
 
+/** Accept a saved state blob of the current version. The app wrote it, so no field checks. */
 export function parseRankingState(value: unknown): RankingState | null {
-  if (!value || typeof value !== 'object') return null;
-  const state = value as Partial<RankingState>;
-  if (state.version !== VERSION || typeof state.seed !== 'number' || typeof state.round !== 'number') {
-    return null;
-  }
-  if (!state.games || typeof state.games !== 'object') return null;
-
-  const games: Record<string, GameRating> = {};
-  for (const raw of Object.values(state.games)) {
-    if (!raw || typeof raw !== 'object') return null;
-    const game = raw as Partial<GameRating>;
-    if (
-      typeof game.gameId !== 'number' ||
-      typeof game.rating !== 'number' ||
-      typeof game.uncertainty !== 'number' ||
-      typeof game.comparisons !== 'number'
-    ) {
-      return null;
-    }
-    games[String(game.gameId)] = {
-      gameId: game.gameId,
-      rating: game.rating,
-      uncertainty: game.uncertainty,
-      comparisons: game.comparisons,
-      lastSeenRound: typeof game.lastSeenRound === 'number' ? game.lastSeenRound : null,
-      priorOffset: typeof game.priorOffset === 'number' ? game.priorOffset : 0,
-      manual: TIER_ORDER.includes(game.manual as Tier) ? game.manual : undefined,
-    };
-  }
-
-  return {
-    version: VERSION,
-    seed: state.seed,
-    round: state.round,
-    games,
-    recentMatchups: Array.isArray(state.recentMatchups)
-      ? state.recentMatchups
-          .filter((m): m is RecentMatchup => {
-            return (
-              !!m &&
-              typeof m === 'object' &&
-              typeof (m as RecentMatchup).round === 'number' &&
-              Array.isArray((m as RecentMatchup).gameIds)
-            );
-          })
-          .map((m) => ({ round: m.round, gameIds: m.gameIds.filter(Number.isFinite) }))
-      : [],
-  };
-}
-
-export function serializeRankingState(state: RankingState): RankingState {
-  return cloneState(state);
+  return (value as RankingState | null)?.version === VERSION ? (value as RankingState) : null;
 }
 
 /**
@@ -348,7 +294,7 @@ function applyOne(next: RankingState, outcome: RankingOutcome, round: number): v
       markParticipants(next, [outcome.gameId], round);
       break;
     case 'vibe':
-      applyVibe(next, outcome.gameId, outcome.tier, outcome.weight ?? 0.6, outcome.score);
+      applyVibe(next, outcome.gameId, outcome.score, outcome.weight ?? 0.6);
       markParticipants(next, [outcome.gameId], round);
       break;
     case 'skip':
@@ -358,16 +304,15 @@ function applyOne(next: RankingState, outcome: RankingOutcome, round: number): v
 }
 
 /**
- * Confidence is now a *tier-placement* measure, not a sampling count. Per game it is the probability
+ * Confidence is a *tier-placement* measure, not a sampling count. Per game it is the probability
  * the game sits in the tier the list will actually *display* it in (`placementConfidence` against the
  * `computeTiers` assignment, not the raw rating band), damped by a small coverage ramp so a game that
  * has never been compared still reads 0 (priors alone must not inflate the meter). Measuring against
  * the displayed tier keeps the meter honest under the S-tier cap in `computeTiers`: a top game whose
  * rating sits in the S band but is displayed in A (because S is capped) is scored as "A or better",
  * not falsely as certain-S. Because the rating scale is already globally transitive, a game can reach
- * high confidence after only a few comparisons once its posterior clears the surrounding boundaries —
- * it no longer needs to be directly sampled ~6 times. Global confidence ≈ the expected fraction of
- * games shown in the right tier.
+ * high confidence after only a few comparisons once its posterior clears the surrounding
+ * boundaries. Global confidence ≈ the expected fraction of games shown in the right tier.
  */
 export function computeConfidence(state: RankingState): ConfidenceResult {
   const perGame: Record<string, number> = {};
@@ -426,7 +371,7 @@ export function nextMatchup(state: RankingState, phase: RankingPhase): Matchup |
  * A representative rating squarely inside each tier's threshold band. Used by `assignTier` so a
  * manual placement round-trips through `computeTiers` (the engine stays the single source of truth).
  */
-export const TIER_BANDS: Record<Tier, number> = {
+const TIER_BANDS: Record<Tier, number> = {
   S: 1700,
   A: 1600,
   B: 1535,
@@ -526,7 +471,6 @@ function applyPair(
   bId: number,
   scoreA: 1 | 0.5,
   rawWeight: number,
-  opts: ScoringOpts = {},
 ): void {
   const a = state.games[String(aId)];
   const b = state.games[String(bId)];
@@ -544,10 +488,8 @@ function applyPair(
   a.uncertainty = Math.max(MIN_UNCERTAINTY, a.uncertainty * reduction);
   b.uncertainty = Math.max(MIN_UNCERTAINTY, b.uncertainty * reduction);
 
-  if (opts.countComparison !== false) {
-    a.comparisons += weight;
-    b.comparisons += weight;
-  }
+  a.comparisons += weight;
+  b.comparisons += weight;
 }
 
 function applyReplay(
@@ -578,38 +520,21 @@ function applyReplay(
 }
 
 /**
- * Map a continuous 0–100 vibe-meter score onto a target rating, smoothly interpolated across the
- * full tier range (0 → F band, 100 → S band). This keeps the meter granular: e.g. 95 pulls harder
- * than 75 even when both classify into the same letter tier, instead of snapping to one of 7 bands.
- */
-export function vibeScoreToRating(score: number): number {
-  const s = clamp(score, 0, 100);
-  return TIER_BANDS.F + (s / 100) * (TIER_BANDS.S - TIER_BANDS.F);
-}
-
-/**
  * Apply a "vibe" verdict — the player drags a single game onto a 0–100 meter. Unlike a pairwise
- * nudge this is a *direct, precise absolute placement* of the game's tier, so it is treated as strong
- * evidence rather than a soft hint. The target is the continuous rating for the dragged `score`
- * (`vibeScoreToRating`), falling back to the chosen tier's representative band (`TIER_BANDS[tier]`)
- * when no score is supplied. We pull the rating toward that target by a fraction scaled to how
- * unsettled the game still is: a cold game snaps most of the way (the player just told us where it
- * goes), while a well-established game is only nudged so accumulated pairwise history isn't
- * overwritten. The placement also confers real tier confidence — uncertainty shrinks hard and a solid
- * comparison credit is banked (`VIBE_CONFIDENCE_CREDIT`) so the meter reflects that the player pinned
- * the tier, instead of crawling as it did when a vibe moved only a few rating points.
+ * nudge this is a *direct, precise absolute placement* of the game's tier, so it is treated as
+ * strong evidence rather than a soft hint. The score maps linearly onto a target rating across the
+ * full tier range (0 → F band, 100 → S band), so e.g. 95 pulls harder than 75 even within one
+ * letter tier. We pull the rating toward that target by a fraction scaled to how unsettled the game
+ * still is: a cold game snaps most of the way (the player just told us where it goes), while a
+ * well-established game is only nudged so accumulated pairwise history isn't overwritten. The
+ * placement also confers real tier confidence — uncertainty shrinks hard and a solid comparison
+ * credit is banked (`VIBE_CONFIDENCE_CREDIT`) so the meter reflects the pinned tier.
  */
-function applyVibe(
-  state: RankingState,
-  gameId: number,
-  tier: Tier,
-  weight: number,
-  score?: number,
-): void {
+function applyVibe(state: RankingState, gameId: number, score: number, weight: number): void {
   const game = state.games[String(gameId)];
   if (!game) return;
 
-  const targetRating = score != null ? vibeScoreToRating(score) : TIER_BANDS[tier];
+  const targetRating = TIER_BANDS.F + (clamp(score, 0, 100) / 100) * (TIER_BANDS.S - TIER_BANDS.F);
   const trust = clamp(game.uncertainty / INITIAL_UNCERTAINTY, 0, 1); // ~1 cold … ~0.17 settled
   const pull = clamp(0.25 + 0.6 * trust, 0.15, 0.8);
   game.rating += pull * (targetRating - game.rating);
@@ -854,8 +779,3 @@ function seededNoise(state: RankingState, ...parts: number[]): number {
   value ^= value >>> 16;
   return (value >>> 0) / 0xffffffff;
 }
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-

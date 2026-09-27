@@ -4,7 +4,8 @@ import { create } from 'zustand';
 
 import { resolveResumeStep, STEP_ORDER, type Step } from '@/lib/flow';
 import type { Game } from '@/lib/games/types';
-import { saveLocalSession } from '@/lib/session-local';
+import type { RankingState } from '@/lib/ranking';
+import { saveLocalSession, type LocalSessionState } from '@/lib/session-local';
 import { debounce } from '@/lib/utils';
 
 export { MIN_POOL, STEP_ORDER, type Step } from '@/lib/flow';
@@ -34,18 +35,17 @@ export interface StoreState {
    * resume never re-shows them; only a recent slice is sent to the server (see PoolStep).
    */
   rejected: number[];
-  /** Opaque hidden ranking state (filled by the Phase 6 engine). */
-  scores: Record<string, unknown>;
+  /** Hidden ranking engine state; null until the arcade first builds it. */
+  scores: RankingState | null;
   ui: UiState;
 
   // pool actions
   addToPool: (game: Game, status?: PlayedStatus) => void;
   removeFromPool: (igdbId: number) => void;
-  setPlayedStatus: (igdbId: number, status: PlayedStatus) => void;
   markRejected: (igdbId: number) => void;
 
   // scores
-  setScores: (scores: Record<string, unknown>) => void;
+  setScores: (scores: RankingState) => void;
 
   // flow + ui
   setStep: (step: Step) => void;
@@ -56,12 +56,7 @@ export interface StoreState {
   setHydrated: (hydrated: boolean) => void;
 
   // persistence
-  hydrate: (saved: {
-    pool?: unknown;
-    rejected?: unknown;
-    scores?: unknown;
-    step?: unknown;
-  }) => void;
+  hydrate: (saved: LocalSessionState) => void;
 }
 
 const SOUND_KEY = 'gtl_sound';
@@ -79,12 +74,12 @@ function initialState(): Pick<StoreState, 'pool' | 'rejected' | 'scores' | 'ui'>
   return {
     pool: [],
     rejected: [],
-    scores: {},
+    scores: null,
     ui: { soundOn: true, step: 'welcome', hydrated: false },
   };
 }
 
-export const useStore = create<StoreState>((set, get) => ({
+export const useStore = create<StoreState>((set) => ({
   ...initialState(),
 
   addToPool: (game, status = 'finished') =>
@@ -95,11 +90,6 @@ export const useStore = create<StoreState>((set, get) => ({
 
   removeFromPool: (igdbId) =>
     set((s) => ({ pool: s.pool.filter((e) => e.game.igdbId !== igdbId) })),
-
-  setPlayedStatus: (igdbId, status) =>
-    set((s) => ({
-      pool: s.pool.map((e) => (e.game.igdbId === igdbId ? { ...e, status } : e)),
-    })),
 
   markRejected: (igdbId) =>
     set((s) => (s.rejected.includes(igdbId) ? s : { rejected: [...s.rejected, igdbId] })),
@@ -137,31 +127,13 @@ export const useStore = create<StoreState>((set, get) => ({
 
   setHydrated: (hydrated) => set((s) => ({ ui: { ...s.ui, hydrated } })),
 
-  hydrate: (saved) => {
-    const patch: Partial<StoreState> = {};
-    if (Array.isArray(saved.pool)) {
-      // Full pool entries (game + played status) are stored locally, so resume restores both
-      // without any network round-trip.
-      const pool: PoolEntry[] = (saved.pool as unknown[]).filter(
-        (entry): entry is PoolEntry =>
-          Boolean(entry) &&
-          typeof entry === 'object' &&
-          typeof (entry as PoolEntry).game?.igdbId === 'number',
-      );
-      patch.pool = pool;
-    }
-    if (Array.isArray(saved.rejected)) {
-      patch.rejected = [
-        ...new Set(saved.rejected.filter((id): id is number => Number.isFinite(id))),
-      ];
-    }
-    if (saved.scores && typeof saved.scores === 'object') {
-      patch.scores = saved.scores as Record<string, unknown>;
-    }
-    const poolCount = patch.pool?.length ?? get().pool.length;
-    const step = resolveResumeStep(saved.step, poolCount);
-    set({ ...patch, ui: { ...get().ui, step, hydrated: true } });
-  },
+  hydrate: ({ pool, rejected, scores, step }) =>
+    set((s) => ({
+      pool,
+      rejected,
+      scores,
+      ui: { ...s.ui, step: resolveResumeStep(step, pool.length), hydrated: true },
+    })),
 }));
 
 /* ------------------------------------------------------------------ autosave */
@@ -171,14 +143,14 @@ function poolEntryIds(s: StoreState): number[] {
 }
 
 /**
- * Subscribe to pool/scores/step changes and persist them. On any change we debounce a
+ * Subscribe to pool/rejected/scores/step changes and persist them. On any change we debounce a
  * write of the full state to localStorage (instant, offline resume). When the pool *ids* change
  * we also debounce a fire-and-forget POST /api/pool-stats carrying the previous→next delta — the
- * only remaining server write, feeding the community co-occurrence aggregates.
+ * only server write, feeding the community co-occurrence aggregates.
  *
- * Only persists after hydration so we never clobber restored state with empty defaults. The pool
- * delta baseline is reset to the restored pool at hydration, so resuming never re-counts games
- * already recorded in a prior visit. Accepts injectable `fetchImpl`/`waitMs` for testing.
+ * Started after hydration (see StoreHydrator), so the pool-delta baseline is the restored pool and
+ * resuming never re-counts games recorded in a prior visit. Nothing persists while unhydrated
+ * (Start over unhydrates before clearing + reloading). Injectable `fetchImpl`/`waitMs` for tests.
  */
 export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch }): () => void {
   const waitMs = opts?.waitMs ?? 600;
@@ -201,10 +173,7 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
   // Flush synchronously when the tab is hidden/closed so an action inside the debounce window
   // (e.g. decide a card, immediately close the tab) is never lost.
   const flush = () => {
-    // Cancel first: a pending debounced write must never fire after Start over, where the
-    // hydration gate would let stale in-memory state resurrect the cleared session.
     persist.cancel();
-    if (!useStore.getState().ui.hydrated) return;
     saveNow();
   };
   const onVisibilityChange = () => {
@@ -232,39 +201,23 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
 
   let prev = pickPersisted(useStore.getState());
   let prevPoolKey = poolEntryIds(useStore.getState()).join(',');
-  let wasHydrated = useStore.getState().ui.hydrated;
   const unsub = useStore.subscribe((state) => {
+    if (!state.ui.hydrated) return;
     const next = pickPersisted(state);
-    const nextPoolKey = poolEntryIds(state).join(',');
-    if (!wasHydrated && state.ui.hydrated) {
-      wasHydrated = true;
-      prev = next;
-      prevPoolKey = nextPoolKey;
-      syncedPoolIds = poolEntryIds(state);
-      return;
-    }
-    if (wasHydrated && !state.ui.hydrated) {
-      // Start over unhydrated the store: drop any pending autosave and reset the baseline
-      // so a later hydration transition re-establishes a clean one.
-      wasHydrated = false;
-      persist.cancel();
-      prev = next;
-      prevPoolKey = nextPoolKey;
-      return;
-    }
     if (
-      next.pool !== prev.pool ||
-      next.rejected !== prev.rejected ||
-      next.scores !== prev.scores ||
-      next.step !== prev.step
+      next.pool === prev.pool &&
+      next.rejected === prev.rejected &&
+      next.scores === prev.scores &&
+      next.step === prev.step
     ) {
-      const poolIdsChanged = nextPoolKey !== prevPoolKey;
-      prev = next;
-      prevPoolKey = nextPoolKey;
-      if (state.ui.hydrated) {
-        persist();
-        if (poolIdsChanged) syncPool();
-      }
+      return;
+    }
+    prev = next;
+    persist();
+    const poolKey = poolEntryIds(state).join(',');
+    if (poolKey !== prevPoolKey) {
+      prevPoolKey = poolKey;
+      syncPool();
     }
   });
 

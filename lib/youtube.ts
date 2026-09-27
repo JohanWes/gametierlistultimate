@@ -126,22 +126,17 @@ export async function searchGameplayVideo(
   const url = new URL(YOUTUBE_RESULTS_URL);
   url.searchParams.set('search_query', gameplayQuery(trimmed));
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
   let html: string;
   try {
     const res = await fetchImpl(url.toString(), {
       headers: { 'User-Agent': DESKTOP_UA, 'Accept-Language': 'en-US,en;q=0.9' },
-      signal: controller.signal,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!res.ok) return { status: 'error' };
     html = await res.text();
   } catch {
     // Network error, timeout/abort — transient; report 'error' so the caller does not cache it.
     return { status: 'error' };
-  } finally {
-    clearTimeout(timer);
   }
 
   // Primary: parse the structured search data so we skip ads, Shorts shelves, and promos.

@@ -9,13 +9,11 @@ export interface Game {
   /** Fully-resolved cover image URL, or null when the source has no cover. */
   coverUrl: string | null;
   genres: string[];
-  platforms: string[];
   releaseYear: number | null;
   /** 0–100ish popularity signal. Absent in the current Mongo dataset → null. */
   popularity: number | null;
   /** 0–100 rating. */
   rating: number | null;
-  summary: string | null;
   /**
    * IGDB game category (0 = main game, 1 = DLC, 2 = expansion, …). Used to filter out
    * DLC/expansions from suggestions. Absent in the current Mongo dataset → null.

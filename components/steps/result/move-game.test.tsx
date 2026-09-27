@@ -5,8 +5,6 @@ import {
   assignTier,
   computeTiers,
   createRankingState,
-  parseRankingState,
-  serializeRankingState,
   tierForRating,
   TIER_ORDER,
   type Tier,
@@ -35,7 +33,7 @@ function seed() {
   TIER_ORDER.forEach((tier: Tier, i) => {
     state = assignTier(state, i + 1, tier);
   });
-  useStore.getState().setScores(serializeRankingState(state) as unknown as Record<string, unknown>);
+  useStore.getState().setScores(state);
   return games;
 }
 
@@ -58,9 +56,8 @@ describe('manual correction (tap-to-move)', () => {
 
     expect(within(screen.getByTestId('tier-row-S')).getByText('Game 7')).toBeInTheDocument();
 
-    const state = parseRankingState(useStore.getState().scores);
-    expect(state).not.toBeNull();
-    expect(tierForRating(state!.games[7].rating)).toBe('S');
+    const state = useStore.getState().scores!;
+    expect(tierForRating(state.games[7].rating)).toBe('S');
   });
 
   it('persists the move so it survives a reload (re-seed from saved scores)', () => {
@@ -94,7 +91,7 @@ describe('manual correction (tap-to-move)', () => {
     fireEvent.click(screen.getByRole('button', { name: /keep ranking/i }));
     fireEvent.click(await screen.findByRole('button', { name: /skip/i }));
 
-    const state = parseRankingState(useStore.getState().scores)!;
+    const state = useStore.getState().scores!;
     expect(state.round).toBe(1);
     expect(computeTiers(state).S).toContain(7);
   });
@@ -112,8 +109,7 @@ describe('manual correction (tap-to-move)', () => {
 
     expect(screen.queryByText('Game 7')).not.toBeInTheDocument();
     expect(useStore.getState().pool.some((e) => e.game.igdbId === 7)).toBe(false);
-    const state = parseRankingState(useStore.getState().scores);
-    expect(state!.games[7]).toBeUndefined();
+    expect(useStore.getState().scores!.games[7]).toBeUndefined();
   });
 
   it('keeps the game when the deletion is cancelled', () => {
@@ -144,8 +140,7 @@ describe('manual correction (tap-to-move)', () => {
 
     await waitFor(() => {
       const saved = JSON.parse(window.localStorage.getItem(LOCAL_SESSION_KEY) as string);
-      const state = parseRankingState(saved.scores);
-      expect(tierForRating(state!.games[7].rating)).toBe('S');
+      expect(tierForRating(saved.scores.games[7].rating)).toBe('S');
     });
     expect(fetchSpy).not.toHaveBeenCalled(); // a tier move is local-only
     stop();

@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  buildBracket,
-  buildBucketRound,
-  buildGauntlet,
-  buildGreatShowdown,
-  buildPodium,
-  buildVibeRound,
   canReveal,
   derivePhase,
   LATE_PHASE_CONFIDENCE,
@@ -75,6 +69,14 @@ describe('selectRound — phase matching', () => {
     expect(round).not.toBeNull();
     expect(['promotion', 'higher-lower']).toContain(round!.kind);
     expect(round!.gameIds).toHaveLength(2);
+  });
+
+  it('deprioritizes recently shown games', () => {
+    let state = createRankingState([1, 2, 3, 4, 5, 6, 7, 8], { seed: 24 });
+    state = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 2 });
+    const round = selectRound(state, { phase: 'early' })!;
+    expect(round.gameIds).not.toContain(1);
+    expect(round.gameIds).not.toContain(2);
   });
 });
 
@@ -145,12 +147,6 @@ describe('selectRound — special injections', () => {
     const round = selectRound(state, { phase: 'late' })!;
     expect(round.kind).not.toBe('vibe');
   });
-
-  it('skips the vibe injection when it would repeat the last kind', () => {
-    const state = stateAtRound([1, 2, 3, 4, 5, 6], 5);
-    const round = selectRound(state, { phase: 'early', recentKinds: ['vibe'] })!;
-    expect(round.kind).not.toBe('vibe');
-  });
 });
 
 describe('multi-game special injections', () => {
@@ -173,14 +169,6 @@ describe('multi-game special injections', () => {
     expect(round.anchorId).toBe(round.gameIds[0]);
   });
 
-  it('skips the bucket injection when it would repeat the last kind', () => {
-    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 4), {
-      phase: 'early',
-      recentKinds: ['bucket'],
-    })!;
-    expect(round.kind).not.toBe('bucket');
-  });
-
   it('skips the heavy multi-game injections in the late phase but keeps the bracket tournament', () => {
     // Bucket/podium/vibe/gauntlet/replay stay gated to the build phase; the bracket is allowed
     // in late phase too because it's just three 1v1s folded into one round — fine-tuning-shaped.
@@ -194,132 +182,57 @@ describe('multi-game special injections', () => {
       'bracket',
     );
   });
-
-  it('keeps firing multi-game specials in the early phase at high confidence', () => {
-    // The fix: the early (multi-item) phase runs through LATE_PHASE_CONFIDENCE, so a
-    // bucket round still fires at round 4 even when confidence is well past the old
-    // 65 cliff. Late phase only begins at LATE_PHASE_CONFIDENCE.
-    const state = stateAtRound([1, 2, 3, 4, 5, 6], 4);
-    const phase = derivePhase(state, LATE_PHASE_CONFIDENCE - 5);
-    expect(phase).toBe('early');
-    const round = selectRound(state, { phase })!;
-    expect(round.kind).toBe('bucket');
-    expect(round.gameIds).toHaveLength(6);
-  });
 });
 
-describe('buildBucketRound / buildPodium / buildBracket', () => {
-  it('bucket and podium pull six games, bracket pulls four', () => {
-    const state = createRankingState([1, 2, 3, 4, 5, 6], { seed: 2 });
-    expect(buildBucketRound(state)!.gameIds).toHaveLength(6);
-    expect(buildPodium(state)!.gameIds).toHaveLength(6);
-    expect(buildBracket(state)!.gameIds).toHaveLength(4);
-  });
-
-  it('returns null when the pool is too small', () => {
-    const small = createRankingState([1, 2, 3], { seed: 1 });
-    expect(buildBucketRound(small)).toBeNull();
-    expect(buildPodium(small)).toBeNull();
-    expect(buildBracket(small)).toBeNull();
-  });
-
-  it('seeds the least-sampled games into the bucket pool', () => {
-    let state = createRankingState([1, 2, 3, 4, 5, 6, 7, 8], { seed: 2 });
-    // Heavily sample games 1 and 2 so they fall outside the six least-sampled.
-    for (let i = 0; i < 8; i += 1) {
-      state = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 2 });
-    }
-    const bucket = buildBucketRound(state)!;
-    expect(bucket.gameIds).toHaveLength(6);
-    expect(bucket.gameIds).not.toContain(1);
-    expect(bucket.gameIds).not.toContain(2);
-  });
-});
-
-describe('buildGreatShowdown', () => {
-  it('seeds eight games (the bracket needs a full draw)', () => {
-    const state = createRankingState([1, 2, 3, 4, 5, 6, 7, 8], { seed: 2 });
-    const showdown = buildGreatShowdown(state)!;
-    expect(showdown.kind).toBe('great-showdown');
-    expect(showdown.gameIds).toHaveLength(8);
-    expect(showdown.anchorId).toBe(showdown.gameIds[0]);
-  });
-
-  it('returns null when fewer than eight games are available', () => {
-    expect(buildGreatShowdown(createRankingState([1, 2, 3, 4, 5, 6, 7], { seed: 1 }))).toBeNull();
-  });
-
-  it('seeds the eight least-sampled games', () => {
+describe('special builders', () => {
+  it('great showdown seeds the eight least-sampled games', () => {
     let state = createRankingState([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], { seed: 2 });
     // Heavily sample 1 and 2 so they fall outside the eight least-sampled.
     for (let i = 0; i < 8; i += 1) {
       state = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 2 });
     }
-    const showdown = buildGreatShowdown(state)!;
+    const showdown = selectRound({ ...state, round: 13 }, { phase: 'early' })!;
+    expect(showdown.kind).toBe('great-showdown');
     expect(showdown.gameIds).toHaveLength(8);
     expect(showdown.gameIds).not.toContain(1);
     expect(showdown.gameIds).not.toContain(2);
   });
-});
 
-describe('selectRound — great showdown injection', () => {
-  it('injects the great showdown on its cadence in the early phase', () => {
-    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6, 7, 8], 13), { phase: 'early' })!;
-    expect(round.kind).toBe('great-showdown');
-    expect(round.gameIds).toHaveLength(8);
-  });
-
-  it('injects the great showdown in the late phase too (playable at all stages)', () => {
+  it('great showdown also fires in the late phase', () => {
     const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6, 7, 8], 13), { phase: 'late' })!;
     expect(round.kind).toBe('great-showdown');
   });
 
-  it('does not repeat the great showdown back-to-back', () => {
-    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6, 7, 8], 13), {
-      phase: 'early',
-      recentKinds: ['great-showdown'],
-    })!;
-    expect(round.kind).not.toBe('great-showdown');
-  });
-
-  it('falls through to a normal round when the pool is too small for a full draw', () => {
-    const round = selectRound(stateAtRound([1, 2, 3, 4, 5, 6], 13), { phase: 'early' })!;
-    expect(round.kind).not.toBe('great-showdown');
-  });
-});
-
-describe('buildVibeRound', () => {
-  it('picks the 4 least-sampled games', () => {
+  it('vibe picks the 4 least-sampled games', () => {
     let state = createRankingState([1, 2, 3, 4, 5, 6], { seed: 2 });
     // Give games 1 and 2 lots of comparisons so they're excluded from the vibe pool.
     for (let i = 0; i < 6; i += 1) {
       state = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 2 });
     }
-    const vibe = buildVibeRound(state)!;
+    const vibe = selectRound({ ...state, round: 5 }, { phase: 'early' })!;
     expect(vibe.kind).toBe('vibe');
     expect(vibe.gameIds).toHaveLength(4);
     expect(vibe.gameIds).not.toContain(1);
     expect(vibe.gameIds).not.toContain(2);
   });
 
-  it('returns null when the pool has fewer than 4 games', () => {
-    const state = createRankingState([1, 2, 3], { seed: 1 });
-    expect(buildVibeRound(state)).toBeNull();
-  });
-
-  it('returns null when exclusion drops the fresh pool below VIBE_POOL_SIZE', () => {
-    const state = createRankingState([1, 2, 3, 4, 5], { seed: 3 });
+  it('vibe is skipped when already-rated games leave too few fresh ones', () => {
+    const state = stateAtRound([1, 2, 3, 4, 5], 5);
     // Exclude 3 of the 5 games; only 2 remain — below the 4-game pool size.
-    expect(buildVibeRound(state, [1, 2, 3])).toBeNull();
+    const round = selectRound(state, { phase: 'early', vibeSeenIds: [1, 2, 3] })!;
+    expect(round.kind).not.toBe('vibe');
   });
 
-  it('picks only fresh games when enough remain after exclusion', () => {
+  it('vibe picks only fresh games when enough remain after exclusion', () => {
     let state = createRankingState([1, 2, 3, 4, 5, 6, 7, 8], { seed: 4 });
     for (let i = 0; i < 6; i += 1) {
       state = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 2 });
     }
     // Exclude the four least-sampled (3/4/5/6); the next four (7/8/1/2) should be picked.
-    const vibe = buildVibeRound(state, [3, 4, 5, 6])!;
+    const vibe = selectRound(
+      { ...state, round: 5 },
+      { phase: 'early', vibeSeenIds: [3, 4, 5, 6] },
+    )!;
     expect(vibe.kind).toBe('vibe');
     expect(vibe.gameIds).toHaveLength(4);
     for (const id of [3, 4, 5, 6]) {
@@ -327,44 +240,14 @@ describe('buildVibeRound', () => {
     }
   });
 
-  it('treats an empty excludeIds array as no exclusion', () => {
-    const state = createRankingState([1, 2, 3, 4, 5, 6], { seed: 5 });
-    const vibe = buildVibeRound(state, [])!;
-    expect(vibe.gameIds).toHaveLength(4);
-  });
-});
-
-describe('selectRound — vibe exclusion', () => {
-  it('a vibe-cadence round with vibeSeenIds yields only fresh games', () => {
-    const state = stateAtRound([1, 2, 3, 4, 5, 6, 7, 8], 5);
-    // Exclude the four least-sampled ids; the vibe round must draw from the rest.
-    const round = selectRound(state, { phase: 'early', vibeSeenIds: [3, 4, 5, 6] })!;
-    expect(round.kind).toBe('vibe');
-    for (const id of [3, 4, 5, 6]) {
-      expect(round.gameIds).not.toContain(id);
-    }
-  });
-
-  it('falls through to a non-vibe round when no fresh games fill the pool', () => {
-    const state = stateAtRound([1, 2, 3, 4, 5, 6], 5);
-    // Exclude the entire pool — vibe must be skipped and a normal matchup takes over.
-    const round = selectRound(state, {
-      phase: 'early',
-      vibeSeenIds: [1, 2, 3, 4, 5, 6],
-    })!;
-    expect(round.kind).not.toBe('vibe');
-  });
-});
-
-describe('buildGauntlet', () => {
-  it('orders opponents weakest-to-strongest above the challenger', () => {
+  it('gauntlet orders opponents weakest-to-strongest above the challenger', () => {
     let state = createRankingState([1, 2, 3, 4], { seed: 2 });
     // Make 1 the strongest and 4 the weakest, leaving 4 high-uncertainty as challenger.
     for (let i = 0; i < 10; i += 1) {
       state = applyOutcome(state, { type: 'pairwise', winnerId: 1, loserId: 2 });
       state = applyOutcome(state, { type: 'pairwise', winnerId: 2, loserId: 3 });
     }
-    const gauntlet = buildGauntlet(state)!;
+    const gauntlet = selectRound({ ...state, round: 8 }, { phase: 'early' })!;
     expect(gauntlet.kind).toBe('gauntlet');
     const opponentIds = gauntlet.gameIds.slice(1);
     const ratings = opponentIds.map((id) => state.games[String(id)].rating);

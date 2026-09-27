@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { zoneIndexAtPagePoint } from '@/components/steps/result/dnd';
 import { playSound } from '@/lib/sound';
@@ -47,6 +47,8 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
   const [picked, setPicked] = useState<number | null>(null);
   const [pulsed, setPulsed] = useState<number | null>(null);
   const zoneRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const pulseTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(pulseTimer.current), []);
 
   if (games.length === 0) return null;
 
@@ -58,7 +60,11 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
     setPlacement((prev) => ({ ...prev, [gameId]: bucket }));
     setPicked(null);
     setPulsed(bucket);
-    window.setTimeout(() => setPulsed((b) => (b === bucket ? null : b)), 360);
+    window.clearTimeout(pulseTimer.current);
+    pulseTimer.current = window.setTimeout(
+      () => setPulsed((b) => (b === bucket ? null : b)),
+      360,
+    );
   };
 
   const unplace = (gameId: number) => {

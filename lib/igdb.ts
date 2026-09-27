@@ -9,7 +9,7 @@ export const IGDB_GAMES_URL = 'https://api.igdb.com/v4/games';
 
 /** Fields requested from IGDB so the normalizer gets a predictable shape. */
 const IGDB_FIELDS =
-  'fields name, cover.image_id, genres.name, platforms.name, first_release_date, rating, total_rating, total_rating_count, summary, category;';
+  'fields name, cover.image_id, genres.name, first_release_date, rating, total_rating, total_rating_count, category;';
 
 /** Upper bound per IGDB request so a slow upstream can't hang a search. */
 const IGDB_TIMEOUT_MS = 5000;

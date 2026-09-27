@@ -205,20 +205,18 @@ describe('getSuggestions', () => {
     expect(games[0].igdbId).toBe(3);
   });
 
-  it('hydrates the adaptive path to full games — cover, platforms, and summary survive ranking', async () => {
-    // The selected game carries every field the scoring pass does not project: cover,
-    // platforms, year, and a synopsis. Ranking must run on lean docs, then re-hydrate so
-    // the returned batch is the complete Game shape, never a partial scoring record.
+  it('hydrates the adaptive path to full games — cover and year survive ranking', async () => {
+    // The selected game carries fields the scoring pass does not project (cover, year).
+    // Ranking must run on lean docs, then re-hydrate so the returned batch is the complete
+    // Game shape, never a partial scoring record.
     await mongo.db.collection(COLLECTIONS.games).insertOne({
       id: 40,
       name: 'Baldurs Gate 3',
       genres: ['Role-playing (RPG)', 'Adventure'],
-      platforms: ['PC', 'PS5'],
       year: 2023,
       rating: 97,
       popularity: 900,
       cover: 'https://img/bg3.jpg',
-      synopsis: 'Gather your party and venture forth.',
       category: 0,
     });
     await mongo.db.collection(COLLECTIONS.gameCooccurrence).insertOne({
@@ -239,11 +237,9 @@ describe('getSuggestions', () => {
       title: 'Baldurs Gate 3',
       coverUrl: 'https://img/bg3.jpg',
       genres: ['Role-playing (RPG)', 'Adventure'],
-      platforms: ['PC', 'PS5'],
       releaseYear: 2023,
       rating: 97,
       popularity: 900,
-      summary: 'Gather your party and venture forth.',
       category: 0,
     });
   });
@@ -357,11 +353,9 @@ describe('upsertGames', () => {
         title: 'New From IGDB',
         coverUrl: 'https://img/new.jpg',
         genres: ['Adventure'],
-        platforms: ['PC'],
         releaseYear: 2020,
         popularity: 10,
         rating: 80,
-        summary: null,
         category: 0,
       },
       {
@@ -369,40 +363,14 @@ describe('upsertGames', () => {
         title: 'Clobbered',
         coverUrl: null,
         genres: [],
-        platforms: [],
         releaseYear: null,
         popularity: null,
         rating: null,
-        summary: null,
         category: 0,
       },
     ]);
     const [inserted, existing] = await getByIds([100, 1]);
     expect(inserted.title).toBe('New From IGDB');
     expect(existing).toMatchObject({ title: 'The Witcher 3', coverUrl: 'https://img/w3.jpg' });
-  });
-
-  it('round-trips a non-null summary through getByIds (regression: summary vs synopsis)', async () => {
-    // upsertGames writes the field name `summary` (IGDB convention), but the legacy dataset
-    // and the original normalizeMongoDoc reader used `synopsis`. The reader must tolerate
-    // both, or IGDB-sourced games lose their summary on hydration.
-    await upsertGames([
-      {
-        igdbId: 200,
-        title: 'Fae Farm',
-        coverUrl: 'https://img/fae.jpg',
-        genres: ['Simulator'],
-        platforms: ['PC'],
-        releaseYear: 2023,
-        popularity: 5,
-        rating: 80,
-        summary: 'A cozy magical farm life sim.',
-        category: 0,
-      },
-    ]);
-
-    const found = await getByIds([200]);
-    expect(found).toHaveLength(1);
-    expect(found[0].summary).toBe('A cozy magical farm life sim.');
   });
 });

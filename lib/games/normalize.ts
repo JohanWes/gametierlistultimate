@@ -35,28 +35,22 @@ export function sharpenIgdbCoverUrl(url: string): string {
 
 /**
  * Normalize a MongoDB games document. The legacy dataset stores: `id` (IGDB id), `name`,
- * `year`, `platform` (single string), `genre` (single string), `rating` (0–100), `cover`
- * (already a full URL), `synopsis`. `popularity` and `category` are absent → null.
- *
- * IGDB-sourced docs upserted by `upsertGames` use the IGDB field name `summary` instead of
- * `synopsis`; we read `synopsis` first and fall back to `summary` so both shapes round-trip.
+ * `year`, `genre` (single string), `rating` (0–100), `cover` (already a full URL).
+ * `popularity` and `category` are absent → null.
  */
 export function normalizeMongoDoc(doc: Record<string, unknown>): Game {
   const cover =
     typeof doc.cover === 'string' && doc.cover.trim() !== ''
       ? sharpenIgdbCoverUrl(doc.cover)
       : null;
-  const summaryRaw = doc.synopsis ?? doc.summary;
   return {
     igdbId: Number(doc.id),
     title: String(doc.name ?? ''),
     coverUrl: cover,
     genres: toStringArray(doc.genre ?? doc.genres),
-    platforms: toStringArray(doc.platform ?? doc.platforms),
     releaseYear: toNumberOrNull(doc.year),
     popularity: toNumberOrNull(doc.popularity),
     rating: toNumberOrNull(doc.rating),
-    summary: typeof summaryRaw === 'string' ? summaryRaw : null,
     category: toNumberOrNull(doc.category),
   };
 }
@@ -66,12 +60,10 @@ interface IgdbRawGame {
   name?: string;
   cover?: { image_id?: string } | null;
   genres?: Array<{ name?: string }> | null;
-  platforms?: Array<{ name?: string }> | null;
   first_release_date?: number | null;
   rating?: number | null;
   total_rating?: number | null;
   total_rating_count?: number | null;
-  summary?: string | null;
   category?: number | null;
 }
 
@@ -92,11 +84,9 @@ export function normalizeIgdb(raw: IgdbRawGame): Game {
     title: String(raw.name ?? ''),
     coverUrl: igdbCoverUrl(raw.cover?.image_id),
     genres: toStringArray(raw.genres),
-    platforms: toStringArray(raw.platforms),
     releaseYear,
     popularity: toNumberOrNull(raw.total_rating_count),
     rating: rating == null ? null : Math.round(rating),
-    summary: typeof raw.summary === 'string' ? raw.summary : null,
     category: toNumberOrNull(raw.category),
   };
 }

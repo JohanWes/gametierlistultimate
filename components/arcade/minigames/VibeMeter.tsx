@@ -5,7 +5,6 @@ import { useRef, useState } from 'react';
 
 import type { Game } from '@/lib/games/types';
 import { playSound } from '@/lib/sound';
-import { TIER_ORDER, type Tier } from '@/lib/ranking';
 import { clamp, cn, interpolateColor, type ColorStop } from '@/lib/utils';
 
 import { Button } from '../../ui/Button';
@@ -20,12 +19,6 @@ const SCORE_TICKS = [100, 75, 50, 25, 0];
 
 /** Internal segment dividers between ticks, as percentage offsets from the top. */
 const TICK_DIVIDERS = [25, 50, 75];
-
-/** Pointer position (0 top → 1 bottom) → one of the engine's 7 tier bands. */
-function tierFromPosition(pos: number): Tier {
-  const idx = Math.min(TIER_ORDER.length - 1, Math.floor(pos * TIER_ORDER.length));
-  return TIER_ORDER[idx];
-}
 
 /** Pointer position (0 top → 1 bottom) → 0-100 score (100 top → 0 bottom). */
 function scoreFromPosition(pos: number): number {
@@ -188,17 +181,13 @@ export function VibeMeter({ games, onComplete }: MinigameProps) {
   const lockIn = () => {
     if (!allRated) return;
     playSound('success');
-    const outcomes = games.map((g) => {
-      const score = scores[g.igdbId] as number;
-      return {
+    complete(
+      games.map((g) => ({
         type: 'vibe' as const,
         gameId: g.igdbId,
-        // Continuous 0-100 score drives the ELO nudge; tier is kept as a coarse fallback.
-        score,
-        tier: tierFromPosition(positionFromScore(score)),
-      };
-    });
-    complete(outcomes);
+        score: scores[g.igdbId] as number,
+      })),
+    );
   };
 
   return (

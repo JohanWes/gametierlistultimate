@@ -32,7 +32,7 @@ export function interpolateColor(stops: readonly ColorStop[], value: number, alp
 
 /**
  * Trailing-edge debounce. Returns a wrapped function plus a `cancel` to drop a pending call.
- * Used for autosave so rapid store changes collapse into a single PUT.
+ * Used for autosave so rapid store changes collapse into a single localStorage write.
  */
 export function debounce<Args extends unknown[]>(
   fn: (...args: Args) => void,

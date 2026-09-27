@@ -1,10 +1,11 @@
 import type { Step } from '@/lib/flow';
+import { parseRankingState, type RankingState } from '@/lib/ranking';
 import type { PlayedStatus, PoolEntry } from '@/lib/store';
 
 /**
- * Fully local, browser-persisted in-progress flow state. This replaces the old server-side
- * `sessions` collection: anonymous, single-device, non-shareable progress lives here so resume
- * needs zero network. The mute pref stays in its own `gtl_sound` key (see lib/store).
+ * Fully local, browser-persisted in-progress flow state: anonymous, single-device, non-shareable
+ * progress lives here so resume needs zero network. The mute pref stays in its own `gtl_sound` key
+ * (see lib/store).
  */
 export const LOCAL_SESSION_KEY = 'gtl_session_state';
 
@@ -13,7 +14,7 @@ export interface LocalSessionState {
   pool: PoolEntry[];
   /** Every game id passed on, so resume keeps them suppressed (see lib/store `rejected`). */
   rejected: number[];
-  scores: Record<string, unknown>;
+  scores: RankingState | null;
   step: Step;
 }
 
@@ -57,10 +58,7 @@ export function loadLocalSession(): LocalSessionState | null {
     return {
       pool: parsePool(data.pool),
       rejected: parseIds(data.rejected),
-      scores:
-        data.scores && typeof data.scores === 'object'
-          ? (data.scores as Record<string, unknown>)
-          : {},
+      scores: parseRankingState(data.scores),
       step: (data.step as Step) ?? 'welcome',
     };
   } catch {

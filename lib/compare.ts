@@ -5,27 +5,10 @@ import { TIER_ORDER, type Tier, type TierMap } from './ranking';
  * Numeric tier scale for comparison math: S is the top (7), F the bottom (1). The span
  * (max − min = 6) normalizes a tier distance into [0, 1].
  */
-export const TIER_SCORE: Record<Tier, number> = {
-  S: 7,
-  A: 6,
-  B: 5,
-  C: 4,
-  D: 3,
-  E: 2,
-  F: 1,
-};
-const TIER_SPAN = TIER_SCORE.S - TIER_SCORE.F; // 6
-
-/** Inverse of TIER_SCORE — map a (rounded) score back onto a tier letter. */
-const SCORE_TIER: Record<number, Tier> = {
-  7: 'S',
-  6: 'A',
-  5: 'B',
-  4: 'C',
-  3: 'D',
-  2: 'E',
-  1: 'F',
-};
+function tierScore(tier: Tier): number {
+  return TIER_ORDER.length - TIER_ORDER.indexOf(tier);
+}
+const TIER_SPAN = TIER_ORDER.length - 1; // 6
 
 /**
  * A game needs at least this many community placements before we trust the crowd's opinion of
@@ -69,10 +52,10 @@ export interface CompareOptions {
   subtractSelf?: boolean;
 }
 
-/** Round a continuous tier score onto the nearest tier letter. */
+/** Round a continuous tier score onto the nearest tier letter (inverse of `tierScore`). */
 function tierFromScore(score: number): Tier {
-  const r = Math.max(1, Math.min(7, Math.round(score)));
-  return SCORE_TIER[r];
+  const r = Math.max(1, Math.min(TIER_ORDER.length, Math.round(score)));
+  return TIER_ORDER[TIER_ORDER.length - r];
 }
 
 /** First tier each game appears in, so a game maps to exactly one user tier. */
@@ -124,7 +107,7 @@ export function compareToCommunity(
     }
     if (total < MIN_VOTES) continue;
 
-    const su = TIER_SCORE[userTier];
+    const su = tierScore(userTier);
 
     let closenessSum = 0; // Σ count_v · closeness_v
     let scoreSum = 0; // Σ count_v · score_v
@@ -132,7 +115,7 @@ export function compareToCommunity(
     for (const tier of TIER_ORDER) {
       const c = counts[tier] ?? 0;
       if (c <= 0) continue;
-      const sv = TIER_SCORE[tier];
+      const sv = tierScore(tier);
       closenessSum += c * (1 - Math.abs(su - sv) / TIER_SPAN);
       scoreSum += c * sv;
       if (c > modalCount) modalCount = c; // peak height → crowd self-consensus

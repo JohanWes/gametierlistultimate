@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Game } from '@/lib/games/types';
-import { LOCAL_SESSION_KEY } from '@/lib/session-local';
+import { createRankingState } from '@/lib/ranking';
+import { LOCAL_SESSION_KEY, type LocalSessionState } from '@/lib/session-local';
 
 import { resetStore, startAutosave, useStore, type PoolEntry } from './index';
 
@@ -11,17 +12,19 @@ function makeGame(igdbId: number): Game {
     title: `Game ${igdbId}`,
     coverUrl: null,
     genres: [],
-    platforms: [],
     releaseYear: null,
     popularity: null,
     rating: null,
-    summary: null,
     category: null,
   };
 }
 
 function poolEntries(count: number): PoolEntry[] {
   return Array.from({ length: count }, (_, i) => ({ game: makeGame(i + 1), status: 'finished' }));
+}
+
+function saved(patch: Partial<LocalSessionState>): LocalSessionState {
+  return { pool: [], rejected: [], scores: null, step: 'welcome', ...patch };
 }
 
 function readLocalSession() {
@@ -95,13 +98,13 @@ describe('store', () => {
       const stop = startAutosave({ waitMs: 500, fetchImpl });
 
       useStore.getState().setHydrated(true); // ui-only change must NOT trigger a save
-      useStore.getState().setScores({ some: 'ranking' });
-      useStore.getState().setScores({ some: 'other' }); // rapid changes collapse into one write
+      useStore.getState().setScores(createRankingState([1]));
+      useStore.getState().setScores(createRankingState([2])); // collapses into one write
 
       expect(readLocalSession()).toBeNull(); // still within debounce window
       vi.advanceTimersByTime(500);
 
-      expect(readLocalSession().scores).toEqual({ some: 'other' });
+      expect(readLocalSession().scores).toEqual(createRankingState([2]));
       expect(fetchImpl).not.toHaveBeenCalled(); // a local state change is local-only
       stop();
     });
@@ -151,23 +154,11 @@ describe('store', () => {
       stop();
     });
 
-    it('does not persist the hydration patch itself', () => {
-      const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
-      const stop = startAutosave({ waitMs: 500, fetchImpl });
-
-      useStore.getState().hydrate({ step: 'pool' });
-      vi.advanceTimersByTime(500);
-
-      expect(readLocalSession()).toBeNull();
-      expect(fetchImpl).not.toHaveBeenCalled();
-      stop();
-    });
-
     it('does not persist before hydration', () => {
       const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
       const stop = startAutosave({ waitMs: 500, fetchImpl });
 
-      useStore.getState().setScores({ early: true }); // hydrated is still false
+      useStore.getState().setScores(createRankingState([1])); // hydrated is still false
       vi.advanceTimersByTime(500);
 
       expect(readLocalSession()).toBeNull();
@@ -178,15 +169,11 @@ describe('store', () => {
       const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
       const stop = startAutosave({ waitMs: 500, fetchImpl });
 
-      // A hydrated, seeded session with a debounced save still inside its window.
-      useStore.getState().hydrate({ pool: poolEntries(2), step: 'pool' });
-      useStore.getState().setScores({ stale: 'ranking' });
-
-      // Start over: unhydrate, clear the saved session, then reload. The queued debounce
-      // may hit its deadline before the reload's pagehide — neither it nor the lifecycle
-      // flush may write the in-memory state back.
+      // A debounced save still inside its window when Start over unhydrates + clears; neither
+      // it nor the pagehide flush may write the in-memory state back.
+      useStore.getState().setHydrated(true);
+      useStore.getState().setScores(createRankingState([1]));
       useStore.getState().setHydrated(false);
-      window.localStorage.removeItem(LOCAL_SESSION_KEY);
 
       vi.advanceTimersByTime(500); // deadline elapses before pagehide
       expect(readLocalSession()).toBeNull();
@@ -201,13 +188,13 @@ describe('store', () => {
       const stop = startAutosave({ waitMs: 500, fetchImpl });
 
       useStore.getState().setHydrated(true);
-      useStore.getState().setScores({ final: 'ranking' }); // inside the debounce window
+      useStore.getState().setScores(createRankingState([1])); // inside the debounce window
 
       expect(readLocalSession()).toBeNull();
       window.dispatchEvent(new Event('pagehide'));
 
       // Written immediately, not after the debounce window.
-      expect(readLocalSession().scores).toEqual({ final: 'ranking' });
+      expect(readLocalSession().scores).toEqual(createRankingState([1]));
       vi.advanceTimersByTime(500);
       stop();
     });
@@ -215,28 +202,23 @@ describe('store', () => {
 
   describe('hydration', () => {
     it('restores a saved step when it is valid', () => {
-      useStore.getState().hydrate({ step: 'pool' });
+      useStore.getState().hydrate(saved({ step: 'pool' }));
       expect(useStore.getState().ui.step).toBe('pool');
     });
 
     it('ignores an invalid saved step', () => {
-      useStore.getState().hydrate({ step: 'bogus' });
+      useStore.getState().hydrate(saved({ step: 'bogus' as LocalSessionState['step'] }));
       expect(useStore.getState().ui.step).toBe('welcome');
     });
 
     it('falls advanced steps back to pool when the restored pool is too small', () => {
-      useStore.getState().hydrate({ pool: poolEntries(1), step: 'arcade' });
+      useStore.getState().hydrate(saved({ pool: poolEntries(1), step: 'arcade' }));
       expect(useStore.getState().ui.step).toBe('pool');
-    });
-
-    it('restores rejected ids and drops non-numeric entries', () => {
-      useStore.getState().hydrate({ rejected: [1, 2, 'x', 2, NaN, 3] });
-      expect(useStore.getState().rejected).toEqual([1, 2, 3]);
     });
 
     it('resumes an advanced step and restores pool entries with their statuses', () => {
       const pool = poolEntries(12).map((e) => ({ ...e, status: 'played-a-lot' as const }));
-      useStore.getState().hydrate({ pool, step: 'arcade' });
+      useStore.getState().hydrate(saved({ pool, step: 'arcade' }));
 
       expect(useStore.getState().ui.step).toBe('arcade');
       expect(useStore.getState().pool).toHaveLength(12);

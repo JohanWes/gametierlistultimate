@@ -36,11 +36,8 @@ function stubMeterRect(label: RegExp, height = 100): HTMLElement {
 
 /**
  * clientY → score for height=100. The meter maps position (0 top → 1 bottom) to score
- * (100 top → 0 bottom), so score = 100 - clientY. The tier is derived by snapping the
- * score to the nearest of the 7 internal tier bands: score 95→S, 80→A, 65→B, 50→C, 35→D, 20→E, 5→F.
+ * (100 top → 0 bottom), so score = 100 - clientY.
  */
-const TIER_FOR_SCORE: Record<string, string> = { 95: 'S', 80: 'A', 65: 'B', 50: 'C', 35: 'D', 20: 'E', 5: 'F' };
-
 function dragToScore(meter: HTMLElement, score: number, pointerId = 1) {
   const y = 100 - score;
   fireEvent(meter, pointerEvent('pointerdown', y, pointerId));
@@ -73,10 +70,10 @@ describe('VibeMeter', () => {
 
     await waitFor(() =>
       expect(onComplete).toHaveBeenCalledWith([
-        { type: 'vibe', gameId: a.igdbId, score: 95, tier: TIER_FOR_SCORE[95] },
-        { type: 'vibe', gameId: b.igdbId, score: 80, tier: TIER_FOR_SCORE[80] },
-        { type: 'vibe', gameId: c.igdbId, score: 50, tier: TIER_FOR_SCORE[50] },
-        { type: 'vibe', gameId: d.igdbId, score: 5, tier: TIER_FOR_SCORE[5] },
+        { type: 'vibe', gameId: a.igdbId, score: 95 },
+        { type: 'vibe', gameId: b.igdbId, score: 80 },
+        { type: 'vibe', gameId: c.igdbId, score: 50 },
+        { type: 'vibe', gameId: d.igdbId, score: 5 },
       ]),
     );
   });

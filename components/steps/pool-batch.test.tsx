@@ -145,7 +145,7 @@ describe('PoolStep batches', () => {
 
   it('seeds exclude/reject context from a resumed rejected list and never re-shows those games', async () => {
     // Simulate a resume: previously passed-on game 1001 restored into the store.
-    useStore.getState().hydrate({ rejected: [1001], step: 'pool' });
+    useStore.getState().hydrate({ pool: [], rejected: [1001], scores: null, step: 'pool' });
 
     const calls: string[] = [];
     const fetchImpl = vi.fn(async (url: string) => {

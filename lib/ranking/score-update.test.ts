@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyOutcome, createRankingState, parseRankingState, serializeRankingState } from './index';
+import { applyOutcome, createRankingState, parseRankingState } from './index';
 
 describe('ranking score updates', () => {
   it('moves pairwise winner up, loser down, and reduces uncertainty', () => {
@@ -94,11 +94,11 @@ describe('ranking score updates', () => {
     expect(up.games[1].uncertainty).toBeLessThan(base.games[1].uncertainty);
   });
 
-  it('vibe verdict moves a game toward the chosen tier band', () => {
+  it('vibe verdict moves a game toward the dragged score', () => {
     const state = createRankingState([1], { seed: 6 });
 
-    const high = applyOutcome(state, { type: 'vibe', gameId: 1, tier: 'S' });
-    const low = applyOutcome(state, { type: 'vibe', gameId: 1, tier: 'F' });
+    const high = applyOutcome(state, { type: 'vibe', gameId: 1, score: 100 });
+    const low = applyOutcome(state, { type: 'vibe', gameId: 1, score: 0 });
 
     expect(high.games[1].rating).toBeGreaterThan(state.games[1].rating);
     expect(low.games[1].rating).toBeLessThan(state.games[1].rating);
@@ -107,7 +107,7 @@ describe('ranking score updates', () => {
   it('vibe shrinks uncertainty and counts a comparison', () => {
     const state = createRankingState([1], { seed: 6 });
 
-    const next = applyOutcome(state, { type: 'vibe', gameId: 1, tier: 'C' });
+    const next = applyOutcome(state, { type: 'vibe', gameId: 1, score: 50 });
 
     expect(next.games[1].uncertainty).toBeLessThan(state.games[1].uncertainty);
     expect(next.games[1].comparisons).toBeGreaterThan(state.games[1].comparisons);
@@ -116,7 +116,7 @@ describe('ranking score updates', () => {
   it('vibe is a no-op for an unknown game id', () => {
     const state = createRankingState([1], { seed: 6 });
 
-    const next = applyOutcome(state, { type: 'vibe', gameId: 999, tier: 'S' });
+    const next = applyOutcome(state, { type: 'vibe', gameId: 999, score: 100 });
 
     expect(next.games[1].rating).toBe(state.games[1].rating);
   });
@@ -124,8 +124,8 @@ describe('ranking score updates', () => {
   it('vibe is deterministic for the same input', () => {
     const state = createRankingState([1], { seed: 6 });
 
-    const a = applyOutcome(state, { type: 'vibe', gameId: 1, tier: 'B' });
-    const b = applyOutcome(state, { type: 'vibe', gameId: 1, tier: 'B' });
+    const a = applyOutcome(state, { type: 'vibe', gameId: 1, score: 65 });
+    const b = applyOutcome(state, { type: 'vibe', gameId: 1, score: 65 });
 
     expect(a).toEqual(b);
   });
@@ -137,8 +137,7 @@ describe('ranking score updates', () => {
       loserId: 2,
     });
 
-    expect(parseRankingState(serializeRankingState(state))).toEqual(state);
+    expect(parseRankingState(JSON.parse(JSON.stringify(state)))).toEqual(state);
     expect(parseRankingState({ version: 999 })).toBeNull();
   });
 });
-

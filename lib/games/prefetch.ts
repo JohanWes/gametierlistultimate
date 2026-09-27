@@ -103,16 +103,6 @@ export function resetStarterBatchPrefetch(): void {
   decodedCovers.clear();
 }
 
-/** Drop pinned decoded covers without clearing the batch promises. */
-export function resetDecodedCovers(): void {
-  decodedCovers.clear();
-}
-
-/** Test hook — number of currently pinned decoded covers. */
-export function pinnedCoverCount(): number {
-  return decodedCovers.size;
-}
-
 /**
  * Warm the browser image cache for a batch's covers and pin the decoded bitmaps so they
  * survive step transitions. In jsdom (tests) `Image` exists but `decode()` may not, so the

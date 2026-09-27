@@ -9,9 +9,7 @@ import {
   applyOutcomes,
   computeConfidence,
   createRankingState,
-  parseRankingState,
   removeGameFromState,
-  serializeRankingState,
   syncStateWithGames,
   type GamePrior,
   type RankingOutcome,
@@ -53,16 +51,10 @@ function poolPriors(pool: PoolEntry[]): GamePrior[] {
  * (games added/removed since it was saved) folded in via `syncStateWithGames`, so accumulated
  * rounds survive instead of being wiped when the pool changed in the meantime.
  */
-function initRanking(pool: PoolEntry[], saved: Record<string, unknown>): RankingState {
+function initRanking(pool: PoolEntry[], saved: RankingState | null): RankingState {
   const priors = poolPriors(pool);
-  const parsed = parseRankingState(saved);
-  if (parsed && Object.keys(parsed.games).length >= 2) return syncStateWithGames(parsed, priors);
+  if (saved && Object.keys(saved.games).length >= 2) return syncStateWithGames(saved, priors);
   return createRankingState(priors);
-}
-
-/** The store keeps `scores` opaque; serialize into that shape. */
-function toScores(state: RankingState): Record<string, unknown> {
-  return serializeRankingState(state) as unknown as Record<string, unknown>;
 }
 
 /**
@@ -128,7 +120,7 @@ export function ArcadeStep() {
     const { pool: livePool, scores } = useStore.getState();
     const next = initRanking(livePool, scores);
     setRanking(next);
-    setScores(toScores(next));
+    setScores(next);
     if (awayRef.current) {
       awayRef.current = false;
       setRoundKey((k) => k + 1);
@@ -145,7 +137,7 @@ export function ArcadeStep() {
       }
 
       setRanking(next);
-      setScores(toScores(next));
+      setScores(next);
       setRoundKey((k) => k + 1);
     },
     [ranking, view, setScores],
@@ -160,7 +152,7 @@ export function ArcadeStep() {
     vibeSeenRef.current.delete(id);
     const next = removeGameFromState(ranking, id);
     setRanking(next);
-    setScores(toScores(next));
+    setScores(next);
     setRoundKey((k) => k + 1);
     setPendingRemoval(null);
   }, [pendingRemoval, ranking, removeFromPool, setScores]);

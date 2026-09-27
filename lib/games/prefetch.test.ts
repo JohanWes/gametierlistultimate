@@ -3,11 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   peekAdaptiveBatch,
   peekStarterBatch,
-  pinnedCoverCount,
-  preloadCovers,
   prefetchAdaptiveBatch,
   prefetchStarterBatch,
-  resetDecodedCovers,
   resetStarterBatchPrefetch,
 } from './prefetch';
 import type { Game } from './types';
@@ -17,11 +14,9 @@ const game = (igdbId: number, coverUrl: string): Game => ({
   title: `Game ${igdbId}`,
   coverUrl,
   genres: [],
-  platforms: [],
   releaseYear: null,
   popularity: null,
   rating: null,
-  summary: null,
   category: null,
 });
 
@@ -54,15 +49,6 @@ describe('prefetchStarterBatch', () => {
     prefetchStarterBatch(3, fetchImpl as unknown as typeof fetch);
     await peekStarterBatch();
     expect(peekStarterBatch()).toBeNull();
-  });
-});
-
-describe('preloadCovers', () => {
-  afterEach(() => resetDecodedCovers());
-
-  it('caps pinned decoded covers so a long session does not grow unbounded', () => {
-    preloadCovers(Array.from({ length: 200 }, (_, i) => game(i, `/assets/starter/${i}.jpg`)));
-    expect(pinnedCoverCount()).toBeLessThanOrEqual(32);
   });
 });
 

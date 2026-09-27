@@ -21,11 +21,9 @@ function game(igdbId: number): Game {
     title: `Game ${igdbId}`,
     coverUrl: null,
     genres: [],
-    platforms: [],
     releaseYear: null,
     popularity: null,
     rating: null,
-    summary: null,
     category: null,
   };
 }
@@ -65,7 +63,7 @@ describe('StoreHydrator', () => {
       game: game(i + 1),
       status: 'played-a-lot' as const,
     }));
-    seedLocalSession({ pool, rejected: [], scores: {}, step: 'arcade' });
+    seedLocalSession({ pool, rejected: [], scores: null, step: 'arcade' });
 
     renderWithProviders(<StoreHydrator />);
 
@@ -84,7 +82,7 @@ describe('StoreHydrator', () => {
     seedLocalSession({
       pool: [],
       rejected: [101, 102, 103],
-      scores: {},
+      scores: null,
       step: 'pool',
     });
 
@@ -97,7 +95,7 @@ describe('StoreHydrator', () => {
 
   it('falls back to the pool step when the saved pool is too small for an advanced step', async () => {
     const pool = [{ game: game(1), status: 'finished' as const }];
-    seedLocalSession({ pool, rejected: [], scores: {}, step: 'reveal' });
+    seedLocalSession({ pool, rejected: [], scores: null, step: 'reveal' });
 
     renderWithProviders(<StoreHydrator />);
 
@@ -118,7 +116,7 @@ describe('StoreHydrator', () => {
 
   it('does not restore the persisted mute preference or touch the sound module', async () => {
     window.localStorage.setItem('gtl_sound', 'off');
-    seedLocalSession({ pool: [], rejected: [], scores: {}, step: 'arcade' });
+    seedLocalSession({ pool: [], rejected: [], scores: null, step: 'arcade' });
 
     renderWithProviders(<StoreHydrator />);
 
@@ -130,7 +128,7 @@ describe('StoreHydrator', () => {
   });
 
   it('does not register first-gesture audio initialization listeners', async () => {
-    seedLocalSession({ pool: [], rejected: [], scores: {}, step: 'arcade' });
+    seedLocalSession({ pool: [], rejected: [], scores: null, step: 'arcade' });
 
     renderWithProviders(<StoreHydrator />);
 
@@ -181,7 +179,7 @@ describe('StoreHydrator', () => {
     seedLocalSession({
       pool: [1, 2].map((id) => ({ game: game(id), status: 'finished' as const })),
       rejected: [3],
-      scores: {},
+      scores: null,
       step: 'pool',
     });
 

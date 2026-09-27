@@ -6,7 +6,6 @@ import {
   computeTiers,
   createRankingState,
   parseRankingState,
-  serializeRankingState,
 } from './index';
 
 describe('ranking tiering', () => {
@@ -73,7 +72,7 @@ describe('ranking tiering', () => {
     let moved = assignTier(state, 5, 'S');
     moved = assignTier(moved, 11, 'B');
 
-    const reloaded = parseRankingState(JSON.parse(JSON.stringify(serializeRankingState(moved))))!;
+    const reloaded = parseRankingState(JSON.parse(JSON.stringify(moved)))!;
     const tiers = computeTiers(reloaded);
     expect(tiers.S).toEqual([1, 2, 5]);
     expect(tiers.B).toContain(11);

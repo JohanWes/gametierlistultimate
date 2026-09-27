@@ -1,11 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  applyOutcome,
-  createRankingState,
-  parseRankingState,
-  serializeRankingState,
-} from '@/lib/ranking';
+import { applyOutcome, createRankingState } from '@/lib/ranking';
 import { REVEAL_MIN_ROUNDS } from '@/lib/ranking/arcade';
 import { LOCAL_SESSION_KEY } from '@/lib/session-local';
 import { resetStore, startAutosave, useStore } from '@/lib/store';
@@ -40,11 +35,11 @@ describe('ArcadeStep', () => {
     fireEvent.click(cards[0]);
 
     await waitFor(() => {
-      expect(parseRankingState(useStore.getState().scores)?.round).toBe(1);
+      expect(useStore.getState().scores?.round).toBe(1);
     });
     await waitFor(() => {
       const saved = JSON.parse(window.localStorage.getItem(LOCAL_SESSION_KEY) as string);
-      expect(parseRankingState(saved.scores)?.round).toBe(1);
+      expect(saved.scores.round).toBe(1);
     });
     expect(fetchSpy).not.toHaveBeenCalled(); // a score change is local-only
 
@@ -67,7 +62,7 @@ describe('ArcadeStep', () => {
 
     expect(useStore.getState().pool.some((e) => e.game.igdbId === id)).toBe(false);
     expect(useStore.getState().pool).toHaveLength(5);
-    expect(parseRankingState(useStore.getState().scores)?.games[id]).toBeUndefined();
+    expect(useStore.getState().scores?.games[id]).toBeUndefined();
     // The current round was discarded, not completed — the round counter does not advance.
     expect(screen.getByTestId('arcade-round').textContent).toBe(roundBefore);
     // A fresh round still renders.
@@ -103,9 +98,7 @@ describe('ArcadeStep', () => {
         loserId: games[1].igdbId,
       });
     }
-    useStore
-      .getState()
-      .setScores(serializeRankingState(state) as unknown as Record<string, unknown>);
+    useStore.getState().setScores(state);
 
     renderWithProviders(<ArcadeStep />);
 

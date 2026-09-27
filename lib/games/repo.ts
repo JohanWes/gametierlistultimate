@@ -31,7 +31,7 @@ const NOT_DLC_FILTER = {
   $or: [{ category: { $exists: false } }, { category: { $nin: [...DLC_CATEGORIES] } }],
 };
 
-/** Fields the suggestion ranker needs — no covers, platforms, or summaries so hot reads stay lean. */
+/** Fields the suggestion ranker needs — no covers so hot reads stay lean. */
 const SCORING_PROJECTION: Document = {
   _id: 0,
   id: 1,
@@ -51,13 +51,9 @@ const FULL_GAME_PROJECTION: Document = {
   cover: 1,
   genre: 1,
   genres: 1,
-  platform: 1,
-  platforms: 1,
   year: 1,
   popularity: 1,
   rating: 1,
-  synopsis: 1,
-  summary: 1,
   category: 1,
 };
 
@@ -289,7 +285,7 @@ export async function getSuggestions(
       .map((entry) => entry.game);
 
     // Rank and dedupe on the lean scoring docs, then hydrate the selected ids so callers
-    // receive complete Games (cover, platforms, summary) in final score order — never the
+    // receive complete Games (cover, year) in final score order — never the
     // partial scoring shapes.
     const selected = dedupeSuggestions(scored, limit);
     return getByIds(selected.map((game) => game.igdbId));
@@ -437,11 +433,9 @@ export async function upsertGames(games: Game[]): Promise<void> {
             name: g.title,
             cover: g.coverUrl,
             genre: g.genres,
-            platform: g.platforms,
             year: g.releaseYear,
             rating: g.rating,
             popularity: g.popularity,
-            summary: g.summary,
             category: g.category,
           },
         },

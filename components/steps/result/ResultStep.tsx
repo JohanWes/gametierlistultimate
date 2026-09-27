@@ -9,9 +9,7 @@ import {
   assignTier,
   computeTiers,
   createRankingState,
-  parseRankingState,
   removeGameFromState,
-  serializeRankingState,
   TIER_ORDER,
   type RankingState,
   type Tier,
@@ -60,7 +58,7 @@ export function ResultStep() {
   const rankingRef = useRef<RankingState | null>(null);
   if (rankingRef.current === null) {
     rankingRef.current =
-      parseRankingState(useStore.getState().scores) ??
+      useStore.getState().scores ??
       createRankingState(
         pool.map((e) => ({
           gameId: e.game.igdbId,
@@ -87,8 +85,8 @@ export function ResultStep() {
   const [comparison, setComparison] = useState<Promise<ComparisonResult> | null>(null);
   useEffect(() => {
     if (step !== 'reveal') return;
-    const parsed = parseRankingState(useStore.getState().scores);
-    if (parsed && Object.keys(parsed.games).length > 0) rankingRef.current = parsed;
+    const saved = useStore.getState().scores;
+    if (saved && Object.keys(saved.games).length > 0) rankingRef.current = saved;
     const next = computeTiers(rankingRef.current as RankingState);
     setTiers(next);
     setComparison(fetchComparison(next));
@@ -137,7 +135,7 @@ export function ResultStep() {
         const updated = assignTier(rankingRef.current as RankingState, gameId, to);
         rankingRef.current = updated;
         // Persist via the existing autosave (scores change → debounced localStorage write).
-        setScores(serializeRankingState(updated) as unknown as Record<string, unknown>);
+        setScores(updated);
       }
       playSound('blip');
     },
@@ -158,7 +156,7 @@ export function ResultStep() {
     const id = pendingRemoval.igdbId;
     removeFromPool(id);
     rankingRef.current = removeGameFromState(rankingRef.current as RankingState, id);
-    setScores(serializeRankingState(rankingRef.current) as unknown as Record<string, unknown>);
+    setScores(rankingRef.current);
     setTiers((prev) => removeFromTierMap(prev, id));
     setPendingRemoval(null);
   }, [pendingRemoval, removeFromPool, setScores]);

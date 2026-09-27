@@ -6,13 +6,7 @@ vi.mock('@/lib/sound', () => ({
   setMuted: vi.fn(),
 }));
 
-import {
-  assignTier,
-  createRankingState,
-  serializeRankingState,
-  TIER_ORDER,
-  type Tier,
-} from '@/lib/ranking';
+import { assignTier, createRankingState, TIER_ORDER, type Tier } from '@/lib/ranking';
 import { playSound } from '@/lib/sound';
 import { resetStore, useStore } from '@/lib/store';
 import { makeGames } from '@/test/helpers/games';
@@ -30,7 +24,7 @@ function seed() {
   TIER_ORDER.forEach((tier: Tier, i) => {
     state = assignTier(state, i + 1, tier);
   });
-  useStore.getState().setScores(serializeRankingState(state) as unknown as Record<string, unknown>);
+  useStore.getState().setScores(state);
   useStore.getState().setStep('reveal');
   return games;
 }

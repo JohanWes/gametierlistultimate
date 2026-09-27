@@ -5,11 +5,9 @@ export function makeGame(overrides: Partial<Game> & { igdbId: number; title: str
   return {
     coverUrl: null,
     genres: [],
-    platforms: [],
     releaseYear: 2015,
     popularity: null,
     rating: 80,
-    summary: null,
     category: 0,
     ...overrides,
   };

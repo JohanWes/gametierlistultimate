@@ -1,10 +1,10 @@
 import type { Game, GameResult } from './types';
 
 /**
- * Browser-side wrappers around the game API routes. Both accept an injectable `fetchImpl`
+ * Browser-side wrappers around the game API routes. Each accepts an injectable `fetchImpl`
  * (defaulting to the global `fetch`) so components can be unit-tested with a stub — the same
- * pattern `startAutosave` uses. Network/parse failures resolve to an empty list rather than
- * throwing, keeping the pool UI forgiving.
+ * pattern `startAutosave` uses. `fetchSuggestions` throws on failure so the pool step can retry;
+ * the video lookup and search degrade to null / an empty list.
  */
 
 export interface SuggestionQuery {

@@ -11,11 +11,9 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     title: 'Hollow Knight',
     coverUrl: 'https://images.example/cover.jpg',
     genres: [],
-    platforms: [],
     releaseYear: null,
     popularity: null,
     rating: null,
-    summary: null,
     category: null,
     ...overrides,
   };

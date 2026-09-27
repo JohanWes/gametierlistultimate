@@ -39,7 +39,6 @@ describe('searchIgdb', () => {
             name: 'The Witcher 3',
             cover: { image_id: 'coaarl' },
             genres: [{ name: 'RPG' }],
-            platforms: [{ name: 'PC' }],
             first_release_date: 1431993600,
             rating: 91.6,
             category: 0,
@@ -76,7 +75,7 @@ describe('searchIgdb', () => {
 
     expect(body).toBe(
       'search "foo \\"bar\\\\\\"baz\\""; ' +
-        'fields name, cover.image_id, genres.name, platforms.name, first_release_date, rating, total_rating, total_rating_count, summary, category; ' +
+        'fields name, cover.image_id, genres.name, first_release_date, rating, total_rating, total_rating_count, category; ' +
         'where version_parent = null; limit 5;',
     );
   });
