@@ -98,14 +98,14 @@ describe('StoreHydrator', () => {
   });
 
   it('falls back to the pool step when the saved pool is too small for an advanced step', async () => {
-    const pool = [1, 2, 3].map((id) => ({ game: game(id), status: 'finished' as const }));
+    const pool = [{ game: game(1), status: 'finished' as const }];
     seedLocalSession({ pool, rejected: [], scores: {}, step: 'reveal' });
 
     renderWithProviders(<StoreHydrator />);
 
     await waitFor(() => expect(useStore.getState().ui.hydrated).toBe(true));
 
-    expect(useStore.getState().pool.map((e) => e.game.igdbId)).toEqual([1, 2, 3]);
+    expect(useStore.getState().pool.map((e) => e.game.igdbId)).toEqual([1]);
     expect(useStore.getState().ui.step).toBe('pool');
   });
 

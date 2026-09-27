@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Game } from '@/lib/games/types';
 import { playSound } from '@/lib/sound';
 import {
-  applyOutcome,
+  applyOutcomes,
   computeConfidence,
   createRankingState,
   parseRankingState,
@@ -51,7 +51,7 @@ function poolPriors(pool: PoolEntry[]): GamePrior[] {
 /**
  * Build (or resume) the hidden ranking state. A saved state is resumed with any pool drift
  * (games added/removed since it was saved) folded in via `syncStateWithGames`, so accumulated
- * rounds survive instead of being wiped when the pool changed between sessions.
+ * rounds survive instead of being wiped when the pool changed in the meantime.
  */
 function initRanking(pool: PoolEntry[], saved: Record<string, unknown>): RankingState {
   const priors = poolPriors(pool);
@@ -75,7 +75,7 @@ export function ArcadeStep() {
   const reduce = useReducedMotion();
   const pool = useStore((s) => s.pool);
   const setScores = useStore((s) => s.setScores);
-  const setArcade = useStore((s) => s.setArcade);
+  const step = useStore((s) => s.ui.step);
   const removeFromPool = useStore((s) => s.removeFromPool);
   const goNext = useStore((s) => s.goNext);
   const goBack = useStore((s) => s.goBack);
@@ -114,41 +114,41 @@ export function ArcadeStep() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundKey, ranking, gameMap, phase]);
 
-  // Persist the initial state once so a refresh resumes mid-arcade.
+  // Keep-alive: Flow never remounts this step, and while it is hidden the reveal board rewrites
+  // `scores` (manual tier moves, deletes) and the pool step edits the pool. So the store is the
+  // source of truth: each time the arcade becomes active, rebuild the engine from it (folding in
+  // pool drift) and persist that so a refresh resumes here. After a visit elsewhere also restart
+  // the round, so no minigame keeps games that may have left the pool.
+  const awayRef = useRef(false);
   useEffect(() => {
-    setScores(toScores(ranking));
-    setArcade({ phase, round: ranking.round });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Keep-alive: Flow never remounts this step, so fold pool edits made on other steps
-  // (a game added via search, or deleted from the reveal board) into the engine as they
-  // happen. `syncStateWithGames` returns the same reference when nothing changed.
-  useEffect(() => {
-    const next = syncStateWithGames(ranking, poolPriors(pool));
-    if (next === ranking) return;
-    const nextConfidence = computeConfidence(next).global;
+    if (step !== 'arcade') {
+      awayRef.current = true;
+      return;
+    }
+    const { pool: livePool, scores } = useStore.getState();
+    const next = initRanking(livePool, scores);
     setRanking(next);
     setScores(toScores(next));
-    setArcade({ phase: derivePhase(next, nextConfidence), round: next.round });
-  }, [pool, ranking, setScores, setArcade]);
+    if (awayRef.current) {
+      awayRef.current = false;
+      setRoundKey((k) => k + 1);
+    }
+  }, [step, setScores]);
 
   const advance = useCallback(
     (outcomes: RankingOutcome[]) => {
       const kind = view?.kind;
-      const next = outcomes.reduce((s, o) => applyOutcome(s, o), ranking);
+      const next = applyOutcomes(ranking, outcomes);
       if (kind) recentRef.current = [kind, ...recentRef.current].slice(0, RECENT_MEMORY);
       if (kind === 'vibe' && view) {
         for (const g of view.games) vibeSeenRef.current.add(g.igdbId);
       }
 
-      const nextConfidence = computeConfidence(next).global;
       setRanking(next);
       setScores(toScores(next));
-      setArcade({ phase: derivePhase(next, nextConfidence), round: next.round });
       setRoundKey((k) => k + 1);
     },
-    [ranking, view, setScores, setArcade],
+    [ranking, view, setScores],
   );
 
   // Delete a game mid-arcade: drop it from the pool and the engine state, then discard the current
@@ -159,13 +159,11 @@ export function ArcadeStep() {
     removeFromPool(id);
     vibeSeenRef.current.delete(id);
     const next = removeGameFromState(ranking, id);
-    const nextConfidence = computeConfidence(next).global;
     setRanking(next);
     setScores(toScores(next));
-    setArcade({ phase: derivePhase(next, nextConfidence), round: next.round });
     setRoundKey((k) => k + 1);
     setPendingRemoval(null);
-  }, [pendingRemoval, ranking, removeFromPool, setScores, setArcade]);
+  }, [pendingRemoval, ranking, removeFromPool, setScores]);
 
   const reveal = () => {
     playSound('reveal');

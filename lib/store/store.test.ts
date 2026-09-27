@@ -226,7 +226,7 @@ describe('store', () => {
     });
 
     it('falls advanced steps back to pool when the restored pool is too small', () => {
-      useStore.getState().hydrate({ pool: poolEntries(3), step: 'arcade' });
+      useStore.getState().hydrate({ pool: poolEntries(1), step: 'arcade' });
       expect(useStore.getState().ui.step).toBe('pool');
     });
 

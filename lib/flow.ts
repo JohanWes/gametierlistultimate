@@ -10,12 +10,12 @@ export const STEP_ORDER: Step[] = ['welcome', 'pool', 'arcade', 'reveal'];
 export const MIN_POOL = 12;
 
 /**
- * Clamp a saved resume step against the state we were able to restore. Advanced steps need the
- * live pool rebuilt first; otherwise they would render empty ranking/result screens.
+ * Clamp a saved resume step against the state we were able to restore. Advanced steps only need
+ * enough games to rank (deleting on the arcade/reveal board can take the pool below `MIN_POOL`).
  */
 export function resolveResumeStep(saved: unknown, poolCount: number): Step {
   const step: Step =
     typeof saved === 'string' && STEP_ORDER.includes(saved as Step) ? (saved as Step) : 'welcome';
-  if ((step === 'arcade' || step === 'reveal') && poolCount < MIN_POOL) return 'pool';
+  if ((step === 'arcade' || step === 'reveal') && poolCount < 2) return 'pool';
   return step;
 }

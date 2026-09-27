@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyOutcome, assignTier, computeTiers, createRankingState, tierForRating } from './index';
+import {
+  applyOutcome,
+  assignTier,
+  computeTiers,
+  createRankingState,
+  parseRankingState,
+  serializeRankingState,
+} from './index';
 
 describe('ranking tiering', () => {
   it('maps clear score separation into ordered tiers and permits empty tiers', () => {
@@ -50,22 +57,30 @@ describe('ranking tiering', () => {
     expect(flat.indexOf(1)).toBeLessThan(flat.indexOf(2));
   });
 
-  it('assignTier places a game in the chosen tier and round-trips through computeTiers', () => {
-    const state = createRankingState([1, 2, 3, 4], { seed: 7 });
+  it('assignTier pins a game to the chosen tier through recompute and reload', () => {
+    // 12 games so the S cap (top 2) applies; games 1 and 2 are pushed deep into S, above the
+    // flat S band a manual move sets, so without a pin the moved game would be demoted to A.
+    const ids = Array.from({ length: 12 }, (_, i) => i + 1);
+    let state = createRankingState(ids, { seed: 7 });
+    for (let i = 0; i < 10; i += 1) {
+      state = applyOutcome(state, {
+        type: 'bucket',
+        buckets: [ids.slice(0, 2), ids.slice(2, 10), ids.slice(10)],
+      });
+    }
+    expect(computeTiers(state).S).toEqual([1, 2]);
 
-    // Spread the four games across distinct tiers via manual placement.
-    let moved = assignTier(state, 1, 'S');
-    moved = assignTier(moved, 2, 'C');
-    moved = assignTier(moved, 3, 'F');
-    moved = assignTier(moved, 4, 'A');
+    let moved = assignTier(state, 5, 'S');
+    moved = assignTier(moved, 11, 'B');
 
-    expect(tierForRating(moved.games[1].rating)).toBe('S');
+    const reloaded = parseRankingState(JSON.parse(JSON.stringify(serializeRankingState(moved))))!;
+    const tiers = computeTiers(reloaded);
+    expect(tiers.S).toEqual([1, 2, 5]);
+    expect(tiers.B).toContain(11);
 
-    const tiers = computeTiers(moved);
-    expect(tiers.S).toContain(1);
-    expect(tiers.A).toContain(4);
-    expect(tiers.C).toContain(2);
-    expect(tiers.F).toContain(3);
+    // Playing another round releases the pin; the engine's rating takes over again.
+    const played = applyOutcome(reloaded, { type: 'pairwise', winnerId: 6, loserId: 5 });
+    expect(played.games[5].manual).toBeUndefined();
   });
 
   it('assignTier leaves the state untouched for an unknown game', () => {

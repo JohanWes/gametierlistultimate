@@ -205,7 +205,7 @@ export function ResultStep() {
               a long scroll away on a phone. Rendered here *instead of* below (not as well as), so
               there is only ever one publish state. */}
           {done && isMobile ? (
-            <ShareBar compact share={share} tiers={tiers} gamesById={gamesById} />
+            <ShareBar compact share={share} />
           ) : null}
         </div>
       </div>
@@ -233,7 +233,7 @@ export function ResultStep() {
           a second publish control (the header's compact one owns that on phones). Both share the
           one lifted controller, so a published link survives crossing the breakpoint. */}
       {done ? (
-        <ShareBar share={share} tiers={tiers} gamesById={gamesById} hidePublish={isMobile} />
+        <ShareBar share={share} hidePublish={isMobile} />
       ) : null}
 
       <TierPicker

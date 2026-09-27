@@ -55,7 +55,7 @@ export interface SelectOptions {
 
 /** Reveal unlocks once the list is "good enough" — confidence OR a round floor. */
 export const REVEAL_MIN_CONFIDENCE = 45;
-export const REVEAL_MIN_ROUNDS = 12;
+export const REVEAL_MIN_ROUNDS = 7;
 
 /**
  * Confidence at which the run switches from the multi-item "building" phase to

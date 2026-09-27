@@ -13,10 +13,7 @@ import { Button } from '../../ui/Button';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 
 export interface ShareBarProps {
-  tiers: TierMap;
-  gamesById: Map<number, Game>;
-  /** Injectable for tests; defaults to the global fetch. */
-  fetchImpl?: typeof fetch;
+  share: ShareController;
   /**
    * Header-mounted variant for phones. The full bar renders *after* the board, which on a phone
    * is a long scroll away — sharing is the point of the screen, so on mobile it moves up beside
@@ -34,7 +31,7 @@ export interface ShareBarProps {
 type State =
   | { kind: 'idle' }
   | { kind: 'publishing' }
-  | { kind: 'ready'; url: string }
+  | { kind: 'ready'; url: string; tiers: TierMap }
   | { kind: 'error' };
 
 /** Builds a self-contained snapshot (covers embedded) so the share view needs no extra lookups. */
@@ -60,12 +57,25 @@ export interface ShareController {
  * Publish/copy state for a tier list. Lifted out of `ShareBar` so it can live in `ResultStep`:
  * the compact (header) and full (below-board) presentations mount on opposite sides of the mobile
  * breakpoint, and with the state inside the component a rotate or resize across that breakpoint
- * swapped in a fresh instance and lost the published URL.
+ * swapped in a fresh instance and lost the published URL. Any edit to `tiers` after publishing
+ * drops back to idle, so the stale link disappears and the list can be republished.
  */
-export function useShare({ tiers, gamesById, fetchImpl }: ShareBarProps): ShareController {
+export function useShare({
+  tiers,
+  gamesById,
+  fetchImpl,
+}: {
+  tiers: TierMap;
+  gamesById: Map<number, Game>;
+  /** Injectable for tests; defaults to the global fetch. */
+  fetchImpl?: typeof fetch;
+}): ShareController {
   const soundOn = useStore((s) => s.ui.soundOn);
-  const [state, setState] = useState<State>({ kind: 'idle' });
+  const [published, setState] = useState<State>({ kind: 'idle' });
   const [copied, setCopied] = useState(false);
+  // A link is only current for the exact tiers it was published from.
+  const state: State =
+    published.kind === 'ready' && published.tiers !== tiers ? { kind: 'idle' } : published;
 
   const doFetch = fetchImpl ?? fetch;
 
@@ -81,7 +91,7 @@ export function useShare({ tiers, gamesById, fetchImpl }: ShareBarProps): ShareC
       const data = (await res.json()) as { url?: string };
       if (!res.ok || !data.url) throw new Error('publish failed');
       if (soundOn) playSound('success');
-      setState({ kind: 'ready', url: data.url });
+      setState({ kind: 'ready', url: data.url, tiers });
     } catch {
       setState({ kind: 'error' });
     }
@@ -104,24 +114,11 @@ export function useShare({ tiers, gamesById, fetchImpl }: ShareBarProps): ShareC
 
 /**
  * Publishes the current tier list and surfaces a short shareable link. No account needed — the
- * snapshot is anonymous and immutable. (Image export is a later phase; this ships the link.)
- *
- * Pass `share` to drive it from a lifted controller; without one it owns its own state, which
- * keeps standalone use (and its tests) working unchanged.
+ * snapshot is anonymous and immutable. Driven by a `useShare` controller owned by the caller.
  */
-export function ShareBar({
-  tiers,
-  gamesById,
-  fetchImpl,
-  compact = false,
-  hidePublish = false,
-  share,
-}: ShareBarProps & { share?: ShareController }) {
+export function ShareBar({ share, compact = false, hidePublish = false }: ShareBarProps) {
   const [confirmReset, setConfirmReset] = useState(false);
-  // Always called (hooks can't be conditional); ignored when a controller is supplied. The
-  // unused instance is inert — it holds idle state and never fetches.
-  const own = useShare({ tiers, gamesById, fetchImpl });
-  const { state, copied, publish, copy } = share ?? own;
+  const { state, copied, publish, copy } = share;
 
   if (compact) {
     return (

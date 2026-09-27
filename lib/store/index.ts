@@ -18,13 +18,6 @@ export interface PoolEntry {
   status: PlayedStatus;
 }
 
-export type ArcadePhase = 'early' | 'late';
-
-export interface ArcadeState {
-  phase: ArcadePhase;
-  round: number;
-}
-
 export interface UiState {
   soundOn: boolean;
   step: Step;
@@ -43,7 +36,6 @@ export interface StoreState {
   rejected: number[];
   /** Opaque hidden ranking state (filled by the Phase 6 engine). */
   scores: Record<string, unknown>;
-  arcade: ArcadeState;
   ui: UiState;
 
   // pool actions
@@ -52,9 +44,8 @@ export interface StoreState {
   setPlayedStatus: (igdbId: number, status: PlayedStatus) => void;
   markRejected: (igdbId: number) => void;
 
-  // scores / arcade
+  // scores
   setScores: (scores: Record<string, unknown>) => void;
-  setArcade: (partial: Partial<ArcadeState>) => void;
 
   // flow + ui
   setStep: (step: Step) => void;
@@ -84,15 +75,11 @@ function persistSoundPref(on: boolean): void {
   }
 }
 
-function initialState(): Pick<
-  StoreState,
-  'pool' | 'rejected' | 'scores' | 'arcade' | 'ui'
-> {
+function initialState(): Pick<StoreState, 'pool' | 'rejected' | 'scores' | 'ui'> {
   return {
     pool: [],
     rejected: [],
     scores: {},
-    arcade: { phase: 'early', round: 0 },
     ui: { soundOn: true, step: 'welcome', hydrated: false },
   };
 }
@@ -118,8 +105,6 @@ export const useStore = create<StoreState>((set, get) => ({
     set((s) => (s.rejected.includes(igdbId) ? s : { rejected: [...s.rejected, igdbId] })),
 
   setScores: (scores) => set({ scores }),
-
-  setArcade: (partial) => set((s) => ({ arcade: { ...s.arcade, ...partial } })),
 
   setStep: (step) => set((s) => ({ ui: { ...s.ui, step } })),
 

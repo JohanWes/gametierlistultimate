@@ -6,6 +6,7 @@ import {
   parseRankingState,
   serializeRankingState,
 } from '@/lib/ranking';
+import { REVEAL_MIN_ROUNDS } from '@/lib/ranking/arcade';
 import { LOCAL_SESSION_KEY } from '@/lib/session-local';
 import { resetStore, startAutosave, useStore } from '@/lib/store';
 import { makeGames } from '@/test/helpers/games';
@@ -95,7 +96,7 @@ describe('ArcadeStep', () => {
   it('offers the reveal once the round floor is reached', () => {
     const games = seedPool(6);
     let state = createRankingState(games.map((g) => ({ gameId: g.igdbId })));
-    for (let i = 0; i < 12; i += 1) {
+    for (let i = 0; i < REVEAL_MIN_ROUNDS; i += 1) {
       state = applyOutcome(state, {
         type: 'pairwise',
         winnerId: games[0].igdbId,

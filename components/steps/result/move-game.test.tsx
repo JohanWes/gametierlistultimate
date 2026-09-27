@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { Flow } from '@/components/Flow';
 import {
   assignTier,
+  computeTiers,
   createRankingState,
   parseRankingState,
   serializeRankingState,
@@ -12,7 +14,14 @@ import {
 import { LOCAL_SESSION_KEY } from '@/lib/session-local';
 import { resetStore, startAutosave, useStore } from '@/lib/store';
 import { makeGames } from '@/test/helpers/games';
-import { fireEvent, renderWithProviders, screen, waitFor, within } from '@/test/helpers/render';
+import {
+  act,
+  fireEvent,
+  renderWithProviders,
+  screen,
+  waitFor,
+  within,
+} from '@/test/helpers/render';
 
 import { ResultStep } from './ResultStep';
 
@@ -66,6 +75,28 @@ describe('manual correction (tap-to-move)', () => {
     renderWithProviders(<ResultStep />);
     revealAll();
     expect(within(screen.getByTestId('tier-row-S')).getByText('Game 7')).toBeInTheDocument();
+  });
+
+  it('keeps the move when returning to a kept-alive arcade and playing on', async () => {
+    seed();
+    act(() => {
+      useStore.getState().setHydrated(true);
+      useStore.getState().setStep('arcade');
+    });
+    renderWithProviders(<Flow />);
+    await screen.findByText(/Step 3 · Ranking arcade/i);
+
+    act(() => useStore.getState().setStep('reveal'));
+    fireEvent.click(await screen.findByRole('button', { name: /reveal all/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move Game 7' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move to S tier' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /keep ranking/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /skip/i }));
+
+    const state = parseRankingState(useStore.getState().scores)!;
+    expect(state.round).toBe(1);
+    expect(computeTiers(state).S).toContain(7);
   });
 
   it('deletes a game from the board and the pool after confirming', () => {

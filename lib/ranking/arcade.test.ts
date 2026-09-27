@@ -58,8 +58,8 @@ describe('selectRound — phase matching', () => {
   });
 
   it('early phase falls back to a five-card group outside the pair-break round', () => {
-    // Round 13: no special cadence hits, not a pair-break round → five-card group.
-    const state = stateAtRound([1, 2, 3, 4, 5, 6], 13);
+    // Round 17: no special cadence hits, not a pair-break round → five-card group.
+    const state = stateAtRound([1, 2, 3, 4, 5, 6], 17);
     const round = selectRound(state, { phase: 'early' })!;
     expect(FIVE_GROUP).toContain(round.kind);
     expect(round.gameIds).toHaveLength(5);

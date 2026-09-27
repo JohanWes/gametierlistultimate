@@ -19,6 +19,8 @@ export interface GameRating {
   comparisons: number;
   lastSeenRound: number | null;
   priorOffset: number;
+  /** Tier the player pinned this game to on the board; cleared once it plays another round. */
+  manual?: Tier;
 }
 
 export interface RecentMatchup {
@@ -202,6 +204,7 @@ export function parseRankingState(value: unknown): RankingState | null {
       comparisons: game.comparisons,
       lastSeenRound: typeof game.lastSeenRound === 'number' ? game.lastSeenRound : null,
       priorOffset: typeof game.priorOffset === 'number' ? game.priorOffset : 0,
+      manual: TIER_ORDER.includes(game.manual as Tier) ? game.manual : undefined,
     };
   }
 
@@ -244,8 +247,8 @@ export function removeGameFromState(state: RankingState, gameId: number): Rankin
 /**
  * Reconcile the ranking state with the current pool: add entries for new games (seeded from their
  * priors, exactly like `createRankingState`) and drop entries whose game left the pool. Returns
- * the *same* state reference when nothing changed, so React effects can cheaply no-op. Used by the
- * keep-alive arcade step, which never remounts and so must fold pool edits in as they happen.
+ * the *same* state reference when nothing changed. Used by the arcade step to fold in pool edits
+ * made elsewhere when it resumes a saved state.
  */
 export function syncStateWithGames(
   state: RankingState,
@@ -287,17 +290,30 @@ export function syncStateWithGames(
 }
 
 export function applyOutcome(state: RankingState, outcome: RankingOutcome): RankingState {
-  const next = cloneState(state);
-  const beforeRound = next.round;
+  return applyOutcomes(state, [outcome]);
+}
 
+/**
+ * Fold one arcade round into the engine. A round can emit several outcomes (a vibe round rates four
+ * games, a bracket is three duels); they all land in the same round, which advances exactly once.
+ */
+export function applyOutcomes(state: RankingState, outcomes: RankingOutcome[]): RankingState {
+  const next = cloneState(state);
+  const round = next.round + 1;
+  for (const outcome of outcomes) applyOne(next, outcome, round);
+  next.round = round;
+  return next;
+}
+
+function applyOne(next: RankingState, outcome: RankingOutcome, round: number): void {
   switch (outcome.type) {
     case 'pairwise':
       applyPair(next, outcome.winnerId, outcome.loserId, 1, outcome.weight ?? 1);
-      markParticipants(next, [outcome.winnerId, outcome.loserId], beforeRound + 1);
+      markParticipants(next, [outcome.winnerId, outcome.loserId], round);
       break;
     case 'lineup':
       applyLineup(next, outcome.orderedIds, outcome.weight ?? 0.55);
-      markParticipants(next, outcome.orderedIds, beforeRound + 1);
+      markParticipants(next, outcome.orderedIds, round);
       break;
     case 'pick-k-of-n':
       for (const winner of outcome.pickedIds) {
@@ -305,43 +321,40 @@ export function applyOutcome(state: RankingState, outcome: RankingOutcome): Rank
           applyPair(next, winner, loser, 1, outcome.weight ?? 0.68);
         }
       }
-      markParticipants(next, [...outcome.pickedIds, ...outcome.rejectedIds], beforeRound + 1);
+      markParticipants(next, [...outcome.pickedIds, ...outcome.rejectedIds], round);
       break;
     case 'champion':
       for (const loser of outcome.opponentIds) {
         applyPair(next, outcome.winnerId, loser, 1, outcome.weight ?? 0.8);
       }
-      markParticipants(next, [outcome.winnerId, ...outcome.opponentIds], beforeRound + 1);
+      markParticipants(next, [outcome.winnerId, ...outcome.opponentIds], round);
       break;
     case 'sacrifice':
       for (const winner of outcome.opponentIds) {
         applyPair(next, winner, outcome.loserId, 1, outcome.weight ?? 0.8);
       }
-      markParticipants(next, [outcome.loserId, ...outcome.opponentIds], beforeRound + 1);
+      markParticipants(next, [outcome.loserId, ...outcome.opponentIds], round);
       break;
     case 'bucket':
       applyBucket(next, outcome.buckets, outcome.weight ?? 0.9);
-      markParticipants(next, outcome.buckets.flat(), beforeRound + 1);
+      markParticipants(next, outcome.buckets.flat(), round);
       break;
     case 'about-equal':
       applyPair(next, outcome.gameIds[0], outcome.gameIds[1], 0.5, outcome.weight ?? 0.35);
-      markParticipants(next, outcome.gameIds, beforeRound + 1);
+      markParticipants(next, outcome.gameIds, round);
       break;
     case 'replay':
       applyReplay(next, outcome.gameId, outcome.answer, outcome.weight ?? 0.35);
-      markParticipants(next, [outcome.gameId], beforeRound + 1);
+      markParticipants(next, [outcome.gameId], round);
       break;
     case 'vibe':
       applyVibe(next, outcome.gameId, outcome.tier, outcome.weight ?? 0.6, outcome.score);
-      markParticipants(next, [outcome.gameId], beforeRound + 1);
+      markParticipants(next, [outcome.gameId], round);
       break;
     case 'skip':
-      markParticipants(next, outcome.gameIds ?? [], beforeRound + 1, false);
+      markParticipants(next, outcome.gameIds ?? [], round, false);
       break;
   }
-
-  next.round += 1;
-  return next;
 }
 
 /**
@@ -424,9 +437,9 @@ export const TIER_BANDS: Record<Tier, number> = {
 };
 
 /**
- * Manually place a game in a tier. Sets its rating to the tier's representative band and marks it as
- * confident (low uncertainty, comparison credit) so a later recompute keeps the user's choice. Returns
- * a new state; unknown gameIds are returned unchanged.
+ * Manually place a game in a tier. Pins it there (`manual`, honoured by `computeTiers` until the game
+ * plays another round), sets its rating to the tier's representative band and marks it as confident
+ * (low uncertainty, comparison credit). Returns a new state; unknown gameIds are returned unchanged.
  */
 export function assignTier(state: RankingState, gameId: number, tier: Tier): RankingState {
   const game = state.games[String(gameId)];
@@ -437,6 +450,7 @@ export function assignTier(state: RankingState, gameId: number, tier: Tier): Ran
   target.rating = TIER_BANDS[tier];
   target.uncertainty = MIN_UNCERTAINTY;
   target.comparisons = Math.max(target.comparisons, 8);
+  target.manual = tier;
   return next;
 }
 
@@ -451,18 +465,20 @@ export function tierForRating(rating: number): Tier {
   return 'F';
 }
 
+/**
+ * Group games into tiers by rating. Manually pinned games stay in their tier; for lists of 10+ the
+ * rating-derived S tier is capped at the top 10% (the overflow drops to A).
+ */
 export function computeTiers(state: RankingState): TierMap {
   const tiers = emptyTiers();
   const ranked = gameList(state).sort(compareRanked);
+  const sLimit = ranked.length >= 10 ? Math.ceil(ranked.length * 0.1) : Infinity;
+  let autoS = 0;
 
   for (const game of ranked) {
-    tiers[tierForRating(game.rating)].push(game.gameId);
-  }
-
-  const sLimit = Math.max(1, Math.ceil(ranked.length * 0.1));
-  if (ranked.length >= 10 && tiers.S.length > sLimit) {
-    const demoted = tiers.S.splice(sLimit);
-    tiers.A.unshift(...demoted);
+    let tier = game.manual ?? tierForRating(game.rating);
+    if (!game.manual && tier === 'S' && ++autoS > sLimit) tier = 'A';
+    tiers[tier].push(game.gameId);
   }
 
   return tiers;
@@ -611,7 +627,10 @@ function markParticipants(
   const unique = [...new Set(gameIds.filter(Number.isFinite))];
   for (const gameId of unique) {
     const game = state.games[String(gameId)];
-    if (game) game.lastSeenRound = round;
+    if (!game) continue;
+    game.lastSeenRound = round;
+    // New evidence releases a manual pin; a skip (countRecent false) is not evidence.
+    if (countRecent) delete game.manual;
   }
   if (countRecent && unique.length) {
     state.recentMatchups = [{ round, gameIds: unique }, ...state.recentMatchups].slice(0, RECENT_HISTORY);

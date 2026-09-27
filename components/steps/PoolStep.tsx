@@ -120,9 +120,13 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
     backlogRef.current = backlog;
   }, [backlog]);
 
-  /** Every id we're holding (decided, visible, or queued) — the canonical exclude set. */
+  /**
+   * Every id we're holding (decided, in the pool, visible, or queued) — the canonical exclude set.
+   * The live pool is read too: games added via search never pass through `decidedRef`.
+   */
   const buildExclude = useCallback((): number[] => {
     const ids = new Set(decidedRef.current);
+    for (const e of useStore.getState().pool) ids.add(e.game.igdbId);
     for (const s of slotsRef.current) if (s) ids.add(s.game.igdbId);
     for (const b of backlogRef.current) ids.add(b.game.igdbId);
     return [...ids];

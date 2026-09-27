@@ -21,23 +21,22 @@ export function KeepTwo({ games, onComplete }: MinigameProps) {
 
   const toggle = (id: number) => {
     if (done) return;
-    setPicked((prev) => {
-      if (prev.includes(id)) {
-        playSound('blip');
-        return prev.filter((p) => p !== id);
-      }
-      if (prev.length >= KEEP) return prev;
-      const next = [...prev, id];
-      if (next.length === KEEP) {
-        setDone(true);
-        playSound('success');
-        const rejectedIds = games.filter((g) => !next.includes(g.igdbId)).map((g) => g.igdbId);
-        complete([{ type: 'pick-k-of-n', pickedIds: next, rejectedIds }]);
-      } else {
-        playSound('blip');
-      }
-      return next;
-    });
+    if (picked.includes(id)) {
+      playSound('blip');
+      setPicked(picked.filter((p) => p !== id));
+      return;
+    }
+    if (picked.length >= KEEP) return;
+    const next = [...picked, id];
+    setPicked(next);
+    if (next.length < KEEP) {
+      playSound('blip');
+      return;
+    }
+    setDone(true);
+    playSound('success');
+    const rejectedIds = games.filter((g) => !next.includes(g.igdbId)).map((g) => g.igdbId);
+    complete([{ type: 'pick-k-of-n', pickedIds: next, rejectedIds }]);
   };
 
   const stateFor = (id: number): CardState => {
