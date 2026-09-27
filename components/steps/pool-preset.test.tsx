@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resetStore } from '@/lib/store';
+import { mockFetch } from '@/test/helpers/fetch';
 import { makeGames } from '@/test/helpers/games';
 import { fireEvent, renderWithProviders, screen, waitFor } from '@/test/helpers/render';
 
@@ -11,20 +12,24 @@ function param(url: string, name: string): string | null {
 }
 
 describe('PoolStep preset shelf handoff', () => {
-  beforeEach(() => resetStore());
+  beforeEach(() => {
+    resetStore();
+    vi.spyOn(Math, 'random').mockReturnValue(0.99); // spotlight roll misses
+  });
+  afterEach(() => vi.restoreAllMocks());
 
   it('sends preset=true on the first batches, then stops after 3 accepted games', async () => {
     const calls: string[] = [];
-    const fetchImpl = vi.fn(async (url: string) => {
+    mockFetch((url) => {
       calls.push(url);
       const excluded = (new URL(url, 'http://localhost').searchParams.get('exclude') ?? '')
         .split(',')
         .filter(Boolean);
       const start = 1000 + excluded.length;
-      return { ok: true, status: 200, json: async () => ({ games: makeGames(5, start) }) };
-    }) as unknown as typeof fetch;
+      return { games: makeGames(5, start) };
+    });
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
+    renderWithProviders(<PoolStep />);
 
     // First batch (bootstrap) + backlog prefetch — both preset while cold.
     const playedButtons = await screen.findAllByRole('button', { name: /played it/i });
@@ -50,16 +55,16 @@ describe('PoolStep preset shelf handoff', () => {
 
   it('keeps preset=true if the user only passes (no accepts), until the shelf drains', async () => {
     const calls: string[] = [];
-    const fetchImpl = vi.fn(async (url: string) => {
+    mockFetch((url) => {
       calls.push(url);
       const excluded = (new URL(url, 'http://localhost').searchParams.get('exclude') ?? '')
         .split(',')
         .filter(Boolean);
       const start = 1000 + excluded.length;
-      return { ok: true, status: 200, json: async () => ({ games: makeGames(5, start) }) };
-    }) as unknown as typeof fetch;
+      return { games: makeGames(5, start) };
+    });
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
+    renderWithProviders(<PoolStep />);
 
     // Pass the 3 visible slots, then one more (a replacement) — drains the backlog and triggers a
     // refill fetch, all without any accepts. Retrying the extra click inside waitFor handles the

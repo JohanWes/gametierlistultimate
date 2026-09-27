@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type ComparisonResult, fetchComparison } from '@/lib/compare-client';
-import { jsonFetch } from '@/test/helpers/games';
-import { fireEvent, renderWithProviders, screen } from '@/test/helpers/render';
+import { mockFetch } from '@/test/helpers/fetch';
+import { fireEvent, preferReducedMotion, renderWithProviders, screen } from '@/test/helpers/render';
 
 import { CommunityComparison } from './CommunityComparison';
 
 const playSound = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/sound', () => ({ playSound }));
+
+preferReducedMotion(); // show the final percentage without the count-up tween
 
 const tiers = { S: [1], A: [], B: [], C: [], D: [], E: [], F: [2] };
 const games = [
@@ -24,13 +26,10 @@ const result: ComparisonResult = {
   ],
 };
 
-function renderPanel(overrides: Partial<ComparisonResult> = {}) {
+function renderPanel() {
+  mockFetch(() => result);
   return renderWithProviders(
-    <CommunityComparison
-      pending={fetchComparison(tiers as never, jsonFetch({ ...result, ...overrides }))}
-      games={games}
-      animateCount={false}
-    />,
+    <CommunityComparison pending={fetchComparison(tiers as never)} games={games} />,
   );
 }
 
@@ -60,25 +59,20 @@ describe('CommunityComparison', () => {
   });
 
   it('shows a graceful low-data state when there is no community data', async () => {
-    const fetchImpl = vi.fn(
-      jsonFetch({ similarityPercent: null, outliers: [], sampleSize: 0 }),
-    );
+    const fetchMock = mockFetch(() => ({ similarityPercent: null, outliers: [], sampleSize: 0 }));
     renderWithProviders(
-      <CommunityComparison
-        pending={fetchComparison(tiers as never, fetchImpl as unknown as typeof fetch)}
-        games={games}
-        animateCount={false}
-      />,
+      <CommunityComparison pending={fetchComparison(tiers as never)} games={games} />,
     );
     expect(await screen.findByText(/Not enough lists yet to compare/)).toBeInTheDocument();
     expect(screen.queryByText('%')).not.toBeInTheDocument();
-    expect(fetchImpl).toHaveBeenCalledWith('/api/compare', expect.objectContaining({ method: 'POST' }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/compare',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 
   it('renders a server-provided initialResult immediately without loading', async () => {
-    renderWithProviders(
-      <CommunityComparison initialResult={result} games={games} animateCount={false} />,
-    );
+    renderWithProviders(<CommunityComparison initialResult={result} games={games} />);
     expect(await screen.findByText('92')).toBeInTheDocument();
     expect(screen.getByText(/based on 1,204 lists/)).toBeInTheDocument();
     expect(screen.queryByTestId('comparison-loading')).not.toBeInTheDocument();

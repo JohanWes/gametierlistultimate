@@ -48,8 +48,6 @@ interface PoolSwipeCardProps {
   game: Game;
   /** The next card in the queue, drawn behind this one for the stacked-deck feel. */
   peek?: Game;
-  /** Injected RNG in [0, 1); defaults to Math.random. */
-  random?: () => number;
   onDecide: (action: PoolDecision) => void;
   /** Open the gameplay-footage popup, expanding from the card's rect, on a clean tap. */
   onWatch?: (game: Game, rect: DOMRect) => void;
@@ -65,19 +63,9 @@ interface PoolSwipeCardProps {
  * Dragging uses Framer Motion's built-in pointer/touch handling (it sets the right `touch-action`
  * and pointer capture) so a horizontal swipe is never mistaken for a page scroll.
  */
-export function PoolSwipeCard({
-  game,
-  peek,
-  random = Math.random,
-  onDecide,
-  onWatch,
-}: PoolSwipeCardProps) {
+export function PoolSwipeCard({ game, peek, onDecide, onWatch }: PoolSwipeCardProps) {
   const reduce = useReducedMotion();
-  const { picking, playedRollHits, reject, chooseStatus } = usePoolDecision({
-    game,
-    random,
-    onDecide,
-  });
+  const { picking, playedRollHits, reject, chooseStatus } = usePoolDecision({ game, onDecide });
 
   const cardRef = useRef<HTMLDivElement>(null);
   // `x` is the raw pointer delta; `sx` is the rAF-interpolated value we actually render.

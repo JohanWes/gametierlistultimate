@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { Flow } from '@/components/Flow';
 import {
@@ -11,6 +11,7 @@ import {
 } from '@/lib/ranking';
 import { LOCAL_SESSION_KEY } from '@/lib/session-local';
 import { resetStore, startAutosave, useStore } from '@/lib/store';
+import { mockFetch } from '@/test/helpers/fetch';
 import { makeGames } from '@/test/helpers/games';
 import {
   act,
@@ -125,23 +126,24 @@ describe('manual correction (tap-to-move)', () => {
   });
 
   it('persists a manual move locally (localStorage, no network)', async () => {
-    const fetchSpy = vi.fn(
-      async () => ({ ok: true, status: 200, json: async () => ({}) }) as Response,
-    );
+    const fetchSpy = mockFetch();
     window.localStorage.clear();
     seed();
     useStore.getState().setHydrated(true);
-    const stop = startAutosave({ waitMs: 0, fetchImpl: fetchSpy as unknown as typeof fetch });
+    const stop = startAutosave();
 
     renderWithProviders(<ResultStep />);
     revealAll();
     fireEvent.click(screen.getByRole('button', { name: 'Move Game 7' }));
     fireEvent.click(screen.getByRole('button', { name: 'Move to S tier' }));
 
-    await waitFor(() => {
-      const saved = JSON.parse(window.localStorage.getItem(LOCAL_SESSION_KEY) as string);
-      expect(tierForRating(saved.scores.games[7].rating)).toBe('S');
-    });
+    await waitFor(
+      () => {
+        const saved = JSON.parse(window.localStorage.getItem(LOCAL_SESSION_KEY) as string);
+        expect(tierForRating(saved.scores.games[7].rating)).toBe('S');
+      },
+      { timeout: 2000 }, // past the 600ms autosave debounce
+    );
     expect(fetchSpy).not.toHaveBeenCalled(); // a tier move is local-only
     stop();
   });

@@ -24,8 +24,6 @@ interface CommunityComparisonProps {
   gamesById?: Map<number, Meta>;
   /** Cover/title lookup for outliers (published snapshot games). */
   games?: SnapshotGame[];
-  /** Set false in tests to render the final percentage without the count-up tween. */
-  animateCount?: boolean;
   className?: string;
 }
 
@@ -47,8 +45,8 @@ function verdictFor(percent: number): string {
   return 'Lone wolf';
 }
 
-/** Count a number up to `target` on first reveal; jumps instantly under reduced motion / tests. */
-function useCountUp(target: number | null, enabled: boolean): number {
+/** Count a number up to `target` on first reveal; jumps instantly under reduced motion. */
+function useCountUp(target: number | null): number {
   const reduce = useReducedMotion();
   const [value, setValue] = useState(target ?? 0);
   useEffect(() => {
@@ -56,7 +54,7 @@ function useCountUp(target: number | null, enabled: boolean): number {
       setValue(0);
       return;
     }
-    if (!enabled || reduce) {
+    if (reduce) {
       setValue(target);
       return;
     }
@@ -66,7 +64,7 @@ function useCountUp(target: number | null, enabled: boolean): number {
       onUpdate: (v) => setValue(Math.round(v)),
     });
     return () => controls.stop();
-  }, [target, enabled, reduce]);
+  }, [target, reduce]);
   return target === null ? 0 : value;
 }
 
@@ -118,7 +116,6 @@ export function CommunityComparison({
   initialResult,
   gamesById,
   games,
-  animateCount = true,
   className,
 }: CommunityComparisonProps) {
   const reduce = useReducedMotion();
@@ -151,7 +148,7 @@ export function CommunityComparison({
   const ready = state.kind === 'ready' ? state.result : null;
   const hasData = ready?.similarityPercent != null;
   const percent = hasData ? (ready as ComparisonResult).similarityPercent! : null;
-  const displayPercent = useCountUp(hasData ? percent : null, animateCount);
+  const displayPercent = useCountUp(hasData ? percent : null);
 
   // One soft cue the first time a real result lands.
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { jsonFetch, makeGame } from '@/test/helpers/games';
+import { mockFetch } from '@/test/helpers/fetch';
+import { makeGame } from '@/test/helpers/games';
 import { renderWithProviders, screen, waitFor } from '@/test/helpers/render';
 
 import { GameplayVideoModal, type VideoTarget } from './GameplayVideoModal';
@@ -14,18 +15,15 @@ const target: VideoTarget = {
 describe('GameplayVideoModal', () => {
   it('renders nothing when closed', () => {
     const { container } = renderWithProviders(
-      <GameplayVideoModal video={null} onClose={() => {}} fetchImpl={jsonFetch({ videoId: 'x' })} />,
+      <GameplayVideoModal video={null} onClose={() => {}} />,
     );
     expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 
   it('embeds the resolved video in a youtube-nocookie iframe', async () => {
+    mockFetch(() => ({ videoId: 'ABC12345678' }));
     const { container } = renderWithProviders(
-      <GameplayVideoModal
-        video={target}
-        onClose={() => {}}
-        fetchImpl={jsonFetch({ videoId: 'ABC12345678' })}
-      />,
+      <GameplayVideoModal video={target} onClose={() => {}} />,
     );
 
     await waitFor(() => {
@@ -38,9 +36,8 @@ describe('GameplayVideoModal', () => {
   });
 
   it('shows a YouTube search fallback link when nothing resolves', async () => {
-    renderWithProviders(
-      <GameplayVideoModal video={target} onClose={() => {}} fetchImpl={jsonFetch({ videoId: null })} />,
-    );
+    mockFetch(() => ({ videoId: null }));
+    renderWithProviders(<GameplayVideoModal video={target} onClose={() => {}} />);
 
     const link = await screen.findByRole('link', { name: /watch gameplay on youtube/i });
     expect(link.getAttribute('href')).toContain(

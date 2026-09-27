@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TierMap } from '@/lib/ranking';
 import { LOCAL_SESSION_KEY } from '@/lib/session-local';
 import { resetStore, useStore } from '@/lib/store';
+import { mockFetch } from '@/test/helpers/fetch';
 import { makeGame } from '@/test/helpers/games';
 import { fireEvent, renderWithProviders, screen, waitFor, within } from '@/test/helpers/render';
 
@@ -12,26 +13,20 @@ const games = [makeGame({ igdbId: 1, title: 'Alpha' }), makeGame({ igdbId: 2, ti
 const gamesById = new Map(games.map((g) => [g.igdbId, g]));
 const tiers: TierMap = { S: [1], A: [2], B: [], C: [], D: [], E: [], F: [] };
 
-function Harness({ tiers, fetchImpl }: { tiers: TierMap; fetchImpl?: typeof fetch }) {
-  return <ShareBar share={useShare({ tiers, gamesById, fetchImpl })} />;
+function Harness({ tiers }: { tiers: TierMap }) {
+  return <ShareBar share={useShare({ tiers, gamesById })} />;
 }
 
 describe('ShareBar', () => {
   beforeEach(() => resetStore());
 
   it('publishes a snapshot, shows the returned link, and drops it after an edit', async () => {
-    const fetchImpl = vi.fn(
-      async () =>
-        ({
-          ok: true,
-          status: 201,
-          json: async () => ({ shareId: 'abc123xyz0', url: 'http://localhost/s/abc123xyz0' }),
-        }) as Response,
-    );
+    const fetchMock = mockFetch(() => ({
+      shareId: 'abc123xyz0',
+      url: 'http://localhost/s/abc123xyz0',
+    }));
 
-    const { rerender } = renderWithProviders(
-      <Harness tiers={tiers} fetchImpl={fetchImpl as unknown as typeof fetch} />,
-    );
+    const { rerender } = renderWithProviders(<Harness tiers={tiers} />);
 
     fireEvent.click(screen.getByRole('button', { name: /share my list/i }));
 
@@ -39,30 +34,25 @@ describe('ShareBar', () => {
       expect(screen.getByText('http://localhost/s/abc123xyz0')).toBeInTheDocument(),
     );
 
-    expect(fetchImpl).toHaveBeenCalledWith('/api/lists', expect.objectContaining({ method: 'POST' }));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/lists',
+      expect.objectContaining({ method: 'POST' }),
+    );
     // Snapshot embeds the placed games.
-    const [, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
-    const body = JSON.parse(init.body as string);
+    const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
     expect(body.games).toHaveLength(2);
     expect(body.tiers.S).toEqual([1]);
 
     // Moving a game makes the link stale: it disappears and publishing is offered again.
-    rerender(
-      <Harness
-        tiers={{ ...tiers, S: [], A: [1, 2] }}
-        fetchImpl={fetchImpl as unknown as typeof fetch}
-      />,
-    );
+    rerender(<Harness tiers={{ ...tiers, S: [], A: [1, 2] }} />);
     expect(screen.queryByText('http://localhost/s/abc123xyz0')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /share my list/i })).toBeInTheDocument();
   });
 
   it('offers a retry when publishing fails', async () => {
-    const fetchImpl = vi.fn(
-      async () => ({ ok: false, status: 500, json: async () => ({}) }) as Response,
-    );
+    mockFetch(() => Response.json({}, { status: 500 }));
 
-    renderWithProviders(<Harness tiers={tiers} fetchImpl={fetchImpl as unknown as typeof fetch} />);
+    renderWithProviders(<Harness tiers={tiers} />);
 
     fireEvent.click(screen.getByRole('button', { name: /share my list/i }));
 

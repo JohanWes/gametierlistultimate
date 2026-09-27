@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Game } from '@/lib/games/types';
 import { createRankingState } from '@/lib/ranking';
 import { LOCAL_SESSION_KEY, type LocalSessionState } from '@/lib/session-local';
+import { mockFetch } from '@/test/helpers/fetch';
 
 import { resetStore, startAutosave, useStore, type PoolEntry } from './index';
 
@@ -94,80 +95,77 @@ describe('store', () => {
     afterEach(() => vi.useRealTimers());
 
     it('debounces a localStorage write after persisted state changes (no network)', () => {
-      const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
-      const stop = startAutosave({ waitMs: 500, fetchImpl });
+      const fetchMock = mockFetch();
+      const stop = startAutosave();
 
       useStore.getState().setHydrated(true); // ui-only change must NOT trigger a save
       useStore.getState().setScores(createRankingState([1]));
       useStore.getState().setScores(createRankingState([2])); // collapses into one write
 
       expect(readLocalSession()).toBeNull(); // still within debounce window
-      vi.advanceTimersByTime(500);
+      vi.advanceTimersByTime(600);
 
       expect(readLocalSession().scores).toEqual(createRankingState([2]));
-      expect(fetchImpl).not.toHaveBeenCalled(); // a local state change is local-only
+      expect(fetchMock).not.toHaveBeenCalled(); // a local state change is local-only
       stop();
     });
 
     it('posts a pool delta to /api/pool-stats when the pool ids change', () => {
-      const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
-      const stop = startAutosave({ waitMs: 500, fetchImpl });
+      const fetchMock = mockFetch();
+      const stop = startAutosave();
 
       useStore.getState().setHydrated(true);
       useStore.getState().addToPool(makeGame(1));
       useStore.getState().addToPool(makeGame(2));
-      vi.advanceTimersByTime(500);
+      vi.advanceTimersByTime(600);
 
-      expect(fetchImpl).toHaveBeenCalledTimes(1);
-      const [url, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0];
       expect(url).toBe('/api/pool-stats');
       expect(init).toMatchObject({ method: 'POST' });
-      expect(JSON.parse(init.body)).toEqual({ previous: [], next: [1, 2] });
+      expect(JSON.parse(init?.body as string)).toEqual({ previous: [], next: [1, 2] });
       // The pool is also persisted locally.
       expect(readLocalSession().pool.map((e: PoolEntry) => e.game.igdbId)).toEqual([1, 2]);
       stop();
     });
 
     it('persists rejected ids locally (no network) after a rejection', () => {
-      const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
-      const stop = startAutosave({ waitMs: 500, fetchImpl });
+      const fetchMock = mockFetch();
+      const stop = startAutosave();
 
       useStore.getState().setHydrated(true);
       useStore.getState().markRejected(7);
       useStore.getState().markRejected(8);
-      vi.advanceTimersByTime(500);
+      vi.advanceTimersByTime(600);
 
       expect(readLocalSession().rejected).toEqual([7, 8]);
-      expect(fetchImpl).not.toHaveBeenCalled(); // rejections are local-only
+      expect(fetchMock).not.toHaveBeenCalled(); // rejections are local-only
       stop();
     });
 
     it('persists the current step after hydration', () => {
-      const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
-      const stop = startAutosave({ waitMs: 500, fetchImpl });
+      const stop = startAutosave();
 
       useStore.getState().setHydrated(true);
       useStore.getState().goNext();
-      vi.advanceTimersByTime(500);
+      vi.advanceTimersByTime(600);
 
       expect(readLocalSession().step).toBe('pool');
       stop();
     });
 
     it('does not persist before hydration', () => {
-      const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
-      const stop = startAutosave({ waitMs: 500, fetchImpl });
+      const stop = startAutosave();
 
       useStore.getState().setScores(createRankingState([1])); // hydrated is still false
-      vi.advanceTimersByTime(500);
+      vi.advanceTimersByTime(600);
 
       expect(readLocalSession()).toBeNull();
       stop();
     });
 
     it('does not resurrect a cleared session when Start over unhydrates before pagehide', () => {
-      const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
-      const stop = startAutosave({ waitMs: 500, fetchImpl });
+      const stop = startAutosave();
 
       // A debounced save still inside its window when Start over unhydrates + clears; neither
       // it nor the pagehide flush may write the in-memory state back.
@@ -175,7 +173,7 @@ describe('store', () => {
       useStore.getState().setScores(createRankingState([1]));
       useStore.getState().setHydrated(false);
 
-      vi.advanceTimersByTime(500); // deadline elapses before pagehide
+      vi.advanceTimersByTime(600); // deadline elapses before pagehide
       expect(readLocalSession()).toBeNull();
 
       window.dispatchEvent(new Event('pagehide'));
@@ -184,8 +182,7 @@ describe('store', () => {
     });
 
     it('flushes current state synchronously on pagehide after hydration', () => {
-      const fetchImpl = vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
-      const stop = startAutosave({ waitMs: 500, fetchImpl });
+      const stop = startAutosave();
 
       useStore.getState().setHydrated(true);
       useStore.getState().setScores(createRankingState([1])); // inside the debounce window
@@ -195,7 +192,7 @@ describe('store', () => {
 
       // Written immediately, not after the debounce window.
       expect(readLocalSession().scores).toEqual(createRankingState([1]));
-      vi.advanceTimersByTime(500);
+      vi.advanceTimersByTime(600);
       stop();
     });
   });

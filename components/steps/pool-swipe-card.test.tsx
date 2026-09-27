@@ -18,6 +18,7 @@ const originalMatchMedia = window.matchMedia;
 describe('PoolSwipeCard', () => {
   beforeEach(() => {
     resetStore();
+    vi.spyOn(Math, 'random').mockReturnValue(0.99); // spotlight roll misses
     window.matchMedia = ((query: string) =>
       ({
         matches: true,
@@ -33,11 +34,12 @@ describe('PoolSwipeCard', () => {
 
   afterEach(() => {
     window.matchMedia = originalMatchMedia;
+    vi.restoreAllMocks();
   });
 
   it('adds the game when Played it is tapped (spotlight roll misses)', () => {
     const onDecide = vi.fn();
-    renderWithProviders(<PoolSwipeCard game={game} random={() => 1} onDecide={onDecide} />);
+    renderWithProviders(<PoolSwipeCard game={game} onDecide={onDecide} />);
 
     fireEvent.click(screen.getByRole('button', { name: /played it/i }));
 
@@ -47,7 +49,7 @@ describe('PoolSwipeCard', () => {
 
   it('passes without adding to the pool', () => {
     const onDecide = vi.fn();
-    renderWithProviders(<PoolSwipeCard game={game} random={() => 1} onDecide={onDecide} />);
+    renderWithProviders(<PoolSwipeCard game={game} onDecide={onDecide} />);
 
     fireEvent.click(screen.getByRole('button', { name: /pass/i }));
 
@@ -57,7 +59,8 @@ describe('PoolSwipeCard', () => {
 
   it('reveals the spotlight sheet on a hit and records the chosen status', () => {
     const onDecide = vi.fn();
-    renderWithProviders(<PoolSwipeCard game={game} random={() => 0} onDecide={onDecide} />);
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    renderWithProviders(<PoolSwipeCard game={game} onDecide={onDecide} />);
 
     fireEvent.click(screen.getByRole('button', { name: /played it/i }));
     expect(useStore.getState().pool).toHaveLength(0);
@@ -72,7 +75,7 @@ describe('PoolSwipeCard', () => {
 
   it('includes as finished when the spotlight roll just misses the threshold', () => {
     const onDecide = vi.fn();
-    renderWithProviders(<PoolSwipeCard game={game} random={() => 0.99} onDecide={onDecide} />);
+    renderWithProviders(<PoolSwipeCard game={game} onDecide={onDecide} />);
 
     fireEvent.click(screen.getByRole('button', { name: /played it/i }));
 

@@ -7,16 +7,12 @@ export type { ComparisonResult, Outlier } from './compare';
 const EMPTY: ComparisonResult = { similarityPercent: null, outliers: [], sampleSize: 0 };
 
 /**
- * POST /api/compare — compare the owner's current (pre-publish) tiers to the community.
- * Injectable `fetchImpl` for unit tests; a failed request degrades to the low-data state rather
- * than throwing into the reveal UI.
+ * POST /api/compare — compare the owner's current (pre-publish) tiers to the community. A failed
+ * request degrades to the low-data state rather than throwing into the reveal UI.
  */
-export async function fetchComparison(
-  tiers: TierMap,
-  fetchImpl: typeof fetch = fetch,
-): Promise<ComparisonResult> {
+export async function fetchComparison(tiers: TierMap): Promise<ComparisonResult> {
   try {
-    const res = await fetchImpl('/api/compare', {
+    const res = await fetch('/api/compare', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',

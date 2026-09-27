@@ -26,8 +26,3 @@ export function makeResult(
 ): GameResult {
   return { ...makeGame(overrides), source: overrides.source };
 }
-
-/** A fetch stub returning the given JSON body, shaped like the fetch the client expects. */
-export function jsonFetch(body: unknown): typeof fetch {
-  return (async () => ({ ok: true, status: 200, json: async () => body })) as unknown as typeof fetch;
-}

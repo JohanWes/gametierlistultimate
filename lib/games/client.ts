@@ -1,10 +1,8 @@
 import type { Game, GameResult } from './types';
 
 /**
- * Browser-side wrappers around the game API routes. Each accepts an injectable `fetchImpl`
- * (defaulting to the global `fetch`) so components can be unit-tested with a stub — the same
- * pattern `startAutosave` uses. `fetchSuggestions` throws on failure so the pool step can retry;
- * the video lookup and search degrade to null / an empty list.
+ * Browser-side wrappers around the game API routes. `fetchSuggestions` throws on failure so the
+ * pool step can retry; the video lookup and search degrade to null / an empty list.
  */
 
 export interface SuggestionQuery {
@@ -28,10 +26,7 @@ export interface SuggestionQuery {
  * Throws on a failed request so the caller can distinguish "no games left" (an empty array)
  * from "the request failed" (a transient error worth retrying) rather than dead-ending the UI.
  */
-export async function fetchSuggestions(
-  query: SuggestionQuery = {},
-  fetchImpl: typeof fetch = fetch,
-): Promise<Game[]> {
+export async function fetchSuggestions(query: SuggestionQuery = {}): Promise<Game[]> {
   const params = new URLSearchParams();
   if (query.exclude?.length) params.set('exclude', query.exclude.join(','));
   if (query.seedIds?.length) params.set('seedIds', query.seedIds.join(','));
@@ -39,7 +34,7 @@ export async function fetchSuggestions(
   if (query.preset) params.set('preset', 'true');
   if (query.limit) params.set('limit', String(query.limit));
 
-  const res = await fetchImpl(`/api/games/suggestions?${params.toString()}`, {
+  const res = await fetch(`/api/games/suggestions?${params.toString()}`, {
     credentials: 'same-origin',
   });
   if (!res.ok) throw new Error(`suggestions request failed: ${res.status}`);
@@ -52,13 +47,10 @@ export async function fetchSuggestions(
  * Returns null on a miss or any failure so the modal falls back to a link-out. The server reads the
  * search title from its own data, so no title is sent from the client.
  */
-export async function fetchGameplayVideo(
-  igdbId: number,
-  fetchImpl: typeof fetch = fetch,
-): Promise<string | null> {
+export async function fetchGameplayVideo(igdbId: number): Promise<string | null> {
   if (!Number.isFinite(igdbId)) return null;
   try {
-    const res = await fetchImpl(`/api/games/${igdbId}/video`, { credentials: 'same-origin' });
+    const res = await fetch(`/api/games/${igdbId}/video`, { credentials: 'same-origin' });
     if (!res.ok) return null;
     const data = (await res.json()) as { videoId?: string | null };
     return typeof data.videoId === 'string' ? data.videoId : null;
@@ -71,7 +63,6 @@ export async function fetchGameplayVideo(
 export async function searchGames(
   q: string,
   options: { limit?: number } = {},
-  fetchImpl: typeof fetch = fetch,
 ): Promise<GameResult[]> {
   const trimmed = q.trim();
   if (!trimmed) return [];
@@ -80,7 +71,7 @@ export async function searchGames(
   if (options.limit) params.set('limit', String(options.limit));
 
   try {
-    const res = await fetchImpl(`/api/games/search?${params.toString()}`, {
+    const res = await fetch(`/api/games/search?${params.toString()}`, {
       credentials: 'same-origin',
     });
     if (!res.ok) return [];

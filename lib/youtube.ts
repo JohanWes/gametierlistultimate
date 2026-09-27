@@ -113,13 +113,10 @@ export type VideoResolution =
   | { status: 'error' };
 
 /**
- * Resolve `title` to a YouTube gameplay video. Never throws. `fetchImpl` is injectable so tests can
- * drive it deterministically. See {@link VideoResolution} for the hit/miss/error distinction.
+ * Resolve `title` to a YouTube gameplay video. Never throws. See {@link VideoResolution} for the
+ * hit/miss/error distinction.
  */
-export async function searchGameplayVideo(
-  title: string,
-  fetchImpl: typeof fetch = fetch,
-): Promise<VideoResolution> {
+export async function searchGameplayVideo(title: string): Promise<VideoResolution> {
   const trimmed = title.trim();
   if (!trimmed) return { status: 'miss' };
 
@@ -128,7 +125,7 @@ export async function searchGameplayVideo(
 
   let html: string;
   try {
-    const res = await fetchImpl(url.toString(), {
+    const res = await fetch(url.toString(), {
       headers: { 'User-Agent': DESKTOP_UA, 'Accept-Language': 'en-US,en;q=0.9' },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });

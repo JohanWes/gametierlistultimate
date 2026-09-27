@@ -36,9 +36,9 @@ const decodedCovers: Set<HTMLImageElement> = new Set();
 const MAX_DECODED_COVERS = 32;
 
 /** Kick off the starter-shelf prefetch if it hasn't started yet. Safe to call repeatedly. */
-export function prefetchStarterBatch(limit: number, fetchImpl: typeof fetch = fetch): void {
+export function prefetchStarterBatch(limit: number): void {
   if (starterBatchPromise) return;
-  starterBatchPromise = fetchSuggestions({ preset: true, limit }, fetchImpl)
+  starterBatchPromise = fetchSuggestions({ preset: true, limit })
     .then((games) => {
       preloadCovers(games);
       return games;
@@ -67,20 +67,14 @@ export interface AdaptiveBatchQuery {
  * already-decided ids, mirroring what PoolStep's bootstrap would fetch — so the first
  * pool-step paint reuses this instead of doing a live adaptive round-trip.
  */
-export function prefetchAdaptiveBatch(
-  query: AdaptiveBatchQuery,
-  fetchImpl: typeof fetch = fetch,
-): void {
+export function prefetchAdaptiveBatch(query: AdaptiveBatchQuery): void {
   if (adaptiveBatchPromise) return;
-  adaptiveBatchPromise = fetchSuggestions(
-    {
-      seedIds: query.seedIds,
-      rejectIds: query.rejectIds,
-      exclude: query.exclude,
-      limit: query.limit,
-    },
-    fetchImpl,
-  )
+  adaptiveBatchPromise = fetchSuggestions({
+    seedIds: query.seedIds,
+    rejectIds: query.rejectIds,
+    exclude: query.exclude,
+    limit: query.limit,
+  })
     .then((games) => {
       preloadCovers(games);
       return games;

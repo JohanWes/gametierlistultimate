@@ -14,6 +14,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./test/setup.ts'],
+    // Undo `vi.stubGlobal` (e.g. `mockFetch`) after every test.
+    unstubGlobals: true,
     exclude: ['**/node_modules/**', '.next/**'],
     // mongodb-memory-server can take a moment to download/spin up on first run.
     testTimeout: 30_000,

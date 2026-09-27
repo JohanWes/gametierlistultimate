@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { applyOutcome, createRankingState } from '@/lib/ranking';
 import { REVEAL_MIN_ROUNDS } from '@/lib/ranking/arcade';
 import { LOCAL_SESSION_KEY } from '@/lib/session-local';
 import { resetStore, startAutosave, useStore } from '@/lib/store';
+import { mockFetch } from '@/test/helpers/fetch';
 import { makeGames } from '@/test/helpers/games';
 import { fireEvent, renderWithProviders, screen, waitFor, within } from '@/test/helpers/render';
 
@@ -20,13 +21,11 @@ describe('ArcadeStep', () => {
   beforeEach(() => resetStore());
 
   it('a completed round updates the hidden ranking and persists it locally', async () => {
-    const fetchSpy = vi.fn(
-      async () => ({ ok: true, status: 200, json: async () => ({}) }) as Response,
-    );
+    const fetchSpy = mockFetch();
     window.localStorage.clear();
     seedPool(6);
     useStore.getState().setHydrated(true);
-    const stop = startAutosave({ waitMs: 0, fetchImpl: fetchSpy as unknown as typeof fetch });
+    const stop = startAutosave();
 
     renderWithProviders(<ArcadeStep />);
 
@@ -37,10 +36,13 @@ describe('ArcadeStep', () => {
     await waitFor(() => {
       expect(useStore.getState().scores?.round).toBe(1);
     });
-    await waitFor(() => {
-      const saved = JSON.parse(window.localStorage.getItem(LOCAL_SESSION_KEY) as string);
-      expect(saved.scores.round).toBe(1);
-    });
+    await waitFor(
+      () => {
+        const saved = JSON.parse(window.localStorage.getItem(LOCAL_SESSION_KEY) as string);
+        expect(saved.scores.round).toBe(1);
+      },
+      { timeout: 2000 }, // past the 600ms autosave debounce
+    );
     expect(fetchSpy).not.toHaveBeenCalled(); // a score change is local-only
 
     stop();

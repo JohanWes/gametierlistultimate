@@ -52,19 +52,13 @@ const PRESET_ACCEPT_HANDOFF = 3;
 const MAX_API_EXCLUDE = 300;
 const MAX_API_REJECT_IDS = 80;
 
-interface PoolStepProps {
-  fetchImpl?: typeof fetch;
-  /** Injected RNG forwarded to each PoolCard's spotlight roll; defaults to Math.random. */
-  random?: () => number;
-}
-
 /**
  * Step 2 — build the pool of games you've played. Three large fixed slots always stay on screen.
  * Deciding a card fades it out and a fresh one from a hidden backlog fades into the same slot;
  * the other two never move. The backlog is prefetched in the background so replacements
  * appear instantly. (Mobile uses a separate single-card swipe deck — see PoolSwipeDeck.)
  */
-export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
+export function PoolStep() {
   const poolCount = useStore((s) => s.pool.length);
   const goNext = useStore((s) => s.goNext);
   const goBack = useStore((s) => s.goBack);
@@ -201,10 +195,12 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
     let chain = false;
     try {
       const preset = shouldUsePreset();
-      const games = await fetchSuggestions(
-        { exclude: buildApiExclude(), ...buildSuggestionContext(), preset, limit: BACKLOG_BATCH },
-        fetchImpl ?? fetch,
-      );
+      const games = await fetchSuggestions({
+        exclude: buildApiExclude(),
+        ...buildSuggestionContext(),
+        preset,
+        limit: BACKLOG_BATCH,
+      });
 
       if (!mountedRef.current) return; // unmounted mid-fetch — skip state updates
 
@@ -242,7 +238,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
         if (chain && !exhaustedRef.current) void ensureBacklog();
       }
     }
-  }, [fetchImpl, buildApiExclude, buildSuggestionContext, filterFreshGames, fillEmptySlots, shouldUsePreset]);
+  }, [buildApiExclude, buildSuggestionContext, filterFreshGames, fillEmptySlots, shouldUsePreset]);
 
   // Bootstrap: load the first batch straight into the slots, the remainder into the backlog.
   useEffect(() => {
@@ -264,16 +260,14 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
         // Reuse a batch prefetched on hydration so the pool builder paints instantly. Two paths:
         //   - Cold pool (no accepts): the starter shelf prefetched on the welcome/hydrate moment.
         //   - Warm/returning pool: an adaptive batch seeded by the already-accepted games.
-        // Only when no fetch stub is injected (tests drive the network themselves) and nothing
-        // is decided yet for the starter path; the adaptive path is valid with prior accepts.
+        // The starter path only applies while nothing is decided yet; the adaptive path is valid
+        // with prior accepts.
         const canUseStarterPrefetch =
           preset &&
-          !fetchImpl &&
           decidedRef.current.size === 0 &&
           ctx.seedIds.length === 0 &&
           ctx.rejectIds.length === 0;
-        const canUseAdaptivePrefetch =
-          !fetchImpl && (decidedRef.current.size > 0 || ctx.seedIds.length > 0);
+        const canUseAdaptivePrefetch = decidedRef.current.size > 0 || ctx.seedIds.length > 0;
         let prefetched: Game[] | null = null;
         if (canUseStarterPrefetch) {
           prefetched = await peekStarterBatch();
@@ -289,15 +283,12 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
         const games =
           prefetched && prefetched.length > 0
             ? prefetched
-            : await fetchSuggestions(
-                {
-                  exclude: [...decidedRef.current].slice(-MAX_API_EXCLUDE),
-                  ...ctx,
-                  preset,
-                  limit: INITIAL_BATCH,
-                },
-                fetchImpl ?? fetch,
-              );
+            : await fetchSuggestions({
+                exclude: [...decidedRef.current].slice(-MAX_API_EXCLUDE),
+                ...ctx,
+                preset,
+                limit: INITIAL_BATCH,
+              });
 
         if (!mountedRef.current) return; // unmounted mid-fetch — skip state updates
 
@@ -439,7 +430,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
       <div className="mt-3 flex min-h-0 w-full flex-1 flex-col sm:mt-4">
         <div className="flex min-h-0 flex-1 flex-col gap-3 sm:gap-4">
           <div className="shrink-0">
-            <ManualSearch fetchImpl={fetchImpl} />
+            <ManualSearch />
           </div>
 
           {/* The playfield. `min-h-0` lets it shrink to whatever the shell leaves over, which is what
@@ -454,7 +445,6 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
                 onDecide={handleSwipeDecide}
                 onRetry={() => void ensureBacklog()}
                 onWatch={(g, rect) => setVideo({ game: g, rect })}
-                random={random}
               />
             ) : showSkeletons ? (
               <div className="mx-auto grid w-fit grid-cols-3 gap-6 lg:gap-8">
@@ -509,7 +499,6 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
                         <PoolCard
                           key={entry.igdbId}
                           game={entry}
-                          random={random}
                           onDecide={(action) => handleDecide(entry.igdbId, action)}
                           onWatch={(g, rect) => setVideo({ game: g, rect })}
                         />
@@ -536,7 +525,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
           </div>
         </div>
 
-        <GameplayVideoModal video={video} onClose={() => setVideo(null)} fetchImpl={fetchImpl} />
+        <GameplayVideoModal video={video} onClose={() => setVideo(null)} />
       </div>
 
       {/* Action bar: `shrink-0` is what actually pins it — the playfield above absorbs every

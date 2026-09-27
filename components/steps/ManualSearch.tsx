@@ -12,10 +12,6 @@ import { cn } from '@/lib/utils';
 
 const DEBOUNCE_MS = 300;
 
-interface ManualSearchProps {
-  fetchImpl?: typeof fetch;
-}
-
 const SOURCE_LABEL: Record<GameResult['source'], string> = {
   local: 'In library',
   igdb: 'From IGDB',
@@ -26,7 +22,7 @@ const SOURCE_LABEL: Record<GameResult['source'], string> = {
  * persists new games), forgiving with loading and empty states. Tapping a result adds it to
  * the pool with a default played status.
  */
-export function ManualSearch({ fetchImpl }: ManualSearchProps) {
+export function ManualSearch() {
   const reduce = useReducedMotion();
   const addToPool = useStore((s) => s.addToPool);
   // Select the stable pool array; deriving ids inside a selector would return a fresh array
@@ -50,7 +46,7 @@ export function ManualSearch({ fetchImpl }: ManualSearchProps) {
     let cancelled = false;
     setLoading(true);
     const timer = setTimeout(async () => {
-      const found = await searchGames(trimmed, { limit: 12 }, fetchImpl ?? fetch);
+      const found = await searchGames(trimmed, { limit: 12 });
       if (cancelled) return;
       setResults(found);
       setLoading(false);
@@ -61,7 +57,7 @@ export function ManualSearch({ fetchImpl }: ManualSearchProps) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [query, fetchImpl]);
+  }, [query]);
 
   const add = (game: GameResult) => {
     addToPool(game, 'finished');

@@ -63,12 +63,9 @@ export interface ShareController {
 export function useShare({
   tiers,
   gamesById,
-  fetchImpl,
 }: {
   tiers: TierMap;
   gamesById: Map<number, Game>;
-  /** Injectable for tests; defaults to the global fetch. */
-  fetchImpl?: typeof fetch;
 }): ShareController {
   const [published, setState] = useState<State>({ kind: 'idle' });
   const [copied, setCopied] = useState(false);
@@ -76,12 +73,10 @@ export function useShare({
   const state: State =
     published.kind === 'ready' && published.tiers !== tiers ? { kind: 'idle' } : published;
 
-  const doFetch = fetchImpl ?? fetch;
-
   const publish = async () => {
     setState({ kind: 'publishing' });
     try {
-      const res = await doFetch('/api/lists', {
+      const res = await fetch('/api/lists', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',

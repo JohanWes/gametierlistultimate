@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { resetStore, useStore } from '@/lib/store';
-import { makeGames, jsonFetch } from '@/test/helpers/games';
+import { mockFetch } from '@/test/helpers/fetch';
+import { makeGames } from '@/test/helpers/games';
 import { act, renderWithProviders, screen } from '@/test/helpers/render';
 
 import { PoolStep } from './PoolStep';
@@ -11,8 +12,9 @@ async function renderWithPool(count: number) {
   for (const game of makeGames(count)) {
     useStore.getState().addToPool(game);
   }
+  mockFetch(() => ({ games: [] }));
   await act(async () => {
-    renderWithProviders(<PoolStep fetchImpl={jsonFetch({ games: [] })} />);
+    renderWithProviders(<PoolStep />);
   });
 }
 

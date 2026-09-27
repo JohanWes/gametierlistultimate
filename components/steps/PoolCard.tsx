@@ -14,8 +14,6 @@ export type { PoolDecision } from '@/lib/pool-decision';
 
 interface PoolCardProps {
   game: Game;
-  /** Injected RNG in [0, 1); defaults to Math.random. */
-  random?: () => number;
   onDecide: (action: PoolDecision) => void;
   /** Open the gameplay-footage popup, expanding from the clicked cover's rect. */
   onWatch?: (game: Game, rect: DOMRect) => void;
@@ -29,13 +27,9 @@ interface PoolCardProps {
  * ranking phase. The trigger is rolled only on a "Played it" tap, so it never fires on a game the
  * user passed on.
  */
-export function PoolCard({ game, random = Math.random, onDecide, onWatch }: PoolCardProps) {
+export function PoolCard({ game, onDecide, onWatch }: PoolCardProps) {
   const reduce = useReducedMotion();
-  const { picking, playedRollHits, reject, chooseStatus } = usePoolDecision({
-    game,
-    random,
-    onDecide,
-  });
+  const { picking, playedRollHits, reject, chooseStatus } = usePoolDecision({ game, onDecide });
   const coverRef = useRef<HTMLDivElement>(null);
   // The decided card fades out in the same grid cell its replacement fades into; it must not
   // swallow clicks meant for the new card.

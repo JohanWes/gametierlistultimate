@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resetStore, useStore } from '@/lib/store';
+import { mockFetch } from '@/test/helpers/fetch';
 import { makeGame, makeGames } from '@/test/helpers/games';
 import { fireEvent, renderWithProviders, screen, waitFor } from '@/test/helpers/render';
 
@@ -15,11 +16,15 @@ function listParam(url: string, name: string): string[] {
 }
 
 describe('PoolStep batches', () => {
-  beforeEach(() => resetStore());
+  beforeEach(() => {
+    resetStore();
+    vi.spyOn(Math, 'random').mockReturnValue(0.99); // spotlight roll misses
+  });
+  afterEach(() => vi.restoreAllMocks());
 
   it('prefetches the backlog with the visible games excluded, then refills as cards are decided', async () => {
     const calls: string[] = [];
-    const fetchImpl = vi.fn(async (url: string) => {
+    mockFetch((url) => {
       calls.push(url);
       // Each call returns unique games keyed by the exclude size, so duplicates
       // are impossible and we can assert exact exclude params.
@@ -27,11 +32,10 @@ describe('PoolStep batches', () => {
         .split(',')
         .filter(Boolean);
       const start = 1000 + excluded.length;
-      const games = makeGames(3, start);
-      return { ok: true, status: 200, json: async () => ({ games }) };
-    }) as unknown as typeof fetch;
+      return { games: makeGames(3, start) };
+    });
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
+    renderWithProviders(<PoolStep />);
 
     // First batch lands — exclude is empty.
     await screen.findAllByRole('button', { name: /pass/i });
@@ -68,16 +72,16 @@ describe('PoolStep batches', () => {
   });
 
   it('shows placeholders (no crash) when the API returns fewer than three games', async () => {
-    const fetchImpl = vi.fn(async (url: string) => {
+    mockFetch((url) => {
       const excluded = (new URL(url, 'http://localhost').searchParams.get('exclude') ?? '')
         .split(',')
         .filter(Boolean);
       const count = excluded.length === 0 ? 1 : 0;
       const start = 1000 + excluded.length;
-      return { ok: true, status: 200, json: async () => ({ games: makeGames(count, start) }) };
-    }) as unknown as typeof fetch;
+      return { games: makeGames(count, start) };
+    });
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
+    renderWithProviders(<PoolStep />);
 
     // First batch has only 1 card, the other 2 slots show a placeholder — no crash.
     await screen.findAllByRole('button', { name: /pass/i });
@@ -87,11 +91,9 @@ describe('PoolStep batches', () => {
   });
 
   it('shows the exhausted shelf when every suggestion has been excluded', async () => {
-    const fetchImpl = vi.fn(async () => {
-      return { ok: true, status: 200, json: async () => ({ games: [] }) };
-    }) as unknown as typeof fetch;
+    mockFetch(() => ({ games: [] }));
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
+    renderWithProviders(<PoolStep />);
 
     await waitFor(() => {
       expect(screen.getByText(/whole shelf/i)).toBeInTheDocument();
@@ -100,12 +102,11 @@ describe('PoolStep batches', () => {
 
   it('shows a recoverable error when the first fetch fails', async () => {
     let n = 0;
-    const fetchImpl = vi.fn(async () => {
-      if (n++ === 0) return { ok: false, status: 500, json: async () => ({}) };
-      return { ok: true, status: 200, json: async () => ({ games: makeGames(5, 1000) }) };
-    }) as unknown as typeof fetch;
+    mockFetch(() =>
+      n++ === 0 ? new Response(null, { status: 500 }) : { games: makeGames(5, 1000) },
+    );
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
+    renderWithProviders(<PoolStep />);
 
     const retry = await screen.findByRole('button', { name: /retry now/i });
     expect(screen.queryByText(/whole shelf/i)).not.toBeInTheDocument();
@@ -116,14 +117,14 @@ describe('PoolStep batches', () => {
 
   it('sends selected games as seeds and passed games as soft rejects for future batches', async () => {
     const calls: string[] = [];
-    const fetchImpl = vi.fn(async (url: string) => {
+    mockFetch((url) => {
       calls.push(url);
       const excluded = listParam(url, 'exclude');
       const start = 1000 + excluded.length;
-      return { ok: true, status: 200, json: async () => ({ games: makeGames(3, start) }) };
-    }) as unknown as typeof fetch;
+      return { games: makeGames(3, start) };
+    });
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
+    renderWithProviders(<PoolStep />);
 
     await screen.findAllByRole('button', { name: /played it/i });
     await waitFor(() => expect(calls).toHaveLength(2));
@@ -148,14 +149,13 @@ describe('PoolStep batches', () => {
     useStore.getState().hydrate({ pool: [], rejected: [1001], scores: null, step: 'pool' });
 
     const calls: string[] = [];
-    const fetchImpl = vi.fn(async (url: string) => {
+    mockFetch((url) => {
       calls.push(url);
       // The API echoes the rejected game back alongside fresh ones; the client must filter it.
-      const games = [makeGame({ igdbId: 1001, title: 'Rejected 1001' }), ...makeGames(3, 2000)];
-      return { ok: true, status: 200, json: async () => ({ games }) };
-    }) as unknown as typeof fetch;
+      return { games: [makeGame({ igdbId: 1001, title: 'Rejected 1001' }), ...makeGames(3, 2000)] };
+    });
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
+    renderWithProviders(<PoolStep />);
 
     await screen.findAllByRole('button', { name: /pass/i });
 
@@ -165,12 +165,9 @@ describe('PoolStep batches', () => {
   });
 
   it('persists a pass into the store so the rejection survives a resume', async () => {
-    const fetchImpl = vi.fn(async (url: string) => {
-      const start = 1 + listParam(url, 'exclude').length;
-      return { ok: true, status: 200, json: async () => ({ games: makeGames(3, start) }) };
-    }) as unknown as typeof fetch;
+    mockFetch((url) => ({ games: makeGames(3, 1 + listParam(url, 'exclude').length) }));
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
+    renderWithProviders(<PoolStep />);
 
     await screen.findAllByRole('button', { name: /pass/i });
     fireEvent.click(screen.getAllByRole('button', { name: /pass/i })[0]);
@@ -180,7 +177,7 @@ describe('PoolStep batches', () => {
 
   it('ignores duplicate games returned by a later batch', async () => {
     let call = 0;
-    const fetchImpl = vi.fn(async () => {
+    mockFetch(() => {
       call += 1;
       const games =
         call === 1
@@ -192,10 +189,10 @@ describe('PoolStep batches', () => {
               makeGame({ igdbId: 6, title: 'Game 6' }),
               makeGame({ igdbId: 7, title: 'Game 7' }),
             ];
-      return { ok: true, status: 200, json: async () => ({ games }) };
-    }) as unknown as typeof fetch;
+      return { games };
+    });
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
+    renderWithProviders(<PoolStep />);
 
     await screen.findAllByRole('button', { name: /pass/i });
     // The backlog refill (and any catch-up refill it chains) repeats game 6; the client must
@@ -211,16 +208,14 @@ describe('PoolStep batches', () => {
   });
 
   it('ignores repeated decisions for the same card', async () => {
-    const fetchImpl = vi.fn(async (url: string) => {
-      const excluded = listParam(url, 'exclude');
-      const start = excluded.length === 0 ? 1 : 6;
-      return { ok: true, status: 200, json: async () => ({ games: makeGames(5, start) }) };
-    }) as unknown as typeof fetch;
+    const fetchMock = mockFetch((url) => ({
+      games: makeGames(5, listParam(url, 'exclude').length === 0 ? 1 : 6),
+    }));
 
-    renderWithProviders(<PoolStep fetchImpl={fetchImpl} random={() => 1} />);
+    renderWithProviders(<PoolStep />);
 
     await screen.findAllByRole('button', { name: /pass/i });
-    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
 
     const firstPass = screen.getAllByRole('button', { name: /pass/i })[0];
     fireEvent.click(firstPass);

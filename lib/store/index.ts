@@ -138,6 +138,9 @@ export const useStore = create<StoreState>((set) => ({
 
 /* ------------------------------------------------------------------ autosave */
 
+/** Debounce for the localStorage write and the pool-stats POST. */
+const AUTOSAVE_MS = 600;
+
 function poolEntryIds(s: StoreState): number[] {
   return s.pool.map((e) => e.game.igdbId);
 }
@@ -150,12 +153,9 @@ function poolEntryIds(s: StoreState): number[] {
  *
  * Started after hydration (see StoreHydrator), so the pool-delta baseline is the restored pool and
  * resuming never re-counts games recorded in a prior visit. Nothing persists while unhydrated
- * (Start over unhydrates before clearing + reloading). Injectable `fetchImpl`/`waitMs` for tests.
+ * (Start over unhydrates before clearing + reloading).
  */
-export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch }): () => void {
-  const waitMs = opts?.waitMs ?? 600;
-  const doFetch = opts?.fetchImpl ?? fetch;
-
+export function startAutosave(): () => void {
   const saveNow = () => {
     const s = useStore.getState();
     // A debounced write can still be queued when Start over unhydrates (its deadline may
@@ -168,7 +168,7 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
       step: s.ui.step,
     });
   };
-  const persist = debounce(saveNow, waitMs);
+  const persist = debounce(saveNow, AUTOSAVE_MS);
 
   // Flush synchronously when the tab is hidden/closed so an action inside the debounce window
   // (e.g. decide a card, immediately close the tab) is never lost.
@@ -189,7 +189,7 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
     const next = poolEntryIds(useStore.getState());
     const previous = syncedPoolIds;
     syncedPoolIds = next;
-    void doFetch('/api/pool-stats', {
+    void fetch('/api/pool-stats', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
@@ -197,7 +197,7 @@ export function startAutosave(opts?: { waitMs?: number; fetchImpl?: typeof fetch
     }).catch(() => {
       /* best-effort community signal */
     });
-  }, waitMs);
+  }, AUTOSAVE_MS);
 
   let prev = pickPersisted(useStore.getState());
   let prevPoolKey = poolEntryIds(useStore.getState()).join(',');

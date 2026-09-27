@@ -15,8 +15,6 @@ interface PoolSwipeDeckProps {
   onRetry: () => void;
   /** Open the gameplay-footage popup, expanding from the tapped card's rect. */
   onWatch?: (game: Game, rect: DOMRect) => void;
-  /** Injected RNG forwarded to the active card's spotlight roll. */
-  random?: () => number;
 }
 
 /**
@@ -31,7 +29,6 @@ export function PoolSwipeDeck({
   onDecide,
   onRetry,
   onWatch,
-  random,
 }: PoolSwipeDeckProps) {
   const deck = slots.filter((s): s is Game => s !== null);
   const active = deck[0];
@@ -95,7 +92,6 @@ export function PoolSwipeDeck({
           key={active.igdbId}
           game={active}
           peek={peek}
-          random={random}
           onDecide={(action) => onDecide(active.igdbId, action)}
           onWatch={onWatch}
         />

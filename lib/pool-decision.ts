@@ -11,8 +11,7 @@ export type PoolDecision = 'include' | 'reject';
 /**
  * Chance that accepting a game ("Played it" / a right-swipe) triggers the spotlight picker
  * instead of including it immediately. The roll only ever fires on a game the user has confirmed
- * they played, so a spotlight is never wasted on a passed game. Inject `random` for deterministic
- * tests.
+ * they played, so a spotlight is never wasted on a passed game.
  */
 const SPOTLIGHT_CHANCE = 1 / 5;
 
@@ -24,8 +23,6 @@ export const STATUS_OPTIONS: { status: PlayedStatus; label: string }[] = [
 
 export interface UsePoolDecisionOptions {
   game: Game;
-  /** Injected RNG in [0, 1); defaults to Math.random. */
-  random?: () => number;
   onDecide: (action: PoolDecision) => void;
 }
 
@@ -50,11 +47,7 @@ export interface PoolDecisionApi {
  * (`PoolSwipeCard`). Keeping the 1-in-5 spotlight roll, the sound mapping, and the store write in
  * one place stops the two surfaces from drifting apart.
  */
-export function usePoolDecision({
-  game,
-  random = Math.random,
-  onDecide,
-}: UsePoolDecisionOptions): PoolDecisionApi {
+export function usePoolDecision({ game, onDecide }: UsePoolDecisionOptions): PoolDecisionApi {
   const addToPool = useStore((s) => s.addToPool);
   const [picking, setPicking] = useState(false);
 
@@ -70,7 +63,7 @@ export function usePoolDecision({
   };
 
   const playedRollHits = () => {
-    if (random() < SPOTLIGHT_CHANCE) {
+    if (Math.random() < SPOTLIGHT_CHANCE) {
       playSound('blip');
       setPicking(true);
       return true;

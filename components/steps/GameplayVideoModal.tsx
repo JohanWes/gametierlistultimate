@@ -17,8 +17,6 @@ interface GameplayVideoModalProps {
   /** The game to play footage for, plus the cover rect to expand from. Null = closed. */
   video: VideoTarget | null;
   onClose: () => void;
-  /** Injectable fetch for tests; defaults to the global fetch. */
-  fetchImpl?: typeof fetch;
 }
 
 type LoadState = { status: 'loading' } | { status: 'ready'; videoId: string } | { status: 'empty' };
@@ -53,7 +51,7 @@ function expandFrom(rect: DOMRect) {
  * video id is resolved on demand (and cached server-side). When nothing embeddable resolves, the
  * footer's "Open on YouTube" link is the always-present escape hatch.
  */
-export function GameplayVideoModal({ video, onClose, fetchImpl }: GameplayVideoModalProps) {
+export function GameplayVideoModal({ video, onClose }: GameplayVideoModalProps) {
   const reduce = useReducedMotion();
   const [state, setState] = useState<LoadState>({ status: 'loading' });
 
@@ -65,7 +63,7 @@ export function GameplayVideoModal({ video, onClose, fetchImpl }: GameplayVideoM
     if (igdbId == null) return;
     let active = true;
     setState({ status: 'loading' });
-    fetchGameplayVideo(igdbId, fetchImpl)
+    fetchGameplayVideo(igdbId)
       .then((videoId) => {
         if (!active) return;
         setState(videoId ? { status: 'ready', videoId } : { status: 'empty' });
@@ -76,7 +74,7 @@ export function GameplayVideoModal({ video, onClose, fetchImpl }: GameplayVideoM
     return () => {
       active = false;
     };
-  }, [igdbId, fetchImpl]);
+  }, [igdbId]);
 
   // Close on Escape (mouse + touch close via the backdrop button).
   useEffect(() => {

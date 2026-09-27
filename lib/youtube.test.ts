@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
+import { mockFetch } from '@/test/helpers/fetch';
 
 import { gameplayQuery, searchGameplayVideo } from './youtube';
 
@@ -24,10 +26,6 @@ function video(videoId: string, title: string) {
   return { videoRenderer: { videoId, title: { runs: [{ text: title }] } } };
 }
 
-function okFetch(html: string): typeof fetch {
-  return vi.fn().mockResolvedValue({ ok: true, text: async () => html }) as unknown as typeof fetch;
-}
-
 describe('gameplayQuery', () => {
   it('builds a playthrough-oriented search term', () => {
     expect(gameplayQuery('Hollow Knight')).toBe('Hollow Knight full gameplay walkthrough');
@@ -43,8 +41,8 @@ describe('searchGameplayVideo', () => {
       video('SECONDVID02', 'Elden Ring boss guide'),
     ]);
 
-    const fetchImpl = okFetch(html);
-    await expect(searchGameplayVideo('Elden Ring', fetchImpl)).resolves.toEqual({
+    mockFetch(() => new Response(html));
+    await expect(searchGameplayVideo('Elden Ring')).resolves.toEqual({
       status: 'hit',
       videoId: 'REALVIDEO01',
     });
@@ -56,7 +54,8 @@ describe('searchGameplayVideo', () => {
       video('WALKTHRU002', 'Stardew Valley Full Playthrough No Commentary'),
     ]);
 
-    await expect(searchGameplayVideo('Stardew Valley', okFetch(html))).resolves.toEqual({
+    mockFetch(() => new Response(html));
+    await expect(searchGameplayVideo('Stardew Valley')).resolves.toEqual({
       status: 'hit',
       videoId: 'WALKTHRU002',
     });
@@ -64,31 +63,33 @@ describe('searchGameplayVideo', () => {
 
   it('falls back to the first videoId token when the JSON shape is unknown', async () => {
     const html = '<html><body>{"videoId":"FALLBACK123"} more {"videoId":"OTHER999999"}</body></html>';
-    await expect(searchGameplayVideo('Whatever', okFetch(html))).resolves.toEqual({
+    mockFetch(() => new Response(html));
+    await expect(searchGameplayVideo('Whatever')).resolves.toEqual({
       status: 'hit',
       videoId: 'FALLBACK123',
     });
   });
 
   it('reports a definitive miss when the page has no video (safe to cache)', async () => {
-    await expect(
-      searchGameplayVideo('Nothing', okFetch('<html>no videos here</html>')),
-    ).resolves.toEqual({ status: 'miss' });
+    mockFetch(() => new Response('<html>no videos here</html>'));
+    await expect(searchGameplayVideo('Nothing')).resolves.toEqual({ status: 'miss' });
   });
 
   it('reports an error (not a miss) on a non-ok response so it is not cached', async () => {
-    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, text: async () => '' }) as unknown as typeof fetch;
-    await expect(searchGameplayVideo('Boom', fetchImpl)).resolves.toEqual({ status: 'error' });
+    mockFetch(() => new Response('', { status: 500 }));
+    await expect(searchGameplayVideo('Boom')).resolves.toEqual({ status: 'error' });
   });
 
   it('reports an error (never throws) when fetch rejects', async () => {
-    const fetchImpl = vi.fn().mockRejectedValue(new Error('network down')) as unknown as typeof fetch;
-    await expect(searchGameplayVideo('Crash', fetchImpl)).resolves.toEqual({ status: 'error' });
+    mockFetch(() => {
+      throw new Error('network down');
+    });
+    await expect(searchGameplayVideo('Crash')).resolves.toEqual({ status: 'error' });
   });
 
   it('returns a miss for a blank title without fetching', async () => {
-    const fetchImpl = vi.fn() as unknown as typeof fetch;
-    await expect(searchGameplayVideo('   ', fetchImpl)).resolves.toEqual({ status: 'miss' });
-    expect(fetchImpl).not.toHaveBeenCalled();
+    const fetchMock = mockFetch();
+    await expect(searchGameplayVideo('   ')).resolves.toEqual({ status: 'miss' });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
