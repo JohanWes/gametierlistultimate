@@ -3,7 +3,7 @@
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion } from 'framer-motion';
 import { useMemo, useRef } from 'react';
 
-import type { Game } from '@/lib/games/types';
+import type { SnapshotGame } from '@/lib/lists-repo';
 import { TIER_ORDER, type Tier, type TierMap } from '@/lib/ranking';
 import { tapProps } from '@/lib/tap';
 import { useIsMobile } from '@/lib/use-is-mobile';
@@ -11,34 +11,13 @@ import { cn } from '@/lib/utils';
 
 import { GameCard } from '../../ui/GameCard';
 import { RemoveButton } from '../../ui/RemoveButton';
-import { Row } from '../../ui/Row';
-import { insertionIndex, pageRectOf, tierAtPoint, type DropTarget, type TierRect } from './dnd';
+import { Row, TIER_BG, TIER_TINT } from '../../ui/Row';
+import { insertionIndex, pageRectOf, zoneIndexAtPagePoint, type DropTarget } from './dnd';
 
-// Static class maps keep Tailwind's scanner happy (no dynamic class strings).
-const LABEL_BG: Record<Tier, string> = {
-  S: 'bg-tier-s',
-  A: 'bg-tier-a',
-  B: 'bg-tier-b',
-  C: 'bg-tier-c',
-  D: 'bg-tier-d',
-  E: 'bg-tier-e',
-  F: 'bg-tier-f',
-};
-
-const ROW_TINT: Record<Tier, string> = {
-  S: 'shadow-[inset_3px_0_0_rgb(var(--tier-s))]',
-  A: 'shadow-[inset_3px_0_0_rgb(var(--tier-a))]',
-  B: 'shadow-[inset_3px_0_0_rgb(var(--tier-b))]',
-  C: 'shadow-[inset_3px_0_0_rgb(var(--tier-c))]',
-  D: 'shadow-[inset_3px_0_0_rgb(var(--tier-d))]',
-  E: 'shadow-[inset_3px_0_0_rgb(var(--tier-e))]',
-  F: 'shadow-[inset_3px_0_0_rgb(var(--tier-f))]',
-};
-
-export interface TierBoardProps {
+interface TierBoardProps {
   tiers: TierMap;
   /** Lookup for the games referenced by id in `tiers`. */
-  gamesById: Map<number, Game>;
+  gamesById: Map<number, SnapshotGame>;
   /**
    * When provided, reveal mode renders only these tiers as a compact ladder.
    * Omit for a fully-revealed, static board (the public share view).
@@ -47,9 +26,9 @@ export interface TierBoardProps {
   /** When provided, cards become movable (drag between rows + tap to pick a tier). */
   onMove?: (gameId: number, from: Tier, to: Tier, toIndex: number) => void;
   /** Tap a cover to open the tier picker (the touch-first move path). */
-  onPick?: (game: Game, from: Tier) => void;
+  onPick?: (game: SnapshotGame, from: Tier) => void;
   /** When provided, each movable cover shows a delete-X that removes the game from the pool. */
-  onRemove?: (game: Game, from: Tier) => void;
+  onRemove?: (game: SnapshotGame, from: Tier) => void;
   /** Play the one-shot S-tier coronation (bloom + glow + marquee + coin burst) on the S row. */
   coronate?: boolean;
   className?: string;
@@ -85,14 +64,12 @@ export function TierBoard({
     point: { x: number; y: number },
     excludeId: number,
   ): DropTarget | null => {
-    const rects: TierRect[] = [];
-    for (const tier of TIER_ORDER) {
-      const el = rowRefs.current[tier];
-      if (!el) continue;
-      rects.push({ tier, rect: pageRectOf(el) });
-    }
-    const tier = tierAtPoint(point, rects);
-    if (!tier) return null;
+    const idx = zoneIndexAtPagePoint(
+      point,
+      TIER_ORDER.map((t) => rowRefs.current[t] ?? null),
+    );
+    if (idx === -1) return null;
+    const tier = TIER_ORDER[idx];
 
     // Insertion index from the cursor's x vs the target row's card centers (excluding the
     // dragged card). Card centers are in page coordinates to match `info.point`.
@@ -129,14 +106,14 @@ export function TierBoard({
                   }}
                   className={cn(
                     'relative isolate flex items-stretch gap-3 rounded-card border border-border bg-surface shadow-cabinet',
-                    ROW_TINT[tier],
+                    TIER_TINT[tier],
                   )}
                 >
                   {coronate && tier === 'S' ? <SCoronation /> : null}
                   <div
                     className={cn(
                       'flex w-14 shrink-0 flex-col items-center justify-center py-4 sm:w-16',
-                      LABEL_BG[tier],
+                      TIER_BG[tier],
                     )}
                   >
                     <span className="font-display text-2xl font-extrabold text-black/85 sm:text-3xl">
@@ -212,7 +189,7 @@ function RevealCard({
   animateIn,
   index,
 }: {
-  game: Game;
+  game: SnapshotGame;
   animateIn: boolean;
   index: number;
 }) {
@@ -237,13 +214,13 @@ function MovableCard({
   onPick,
   onRemove,
 }: {
-  game: Game;
+  game: SnapshotGame;
   from: Tier;
   fromIndex: number;
   resolveDrop: (point: { x: number; y: number }, excludeId: number) => DropTarget | null;
   onMove: (gameId: number, from: Tier, to: Tier, toIndex: number) => void;
-  onPick?: (game: Game, from: Tier) => void;
-  onRemove?: (game: Game, from: Tier) => void;
+  onPick?: (game: SnapshotGame, from: Tier) => void;
+  onRemove?: (game: SnapshotGame, from: Tier) => void;
 }) {
   const reduce = useReducedMotion();
   const isMobile = useIsMobile();

@@ -19,13 +19,12 @@ export interface ArcadeCardProps {
   /** A rank chip, crown, or other marker pinned to the corner. */
   badge?: React.ReactNode;
   onSelect?: () => void;
-  disabled?: boolean;
   className?: string;
   /**
    * Custom glow color (any CSS color string, e.g. `rgb(130 224 122 / 0.55)`). When provided and
    * `state` is `win`, the highlight overlay uses this color for its boxShadow + ring instead of
    * the default accent. Used by the vibe-meter to tint the glow from red→yellow→green based on
-   * the player's 0-100 rating. Backward compatible: omitted by all other minigames.
+   * the player's 0-100 rating.
    */
   glowColor?: string;
 }
@@ -41,12 +40,11 @@ export function ArcadeCard({
   size = 'md',
   badge,
   onSelect,
-  disabled = false,
   className,
   glowColor,
 }: ArcadeCardProps) {
   const reduce = useReducedMotion();
-  const interactive = typeof onSelect === 'function' && !disabled;
+  const interactive = typeof onSelect === 'function';
   // A card awaiting this player's tap. Gets a breathing teal invitation so the *choice* is the
   // loudest thing on screen — distinct from the amber `win` glow (teal = selectable, amber = chosen).
   const live = interactive && state === 'idle';

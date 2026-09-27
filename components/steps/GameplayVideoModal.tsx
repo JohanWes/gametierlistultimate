@@ -13,7 +13,7 @@ export interface VideoTarget {
   rect: DOMRect;
 }
 
-export interface GameplayVideoModalProps {
+interface GameplayVideoModalProps {
   /** The game to play footage for, plus the cover rect to expand from. Null = closed. */
   video: VideoTarget | null;
   onClose: () => void;

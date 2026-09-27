@@ -12,7 +12,7 @@ import { useStore } from '@/lib/store';
 import { Button } from '../../ui/Button';
 import { ConfirmDialog } from '../../ui/ConfirmDialog';
 
-export interface ShareBarProps {
+interface ShareBarProps {
   share: ShareController;
   /**
    * Header-mounted variant for phones. The full bar renders *after* the board, which on a phone
@@ -70,7 +70,6 @@ export function useShare({
   /** Injectable for tests; defaults to the global fetch. */
   fetchImpl?: typeof fetch;
 }): ShareController {
-  const soundOn = useStore((s) => s.ui.soundOn);
   const [published, setState] = useState<State>({ kind: 'idle' });
   const [copied, setCopied] = useState(false);
   // A link is only current for the exact tiers it was published from.
@@ -90,7 +89,7 @@ export function useShare({
       });
       const data = (await res.json()) as { url?: string };
       if (!res.ok || !data.url) throw new Error('publish failed');
-      if (soundOn) playSound('success');
+      playSound('success');
       setState({ kind: 'ready', url: data.url, tiers });
     } catch {
       setState({ kind: 'error' });
@@ -101,7 +100,7 @@ export function useShare({
     if (state.kind !== 'ready') return;
     try {
       await navigator.clipboard?.writeText(state.url);
-      if (soundOn) playSound('blip');
+      playSound('blip');
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {

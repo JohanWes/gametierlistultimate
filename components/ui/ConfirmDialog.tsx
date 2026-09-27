@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
 import { Button } from './Button';
 
-export interface ConfirmDialogProps {
+interface ConfirmDialogProps {
   open: boolean;
   title: string;
   body?: string;

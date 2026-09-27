@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type ComparisonResult, fetchComparison } from '@/lib/compare-client';
-import { resetStore, useStore } from '@/lib/store';
 import { jsonFetch } from '@/test/helpers/games';
 import { fireEvent, renderWithProviders, screen } from '@/test/helpers/render';
 
@@ -36,7 +35,6 @@ function renderPanel(overrides: Partial<ComparisonResult> = {}) {
 }
 
 beforeEach(() => {
-  resetStore();
   playSound.mockClear();
 });
 
@@ -86,16 +84,9 @@ describe('CommunityComparison', () => {
     expect(screen.queryByTestId('comparison-loading')).not.toBeInTheDocument();
   });
 
-  it('plays one reveal cue when sound is on', async () => {
+  it('plays one reveal cue when the result lands', async () => {
     renderPanel();
     await screen.findByText('92');
     expect(playSound).toHaveBeenCalledWith('reveal');
-  });
-
-  it('stays silent when muted', async () => {
-    useStore.getState().setSoundOn(false);
-    renderPanel();
-    await screen.findByText('92');
-    expect(playSound).not.toHaveBeenCalled();
   });
 });

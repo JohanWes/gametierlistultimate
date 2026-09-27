@@ -18,8 +18,8 @@ import { MinigameHeader } from './MinigameHeader';
 
 /**
  * The scale's bands, left (worst) → right (best). The band *index* is the ranking signal: a higher
- * index means a better game. Three plain words replace the old `++/=/--` shorthand so the axis
- * explains itself; the horizontal layout keeps the whole minigame on-screen with no scrolling.
+ * index means a better game. Plain words make the axis explain itself; the horizontal layout keeps
+ * the whole minigame on-screen with no scrolling.
  */
 const BANDS = [
   { key: 'bad', label: 'Bad', accent: 'coin' },

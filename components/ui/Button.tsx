@@ -1,7 +1,6 @@
 'use client';
 
 import { motion, useReducedMotion } from 'framer-motion';
-import { forwardRef } from 'react';
 
 import { playSound } from '@/lib/sound';
 import { cn } from '@/lib/utils';
@@ -9,7 +8,7 @@ import { cn } from '@/lib/utils';
 type Variant = 'primary' | 'secondary' | 'ghost';
 type Size = 'sm' | 'md' | 'lg';
 
-export interface ButtonProps
+interface ButtonProps
   extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'onAnimationStart' | 'onDragStart' | 'onDragEnd' | 'onDrag'> {
   variant?: Variant;
   size?: Size;
@@ -31,16 +30,21 @@ const SIZES: Record<Size, string> = {
 };
 
 /** Tactile button: spring press scale, click SFX, three variants. */
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'primary', size = 'md', loading = false, disabled, className, children, onClick, ...rest },
-  ref,
-) {
+export function Button({
+  variant = 'primary',
+  size = 'md',
+  loading = false,
+  disabled,
+  className,
+  children,
+  onClick,
+  ...rest
+}: ButtonProps) {
   const reduce = useReducedMotion();
   const isDisabled = disabled || loading;
 
   return (
     <motion.button
-      ref={ref}
       type="button"
       disabled={isDisabled}
       whileTap={reduce || isDisabled ? undefined : { scale: 0.96 }}
@@ -70,4 +74,4 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       )}
     </motion.button>
   );
-});
+}

@@ -1,22 +1,15 @@
 'use client';
 
-import { motion, useReducedMotion } from 'framer-motion';
-
 import { sharpenIgdbCoverUrl } from '@/lib/games/normalize';
 import type { Game } from '@/lib/games/types';
-import { playSound } from '@/lib/sound';
-import { tapProps } from '@/lib/tap';
 import { cn } from '@/lib/utils';
 
-export interface GameCardProps {
-  game?: Game;
+interface GameCardProps {
+  game?: Pick<Game, 'title' | 'coverUrl'>;
   /** Show the loading skeleton instead of content. */
   loading?: boolean;
-  selected?: boolean;
   /** Hide the title overlay when a parent surface provides its own cover treatment. */
   showTitle?: boolean;
-  /** When provided the card becomes an interactive button. */
-  onSelect?: (game: Game) => void;
   /** Visual size of the card. */
   size?: GameCardSize;
   className?: string;
@@ -47,23 +40,18 @@ const SIZES = {
 } as const;
 
 /**
- * Cover-forward game card. Shows a shimmer skeleton while loading, a graceful
- * title-on-gradient fallback when there is no cover, and fires `onSelect` on both
- * click and touch.
+ * Cover-forward, non-interactive game card. Shows a shimmer skeleton while loading and a graceful
+ * title fallback when there is no cover.
  */
 export function GameCard({
   game,
   loading = false,
-  selected = false,
   showTitle = true,
-  onSelect,
   size = 'md',
   className,
   imageClassName,
   eager = false,
 }: GameCardProps) {
-  const reduce = useReducedMotion();
-
   if (loading || !game) {
     return (
       <div
@@ -80,25 +68,25 @@ export function GameCard({
     );
   }
 
-  const interactive = typeof onSelect === 'function';
-  const showCover = game.hasCover && !!game.coverUrl;
   // One cover size everywhere, so a cover already cached by the pool/arcade is reused as-is on
   // the reveal board instead of being re-downloaded at another size.
   const coverUrl = game.coverUrl ? sharpenIgdbCoverUrl(game.coverUrl) : null;
 
-  const select = () => {
-    if (!interactive) return;
-    playSound('blip');
-    onSelect?.(game);
-  };
-
-  const inner = (
-    <>
-      {showCover ? (
+  return (
+    <div
+      className={cn(
+        'group relative block aspect-[3/4] shrink-0 overflow-hidden rounded-tile bg-surface [container-type:inline-size]',
+        'border border-border shadow-soft transition-colors duration-150',
+        SIZES[size],
+        className,
+      )}
+      title={game.title}
+    >
+      {coverUrl ? (
         // Covers come from many IGDB hosts; a plain img avoids per-domain next/image config.
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={coverUrl ?? undefined}
+          src={coverUrl}
           alt={game.title}
           draggable={false}
           onDragStart={(e) => e.preventDefault()}
@@ -114,7 +102,7 @@ export function GameCard({
           </span>
         </div>
       )}
-      {showCover && showTitle ? (
+      {coverUrl && showTitle ? (
         <>
           <div
             aria-hidden
@@ -127,36 +115,6 @@ export function GameCard({
           </div>
         </>
       ) : null}
-    </>
-  );
-
-  const classes = cn(
-    'group relative block aspect-[3/4] shrink-0 overflow-hidden rounded-tile bg-surface [container-type:inline-size]',
-    'border transition-colors duration-150',
-    selected ? 'border-accent shadow-cabinet' : 'border-border shadow-soft',
-    SIZES[size],
-    className,
-  );
-
-  if (!interactive) {
-    return (
-      <div className={classes} title={game.title}>
-        {inner}
-      </div>
-    );
-  }
-
-  return (
-    <motion.button
-      type="button"
-      title={game.title}
-      whileHover={reduce ? undefined : { y: -4 }}
-      whileTap={reduce ? undefined : { scale: 0.95 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-      {...tapProps(select)}
-      className={cn(classes, 'cursor-pointer hover:border-teal/70 focus-visible:outline-none')}
-    >
-      {inner}
-    </motion.button>
+    </div>
   );
 }

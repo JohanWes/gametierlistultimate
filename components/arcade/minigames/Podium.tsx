@@ -163,10 +163,7 @@ export function Podium({ games, onComplete }: MinigameProps) {
             </Button>
           </div>
         ) : (
-          <CoverRail
-            gridClassName="flex min-h-[calc(var(--cover-zone)*4/3)] flex-wrap justify-center gap-3"
-            hint="Swipe for more"
-          >
+          <CoverRail gridClassName="flex min-h-[calc(var(--cover-zone)*4/3)] flex-wrap justify-center gap-3">
             {pool.map((g) => (
               <motion.div key={g.igdbId} layout>
                 <DraggableArcadeCard

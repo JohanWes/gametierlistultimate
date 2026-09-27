@@ -11,6 +11,25 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+export type ColorStop = { at: number; rgb: readonly [number, number, number] };
+
+/** Interpolate `value` across ascending color stops into an `rgb(r g b / alpha)` string. */
+export function interpolateColor(stops: readonly ColorStop[], value: number, alpha = 1): string {
+  const s = clamp(value, stops[0].at, stops[stops.length - 1].at);
+  let lo = stops[0];
+  let hi = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i += 1) {
+    if (s >= stops[i].at && s <= stops[i + 1].at) {
+      lo = stops[i];
+      hi = stops[i + 1];
+      break;
+    }
+  }
+  const t = (s - lo.at) / (hi.at - lo.at || 1);
+  const [r, g, b] = lo.rgb.map((c, i) => Math.round(c + (hi.rgb[i] - c) * t));
+  return `rgb(${r} ${g} ${b}${alpha !== 1 ? ` / ${alpha}` : ''})`;
+}
+
 /**
  * Trailing-edge debounce. Returns a wrapped function plus a `cancel` to drop a pending call.
  * Used for autosave so rapid store changes collapse into a single PUT.

@@ -52,10 +52,8 @@
    */
   /*
    * The arcade caps measure the *playfield* (`100cqh` — the size container declared on the arcade's
-   * round area) rather than the viewport. This replaces a guessed chrome budget: the old form
-   * subtracted a hardcoded 20–23rem for header + step header + action bar + paddings, which drifted
-   * out of date and left several minigames overflowing on short phones. The only thing still
-   * subtracted is the minigame's own header, which lives *inside* the playfield.
+   * round area) rather than the viewport, so header/step chrome never needs a guessed budget. The
+   * only thing subtracted is the minigame's own header, which lives *inside* the playfield.
    *
    * Card height = width * 4/3, so a row of covers costs `width * 1.33` of vertical space; the
    * multipliers below invert that (0.72 ≈ 1/1.33 with margin, halved again for two-row boards).
@@ -150,10 +148,6 @@ body::before {
   pointer-events: none;
   position: fixed;
   z-index: 0;
-}
-
-* {
-  box-sizing: border-box;
 }
 
 /* Always-visible, tactile focus ring for any keyboard or programmatic focus. */

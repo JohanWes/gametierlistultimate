@@ -16,7 +16,6 @@ function makeGame(igdbId: number): Game {
     popularity: null,
     rating: null,
     summary: null,
-    hasCover: false,
     category: null,
   };
 }

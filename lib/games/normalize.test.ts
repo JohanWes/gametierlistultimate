@@ -27,14 +27,12 @@ describe('normalizeMongoDoc', () => {
       popularity: null,
       rating: 92,
       summary: 'A story-driven open world RPG.',
-      hasCover: true,
       category: null,
     });
   });
 
-  it('derives hasCover=false when cover is missing', () => {
+  it('yields a null coverUrl when cover is missing', () => {
     const game = normalizeMongoDoc({ ...doc, cover: '' });
-    expect(game.hasCover).toBe(false);
     expect(game.coverUrl).toBeNull();
   });
 
@@ -93,13 +91,11 @@ describe('normalizeIgdb', () => {
     expect(game.releaseYear).toBe(2015);
     expect(game.rating).toBe(92); // rounded
     expect(game.popularity).toBe(1500);
-    expect(game.hasCover).toBe(true);
   });
 
   it('handles a missing cover', () => {
     const game = normalizeIgdb({ id: 5, name: 'No Cover' });
     expect(game.coverUrl).toBeNull();
-    expect(game.hasCover).toBe(false);
   });
 
   it('flags DLC categories', () => {

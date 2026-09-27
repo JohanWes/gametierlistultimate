@@ -7,12 +7,8 @@ import { Button } from '../ui/Button';
 import { GameCard } from '../ui/GameCard';
 import { HERO_SIZE, PoolSwipeCard } from './PoolSwipeCard';
 
-interface SlotEntry {
-  game: Game;
-}
-
-export interface PoolSwipeDeckProps {
-  slots: (SlotEntry | null)[];
+interface PoolSwipeDeckProps {
+  slots: (Game | null)[];
   error: boolean;
   exhausted: boolean;
   onDecide: (id: number, action: PoolDecision) => void;
@@ -37,7 +33,7 @@ export function PoolSwipeDeck({
   onWatch,
   random,
 }: PoolSwipeDeckProps) {
-  const deck = slots.filter((s): s is SlotEntry => s !== null);
+  const deck = slots.filter((s): s is Game => s !== null);
   const active = deck[0];
   const peek = deck[1];
 
@@ -71,7 +67,7 @@ export function PoolSwipeDeck({
         </div>
       );
     }
-    // Loading / bootstrap: a single hero skeleton instead of a five-up grid.
+    // Loading / bootstrap: a single hero skeleton.
     return (
       <div className="flex h-full min-h-0 flex-col items-center gap-3">
         <div className="flex min-h-0 flex-1 justify-center">
@@ -87,8 +83,7 @@ export function PoolSwipeDeck({
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col items-center gap-2">
-      {/* Teaches the swipe affordance only — the ✓/✕ buttons below are self-labelling, so the old
-          two-line "swipe right … left to pass" was duplicating them and costing ~40px at 375px. */}
+      {/* Teaches the swipe affordance only — the ✓/✕ buttons below are self-labelling. */}
       <p className="shrink-0 whitespace-nowrap font-mono text-[0.62rem] uppercase tracking-[0.18em] text-muted">
         ‹ Swipe or tap below ›
       </p>
@@ -97,11 +92,11 @@ export function PoolSwipeDeck({
           aligned to the cover alone instead of overlapping the ✓/✕ row. */}
       <div className="flex min-h-0 w-full flex-1 justify-center">
         <PoolSwipeCard
-          key={active.game.igdbId}
-          game={active.game}
-          peek={peek?.game}
+          key={active.igdbId}
+          game={active}
+          peek={peek}
           random={random}
-          onDecide={(action) => onDecide(active.game.igdbId, action)}
+          onDecide={(action) => onDecide(active.igdbId, action)}
           onWatch={onWatch}
         />
       </div>

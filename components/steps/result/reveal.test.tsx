@@ -4,7 +4,6 @@ vi.mock('@/lib/sound', () => ({
   playSound: vi.fn(),
   initAudio: vi.fn(),
   setMuted: vi.fn(),
-  isMuted: () => false,
 }));
 
 import {
@@ -91,16 +90,6 @@ describe('ResultStep reveal', () => {
     const names = (playSound as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0]);
     expect(names.filter((n) => n === 'reveal')).toHaveLength(6);
     expect(names[names.length - 1]).toBe('success');
-  });
-
-  it('stays silent when muted', () => {
-    seed();
-    useStore.getState().setSoundOn(false);
-    renderWithProviders(<ResultStep />);
-    act(() => {
-      vi.advanceTimersByTime(5000);
-    });
-    expect(playSound).not.toHaveBeenCalled();
   });
 
   it('reveals everything at once when skipped', () => {

@@ -3,6 +3,7 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { MIN_POOL } from '@/lib/flow';
 import { fetchSuggestions } from '@/lib/games/client';
 import { peekAdaptiveBatch, peekStarterBatch, preloadCovers } from '@/lib/games/prefetch';
 import type { Game } from '@/lib/games/types';
@@ -17,7 +18,7 @@ import { GameplayVideoModal, type VideoTarget } from './GameplayVideoModal';
 import { ManualSearch } from './ManualSearch';
 import { PoolCard, type PoolDecision } from './PoolCard';
 import { PoolSwipeDeck } from './PoolSwipeDeck';
-import { MIN_POOL, RosterMeter } from './RosterMeter';
+import { RosterMeter } from './RosterMeter';
 
 export const VISIBLE_SLOTS = 3;
 /** Refill the backlog once it drops below this many cards. */
@@ -51,14 +52,10 @@ const PRESET_ACCEPT_HANDOFF = 3;
 const MAX_API_EXCLUDE = 300;
 const MAX_API_REJECT_IDS = 80;
 
-export interface PoolStepProps {
+interface PoolStepProps {
   fetchImpl?: typeof fetch;
   /** Injected RNG forwarded to each PoolCard's spotlight roll; defaults to Math.random. */
   random?: () => number;
-}
-
-interface SlotEntry {
-  game: Game;
 }
 
 /**
@@ -74,10 +71,10 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
   const reduce = useReducedMotion();
   const isMobile = useIsMobile();
 
-  const [slots, setSlots] = useState<(SlotEntry | null)[]>(() =>
+  const [slots, setSlots] = useState<(Game | null)[]>(() =>
     Array.from({ length: VISIBLE_SLOTS }, () => null),
   );
-  const [backlog, setBacklog] = useState<SlotEntry[]>([]);
+  const [backlog, setBacklog] = useState<Game[]>([]);
   const [video, setVideo] = useState<VideoTarget | null>(null);
   const [loading, setLoading] = useState(true);
   const [exhausted, setExhausted] = useState(false);
@@ -94,8 +91,8 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
     ]),
   );
   const rejectedRef = useRef<Set<number>>(new Set(useStore.getState().rejected));
-  const slotsRef = useRef<(SlotEntry | null)[]>(slots);
-  const backlogRef = useRef<SlotEntry[]>([]);
+  const slotsRef = useRef<(Game | null)[]>(slots);
+  const backlogRef = useRef<Game[]>([]);
   const fetchingRef = useRef(false);
   const exhaustedRef = useRef(false);
   const initRef = useRef(false);
@@ -129,8 +126,8 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
   const buildExclude = useCallback((): number[] => {
     const ids = new Set(decidedRef.current);
     for (const e of useStore.getState().pool) ids.add(e.game.igdbId);
-    for (const s of slotsRef.current) if (s) ids.add(s.game.igdbId);
-    for (const b of backlogRef.current) ids.add(b.game.igdbId);
+    for (const s of slotsRef.current) if (s) ids.add(s.igdbId);
+    for (const b of backlogRef.current) ids.add(b.igdbId);
     return [...ids];
   }, []);
 
@@ -225,11 +222,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
       // instantly instead of decoding its <img> on mount.
       preloadCovers(freshGames);
 
-      const entries: SlotEntry[] = freshGames.map((g) => ({
-        game: g,
-      }));
-
-      const next = [...backlogRef.current, ...entries];
+      const next = [...backlogRef.current, ...freshGames];
       backlogRef.current = next;
       setBacklog(next);
 
@@ -320,21 +313,18 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
 
         if (preset) presetBatchesRef.current += 1;
 
-        const entries: (SlotEntry | null)[] = freshGames.slice(0, VISIBLE_SLOTS).map((g) => ({
-          game: g,
-        }));
+        const entries: (Game | null)[] = freshGames.slice(0, VISIBLE_SLOTS);
 
         while (entries.length < VISIBLE_SLOTS) entries.push(null);
 
         // The rest of the batch seeds the backlog, so fast deciders never wait on a refill.
         const extra = freshGames.slice(VISIBLE_SLOTS);
         if (games !== prefetched) preloadCovers(extra); // a prefetched batch is already warm
-        const queued = extra.map((g) => ({ game: g }));
 
         slotsRef.current = entries;
-        backlogRef.current = queued;
+        backlogRef.current = extra;
         setSlots(entries);
-        setBacklog(queued);
+        setBacklog(extra);
         setLoading(false);
         fetchingRef.current = false;
 
@@ -370,12 +360,12 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
   };
 
   /**
-   * Desktop grid: replace the decided card *in place* with a backlog card so the other four slots
-   * never reflow.
+   * Desktop grid: replace the decided card *in place* with a backlog card so the other slots never
+   * reflow.
    */
   const handleDecide = (id: number, action: PoolDecision) => {
     if (decidedRef.current.has(id)) return;
-    const idx = slotsRef.current.findIndex((s) => s?.game.igdbId === id);
+    const idx = slotsRef.current.findIndex((s) => s?.igdbId === id);
     if (idx === -1) return;
 
     recordDecision(id, action);
@@ -400,15 +390,13 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
    */
   const handleSwipeDecide = (id: number, action: PoolDecision) => {
     if (decidedRef.current.has(id)) return;
-    if (!slotsRef.current.some((s) => s?.game.igdbId === id)) return;
+    if (!slotsRef.current.some((s) => s?.igdbId === id)) return;
 
     recordDecision(id, action);
 
-    const kept = slotsRef.current.filter(
-      (s): s is SlotEntry => s !== null && s.game.igdbId !== id,
-    );
+    const kept = slotsRef.current.filter((s): s is Game => s !== null && s.igdbId !== id);
     const [replacement, ...rest] = backlogRef.current;
-    const nextSlots: (SlotEntry | null)[] = [...kept];
+    const nextSlots: (Game | null)[] = [...kept];
     if (replacement) nextSlots.push(replacement);
     while (nextSlots.length < VISIBLE_SLOTS) nextSlots.push(null);
 
@@ -444,7 +432,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
           </p>
         </div>
         <div className="shrink-0">
-          <RosterMeter compact count={poolCount} />
+          <RosterMeter count={poolCount} />
         </div>
       </div>
 
@@ -519,10 +507,10 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
                     <AnimatePresence>
                       {entry ? (
                         <PoolCard
-                          key={entry.game.igdbId}
-                          game={entry.game}
+                          key={entry.igdbId}
+                          game={entry}
                           random={random}
-                          onDecide={(action) => handleDecide(entry.game.igdbId, action)}
+                          onDecide={(action) => handleDecide(entry.igdbId, action)}
                           onWatch={(g, rect) => setVideo({ game: g, rect })}
                         />
                       ) : (

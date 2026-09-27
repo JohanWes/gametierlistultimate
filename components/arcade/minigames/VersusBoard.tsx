@@ -1,6 +1,6 @@
 'use client';
 
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useState } from 'react';
 
 import type { Game } from '@/lib/games/types';
@@ -10,24 +10,22 @@ import { cn } from '@/lib/utils';
 import { ArcadeCard, type CardState } from './ArcadeCard';
 import { MinigameHeader } from './MinigameHeader';
 
-export interface VersusBoardProps {
+interface VersusBoardProps {
   left: Game;
   right: Game;
   prompt: string;
-  /** Small kicker above the prompt, e.g. "Rivalry" or "Promotion battle". */
+  /** Small kicker above the prompt, e.g. "Settle the rivalry". */
   eyebrow?: string;
-  /** A chip rendered on the seam, e.g. a tier badge for a promotion battle. */
-  seamBadge?: React.ReactNode;
   onPick: (winner: Game, loser: Game) => void;
 }
 
 /**
  * The arcade's signature face-off: two covers slam in from opposite edges, split by a glowing
  * tier-spectrum seam with a "VS" chip. Tapping a cover crowns it (glow + scale) and dims the
- * loser. Reused by Duel, Rivalry, and Promotion. Manages only the local win/lose visual; the
- * wrapper decides what outcome the pick means.
+ * loser. Used by Duel (and so Rivalry/promotion rounds). Manages only the local win/lose visual;
+ * the wrapper decides what outcome the pick means.
  */
-export function VersusBoard({ left, right, prompt, eyebrow, seamBadge, onPick }: VersusBoardProps) {
+export function VersusBoard({ left, right, prompt, eyebrow, onPick }: VersusBoardProps) {
   const reduce = useReducedMotion();
   const [winnerId, setWinnerId] = useState<number | null>(null);
 
@@ -55,7 +53,7 @@ export function VersusBoard({ left, right, prompt, eyebrow, seamBadge, onPick }:
           <ArcadeCard game={left} size="duo" state={stateFor(left)} onSelect={() => pick(left, right)} />
         </motion.div>
 
-        <Seam badge={seamBadge} settled={winnerId !== null} />
+        <Seam settled={winnerId !== null} />
 
         <motion.div
           className="flex justify-start"
@@ -74,7 +72,7 @@ export function VersusBoard({ left, right, prompt, eyebrow, seamBadge, onPick }:
   );
 }
 
-function Seam({ badge, settled }: { badge?: React.ReactNode; settled: boolean }) {
+function Seam({ settled }: { settled: boolean }) {
   const reduce = useReducedMotion();
   return (
     <div className="relative flex h-full min-h-[7rem] w-10 items-center justify-center sm:w-14">
@@ -107,21 +105,17 @@ function Seam({ badge, settled }: { badge?: React.ReactNode; settled: boolean })
             : { duration: 1.8, repeat: Infinity, ease: 'easeInOut' }
         }
       />
-      <AnimatePresence mode="wait">
-        <motion.span
-          key={badge ? 'badge' : 'vs'}
-          className={cn(
-            'relative z-10 flex items-center justify-center rounded-tile border border-border bg-bg font-display font-black uppercase shadow-cabinet',
-            badge ? 'px-2 py-1 text-[0.6rem] tracking-[0.1em] text-accent' : 'h-11 w-11 rotate-[-8deg] text-base tracking-[0.05em] text-fg',
-            !badge && !settled && 'drop-shadow-[0_0_12px_rgb(var(--color-accent)/0.55)]',
-          )}
-          initial={reduce ? false : { scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 420, damping: 18, delay: reduce ? 0 : 0.12 }}
-        >
-          {badge ?? 'VS'}
-        </motion.span>
-      </AnimatePresence>
+      <motion.span
+        className={cn(
+          'relative z-10 flex h-11 w-11 rotate-[-8deg] items-center justify-center rounded-tile border border-border bg-bg font-display text-base font-black uppercase tracking-[0.05em] text-fg shadow-cabinet',
+          !settled && 'drop-shadow-[0_0_12px_rgb(var(--color-accent)/0.55)]',
+        )}
+        initial={reduce ? false : { scale: 0.5, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 18, delay: reduce ? 0 : 0.12 }}
+      >
+        VS
+      </motion.span>
     </div>
   );
 }

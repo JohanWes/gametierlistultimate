@@ -5,8 +5,8 @@ import { useRef, useState } from 'react';
 
 import type { Game } from '@/lib/games/types';
 import { playSound } from '@/lib/sound';
-import type { Tier } from '@/lib/ranking';
-import { clamp, cn } from '@/lib/utils';
+import { TIER_ORDER, type Tier } from '@/lib/ranking';
+import { clamp, cn, interpolateColor, type ColorStop } from '@/lib/utils';
 
 import { Button } from '../../ui/Button';
 import { useComplete } from '../shared';
@@ -15,21 +15,16 @@ import { ArcadeCard } from './ArcadeCard';
 import { CoverRail } from './CoverRail';
 import { MinigameHeader } from './MinigameHeader';
 
-/**
- * Internal tier list — kept for mapping a 0-100 score onto the engine's 7 tier bands at lock-in.
- * Not rendered: the visible scale is the 0-100 `SCORE_TICKS` below.
- */
-const TIERS: Tier[] = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
-
 /** Visible tick labels down the meter (top → bottom). */
 const SCORE_TICKS = [100, 75, 50, 25, 0];
 
 /** Internal segment dividers between ticks, as percentage offsets from the top. */
 const TICK_DIVIDERS = [25, 50, 75];
 
+/** Pointer position (0 top → 1 bottom) → one of the engine's 7 tier bands. */
 function tierFromPosition(pos: number): Tier {
-  const idx = Math.min(TIERS.length - 1, Math.floor(pos * TIERS.length));
-  return TIERS[idx];
+  const idx = Math.min(TIER_ORDER.length - 1, Math.floor(pos * TIER_ORDER.length));
+  return TIER_ORDER[idx];
 }
 
 /** Pointer position (0 top → 1 bottom) → 0-100 score (100 top → 0 bottom). */
@@ -43,35 +38,11 @@ function positionFromScore(score: number): number {
 }
 
 /** Glow color stops: red at 0, yellow at 50, green at 100. */
-type ColorStop = { at: number; rgb: readonly [number, number, number] };
 const COLOR_STOPS: readonly ColorStop[] = [
   { at: 0, rgb: [210, 58, 49] },
   { at: 50, rgb: [255, 213, 92] },
   { at: 100, rgb: [130, 224, 122] },
 ];
-
-/**
- * Interpolate a 0-100 score to an `rgb(r g b / alpha)` color across red → yellow → green.
- * Used for the card glow (`alpha = 0.55`) and the handle text color (`alpha = 1`).
- */
-function vibeColor(score: number, alpha = 1): string {
-  const s = clamp(score, 0, 100);
-  let lo = COLOR_STOPS[0];
-  let hi = COLOR_STOPS[COLOR_STOPS.length - 1];
-  for (let i = 0; i < COLOR_STOPS.length - 1; i += 1) {
-    if (s >= COLOR_STOPS[i].at && s <= COLOR_STOPS[i + 1].at) {
-      lo = COLOR_STOPS[i];
-      hi = COLOR_STOPS[i + 1];
-      break;
-    }
-  }
-  const span = hi.at - lo.at || 1;
-  const t = (s - lo.at) / span;
-  const r = Math.round(lo.rgb[0] + (hi.rgb[0] - lo.rgb[0]) * t);
-  const g = Math.round(lo.rgb[1] + (hi.rgb[1] - lo.rgb[1]) * t);
-  const b = Math.round(lo.rgb[2] + (hi.rgb[2] - lo.rgb[2]) * t);
-  return `rgb(${r} ${g} ${b}${alpha !== 1 ? ` / ${alpha}` : ''})`;
-}
 
 function VibeRow({
   game,
@@ -126,7 +97,7 @@ function VibeRow({
         game={game}
         size="zone"
         state={score != null ? 'win' : 'idle'}
-        glowColor={score != null ? vibeColor(score, 0.55) : undefined}
+        glowColor={score != null ? interpolateColor(COLOR_STOPS, score, 0.55) : undefined}
       />
 
       {/* Score tick labels */}
@@ -180,7 +151,7 @@ function VibeRow({
           <motion.div
             aria-hidden
             className="pointer-events-none absolute left-1/2 z-10 flex h-7 w-9 -translate-x-1/2 items-center justify-center rounded-hardware border border-border bg-bg font-display text-xs font-black tabular-nums shadow-soft"
-            style={{ color: vibeColor(score, 1) }}
+            style={{ color: interpolateColor(COLOR_STOPS, score) }}
             animate={{ top: `${positionFromScore(score) * 100}%`, y: '-50%' }}
             transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 30 }}
           >

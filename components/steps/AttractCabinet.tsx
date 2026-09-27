@@ -4,19 +4,10 @@ import { motion, stagger, useAnimate, useReducedMotion } from 'framer-motion';
 import Image from 'next/image';
 import { useEffect } from 'react';
 
+import { TIER_ORDER, type Tier } from '@/lib/ranking';
 import { cn } from '@/lib/utils';
 
-import { TIER_ORDER, type Tier } from '../ui/Row';
-
-const TIER_BG: Record<Tier, string> = {
-  S: 'bg-tier-s',
-  A: 'bg-tier-a',
-  B: 'bg-tier-b',
-  C: 'bg-tier-c',
-  D: 'bg-tier-d',
-  E: 'bg-tier-e',
-  F: 'bg-tier-f',
-};
+import { TIER_BG } from '../ui/Row';
 
 interface Cover {
   /** File under `public/assets/boxart/`. */
@@ -75,7 +66,7 @@ export const ATTRACT_COVER_TITLES: readonly string[] = TIER_ORDER.flatMap((t) =>
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export interface AttractCabinetProps {
+interface AttractCabinetProps {
   /** Pause the attract-mode loop when the cabinet is off-screen (keep-alive). Defaults to true. */
   active?: boolean;
 }

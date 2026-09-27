@@ -22,7 +22,6 @@ const game = (igdbId: number, coverUrl: string): Game => ({
   popularity: null,
   rating: null,
   summary: null,
-  hasCover: true,
   category: null,
 });
 

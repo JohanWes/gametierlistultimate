@@ -38,14 +38,13 @@ const SWIPE_FOLLOW = { stiffness: 700, damping: 45, mass: 0.6 } as const;
 
 /**
  * The card fills the playfield's height and derives its width from the 3:4 boxart aspect, so it is
- * sized by the space that actually exists rather than by a `vw` guess (the old `min(82vw,20rem)`
- * produced a 410px-tall card on a 375px phone and pushed the ✓/✕ buttons ~150px below the fold).
+ * sized by the space that actually exists and the ✓/✕ buttons stay on-screen on short phones.
  * The max-width is only a guard for short-and-wide viewports (landscape phones), where height
  * alone would make the card wider than the panel.
  */
 export const HERO_SIZE = 'h-full max-w-[min(82vw,20rem)] w-auto aspect-[3/4]';
 
-export interface PoolSwipeCardProps {
+interface PoolSwipeCardProps {
   game: Game;
   /** The next card in the queue, drawn behind this one for the stacked-deck feel. */
   peek?: Game;
@@ -79,7 +78,6 @@ export function PoolSwipeCard({
     random,
     onDecide,
   });
-  const hasCover = game.hasCover && !!game.coverUrl;
 
   const cardRef = useRef<HTMLDivElement>(null);
   // `x` is the raw pointer delta; `sx` is the rAF-interpolated value we actually render.
@@ -223,7 +221,7 @@ export function PoolSwipeCard({
             aria-hidden
             className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-[34%] bg-gradient-to-t from-black/95 via-black/70 via-45% to-transparent"
           />
-          {hasCover ? (
+          {game.coverUrl ? (
             <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 px-4 text-center">
               <p className="line-clamp-2 text-sm font-semibold leading-tight text-fg drop-shadow-[0_2px_3px_rgb(0_0_0/0.95)]">
                 {game.title}

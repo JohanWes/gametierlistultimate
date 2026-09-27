@@ -1,7 +1,7 @@
 import type { Config } from 'tailwindcss';
 
 /**
- * Arcade Premium design system (Phase 3). Colors stay wired to the CSS variables defined in
+ * Arcade Premium design system. Colors stay wired to the CSS variables defined in
  * app/globals.css so the palette can be tuned without touching markup. Fonts come from
  * next/font (see app/layout.tsx) exposed as CSS variables.
  */
@@ -67,15 +67,10 @@ const config: Config = {
           '0%, 100%': { opacity: '0.55' },
           '50%': { opacity: '1' },
         },
-        'fade-up': {
-          '0%': { opacity: '0', transform: 'translateY(8px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
       },
       animation: {
         shimmer: 'shimmer 1.4s infinite',
         'pulse-glow': 'pulse-glow 2.6s ease-in-out infinite',
-        'fade-up': 'fade-up 0.4s ease-out both',
       },
     },
   },

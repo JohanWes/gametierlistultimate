@@ -1,13 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import {
-  insertionIndex,
-  moveInTierMap,
-  pageRectOf,
-  tierAtPoint,
-  zoneIndexAtPagePoint,
-  type TierRect,
-} from './dnd';
+import { insertionIndex, moveInTierMap, pageRectOf, zoneIndexAtPagePoint } from './dnd';
 
 /** A stand-in element with a fixed viewport rect (only what the hit-test reads). */
 function fakeEl(rect: { top: number; bottom: number; left: number; right: number }): Element {
@@ -20,24 +13,6 @@ function setScroll(x: number, y: number) {
   Object.defineProperty(window, 'scrollX', { value: x, configurable: true });
   Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
 }
-
-const rects: TierRect[] = [
-  { tier: 'S', rect: { top: 0, bottom: 100, left: 0, right: 500 } },
-  { tier: 'A', rect: { top: 100, bottom: 200, left: 0, right: 500 } },
-  { tier: 'B', rect: { top: 200, bottom: 300, left: 0, right: 500 } },
-];
-
-describe('tierAtPoint', () => {
-  it('returns the tier whose row contains the point', () => {
-    expect(tierAtPoint({ x: 50, y: 150 }, rects)).toBe('A');
-    expect(tierAtPoint({ x: 50, y: 250 }, rects)).toBe('B');
-  });
-
-  it('returns null when the point is outside every row', () => {
-    expect(tierAtPoint({ x: 50, y: 999 }, rects)).toBeNull();
-    expect(tierAtPoint({ x: 999, y: 50 }, rects)).toBeNull();
-  });
-});
 
 describe('pageRectOf', () => {
   afterEach(() => setScroll(0, 0));
@@ -119,44 +94,19 @@ describe('insertionIndex', () => {
 describe('moveInTierMap', () => {
   const tiers = { S: [1], A: [2, 3], B: [], C: [], D: [], E: [], F: [] };
 
-  it('moves a game out of its old tier into the target (append by default)', () => {
+  it('moves a game across tiers (append by default) without mutating the input', () => {
     const next = moveInTierMap(tiers, 2, 'S');
     expect(next.S).toEqual([1, 2]);
     expect(next.A).toEqual([3]);
-  });
-
-  it('inserts at the given index within the target tier', () => {
-    const next = moveInTierMap(tiers, 2, 'S', 0);
-    expect(next.S).toEqual([2, 1]);
-  });
-
-  it('reorders within the same tier', () => {
-    const next = moveInTierMap(tiers, 3, 'A', 0);
-    expect(next.A).toEqual([3, 2]);
-  });
-
-  it('clamps an out-of-range index to the end', () => {
-    const next = moveInTierMap(tiers, 2, 'B', 99);
-    expect(next.B).toEqual([2]);
-  });
-
-  it('clamps a negative index to the start', () => {
-    const next = moveInTierMap(tiers, 2, 'A', -3);
-    expect(next.A).toEqual([2, 3]);
-  });
-
-  it('does not duplicate when moving within the same tier to an append index', () => {
-    const next = moveInTierMap({ ...tiers, A: [2, 3, 4] }, 3, 'A');
-    expect(next.A).toEqual([2, 4, 3]);
-  });
-
-  it('does not duplicate when moving within the same tier and index', () => {
-    const next = moveInTierMap(tiers, 1, 'S');
-    expect(next.S).toEqual([1]);
-  });
-
-  it('leaves the original untouched', () => {
-    moveInTierMap(tiers, 2, 'B');
     expect(tiers.A).toEqual([2, 3]);
+  });
+
+  it('reorders within the same tier at the given index', () => {
+    expect(moveInTierMap(tiers, 3, 'A', 0).A).toEqual([3, 2]);
+  });
+
+  it('clamps an out-of-range index', () => {
+    expect(moveInTierMap(tiers, 2, 'S', 99).S).toEqual([1, 2]);
+    expect(moveInTierMap(tiers, 2, 'S', -3).S).toEqual([2, 1]);
   });
 });

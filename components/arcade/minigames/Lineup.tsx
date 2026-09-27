@@ -124,10 +124,7 @@ export function Lineup({ games, onComplete }: MinigameProps) {
       {/* Unplaced pool — one rail row on phones, wrapping grid from `sm` up. */}
       {remaining.length > 0 ? (
         <div className="w-full border-t border-border pt-3 sm:pt-5">
-          <CoverRail
-            gridClassName="flex flex-wrap justify-center gap-3"
-            hint="Swipe for more"
-          >
+          <CoverRail gridClassName="flex flex-wrap justify-center gap-3">
             {remaining.map((game) => (
               <motion.div key={game.igdbId} layout>
                 <DraggableArcadeCard

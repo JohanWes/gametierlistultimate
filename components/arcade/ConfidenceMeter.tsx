@@ -4,22 +4,20 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 
 import { REVEAL_MIN_CONFIDENCE } from '@/lib/ranking/arcade';
-import { clamp, cn } from '@/lib/utils';
+import { clamp } from '@/lib/utils';
 
-export interface ConfidenceMeterProps {
+interface ConfidenceMeterProps {
   /** Global tier confidence, 0–100. */
   value: number;
   /** Whether the list has reached the "good enough" threshold. */
   ready?: boolean;
-  /** Slim inline variant for the arcade status strip. */
-  compact?: boolean;
 }
 
 /**
  * The arcade's progress heartbeat. Shows tier confidence as a tier-spectrum energy bar with a
  * brief "+N%" pop whenever a round nudges it, so every choice visibly moves the needle.
  */
-export function ConfidenceMeter({ value, ready = false, compact = false }: ConfidenceMeterProps) {
+export function ConfidenceMeter({ value, ready = false }: ConfidenceMeterProps) {
   const reduce = useReducedMotion();
   const pct = clamp(Math.round(value), 0, 100);
   const prev = useRef(pct);
@@ -36,13 +34,8 @@ export function ConfidenceMeter({ value, ready = false, compact = false }: Confi
 
   return (
     <div className="w-full">
-      <div className={cn('flex items-end justify-between', compact ? 'mb-1' : 'mb-1.5')}>
-        <span
-          className={cn(
-            'font-mono uppercase tracking-[0.2em] text-muted',
-            compact ? 'text-[0.62rem]' : 'text-xs',
-          )}
-        >
+      <div className="mb-1 flex items-end justify-between">
+        <span className="font-mono text-[0.62rem] uppercase tracking-[0.2em] text-muted">
           Tier confidence
         </span>
         <div className="flex items-baseline gap-2">
@@ -59,14 +52,7 @@ export function ConfidenceMeter({ value, ready = false, compact = false }: Confi
               </motion.span>
             ) : null}
           </AnimatePresence>
-          <span
-            className={cn(
-              'font-display font-black tabular-nums text-fg',
-              compact ? 'text-base' : 'text-lg',
-            )}
-          >
-            {pct}%
-          </span>
+          <span className="font-display text-base font-black tabular-nums text-fg">{pct}%</span>
         </div>
       </div>
 
@@ -76,10 +62,7 @@ export function ConfidenceMeter({ value, ready = false, compact = false }: Confi
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label="Tier confidence"
-        className={cn(
-          'relative w-full overflow-hidden rounded-tile border border-border bg-panel',
-          compact ? 'h-2.5' : 'h-3',
-        )}
+        className="relative h-2.5 w-full overflow-hidden rounded-tile border border-border bg-panel"
       >
         <motion.div
           className="h-full rounded-tile"

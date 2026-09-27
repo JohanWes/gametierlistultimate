@@ -12,7 +12,7 @@ import { GameCard } from '../ui/GameCard';
 
 export type { PoolDecision } from '@/lib/pool-decision';
 
-export interface PoolCardProps {
+interface PoolCardProps {
   game: Game;
   /** Injected RNG in [0, 1); defaults to Math.random. */
   random?: () => number;
@@ -36,7 +36,6 @@ export function PoolCard({ game, random = Math.random, onDecide, onWatch }: Pool
     random,
     onDecide,
   });
-  const hasCover = game.hasCover && !!game.coverUrl;
   const coverRef = useRef<HTMLDivElement>(null);
   // The decided card fades out in the same grid cell its replacement fades into; it must not
   // swallow clicks meant for the new card.
@@ -100,7 +99,7 @@ export function PoolCard({ game, random = Math.random, onDecide, onWatch }: Pool
           </button>
         ) : null}
 
-        {hasCover ? (
+        {game.coverUrl ? (
           <motion.div
             animate={picking ? { y: -188 } : { y: 0 }}
             transition={reduce ? { duration: 0 } : { duration: 0.3, ease: [0.16, 1, 0.3, 1] }}

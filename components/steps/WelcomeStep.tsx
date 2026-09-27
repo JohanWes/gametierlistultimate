@@ -3,12 +3,13 @@
 import { motion, useReducedMotion, type Variants } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 
+import { TIER_ORDER } from '@/lib/ranking';
 import { playSound } from '@/lib/sound';
 import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
 import { Button } from '../ui/Button';
-import { TIER_ORDER, type Tier } from '../ui/Row';
+import { TIER_BG } from '../ui/Row';
 import { AttractCabinet } from './AttractCabinet';
 
 /** How long the coin-insert beat holds before the flow advances (coin fall + credit flash). */
@@ -67,16 +68,6 @@ function StartButton() {
     </Button>
   );
 }
-
-const TIER_BG: Record<Tier, string> = {
-  S: 'bg-tier-s',
-  A: 'bg-tier-a',
-  B: 'bg-tier-b',
-  C: 'bg-tier-c',
-  D: 'bg-tier-d',
-  E: 'bg-tier-e',
-  F: 'bg-tier-f',
-};
 
 // The flow, as a real three-beat sequence — numbered markers are earned here.
 const STEPS: { label: string; detail: string }[] = [

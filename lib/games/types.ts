@@ -16,8 +16,6 @@ export interface Game {
   /** 0–100 rating. */
   rating: number | null;
   summary: string | null;
-  /** Derived: whether a usable cover image exists. */
-  hasCover: boolean;
   /**
    * IGDB game category (0 = main game, 1 = DLC, 2 = expansion, …). Used to filter out
    * DLC/expansions from suggestions. Absent in the current Mongo dataset → null.

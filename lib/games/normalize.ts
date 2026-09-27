@@ -29,10 +29,6 @@ function toNumberOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function buildGame(partial: Omit<Game, 'hasCover'>): Game {
-  return { ...partial, hasCover: !!partial.coverUrl };
-}
-
 export function sharpenIgdbCoverUrl(url: string): string {
   return url.replace('/t_cover_big/', `/${IGDB_COVER_SIZE}/`);
 }
@@ -51,7 +47,7 @@ export function normalizeMongoDoc(doc: Record<string, unknown>): Game {
       ? sharpenIgdbCoverUrl(doc.cover)
       : null;
   const summaryRaw = doc.synopsis ?? doc.summary;
-  return buildGame({
+  return {
     igdbId: Number(doc.id),
     title: String(doc.name ?? ''),
     coverUrl: cover,
@@ -62,7 +58,7 @@ export function normalizeMongoDoc(doc: Record<string, unknown>): Game {
     rating: toNumberOrNull(doc.rating),
     summary: typeof summaryRaw === 'string' ? summaryRaw : null,
     category: toNumberOrNull(doc.category),
-  });
+  };
 }
 
 interface IgdbRawGame {
@@ -91,7 +87,7 @@ export function normalizeIgdb(raw: IgdbRawGame): Game {
     typeof raw.first_release_date === 'number'
       ? new Date(raw.first_release_date * 1000).getUTCFullYear()
       : null;
-  return buildGame({
+  return {
     igdbId: Number(raw.id),
     title: String(raw.name ?? ''),
     coverUrl: igdbCoverUrl(raw.cover?.image_id),
@@ -102,5 +98,5 @@ export function normalizeIgdb(raw: IgdbRawGame): Game {
     rating: rating == null ? null : Math.round(rating),
     summary: typeof raw.summary === 'string' ? raw.summary : null,
     category: toNumberOrNull(raw.category),
-  });
+  };
 }

@@ -6,7 +6,7 @@ import { useIsMobile } from '@/lib/use-is-mobile';
 import { cn } from '@/lib/utils';
 
 interface CoverRailProps {
-  /** Layout used on tablet/desktop — the minigame's original grid, kept byte-identical. */
+  /** Layout used on tablet/desktop. */
   gridClassName: string;
   /** Extra classes for each item wrapper on the mobile rail (e.g. a fixed width). */
   itemClassName?: string;
@@ -17,9 +17,9 @@ interface CoverRailProps {
 
 /**
  * Cover layout for the independent-pick minigames. On tablet/desktop it renders the children in
- * the supplied grid (unchanged). On phones (≤767px) it lays them out in a single horizontal,
- * snap-scrolling row so the boxarts stay large while using only one row of vertical space — the
- * next cover peeks in from the right to advertise the swipe.
+ * the supplied grid. On phones (≤767px) it lays them out in a single horizontal, snap-scrolling
+ * row so the boxarts stay large while using only one row of vertical space — the next cover peeks
+ * in from the right to advertise the swipe.
  *
  * Each cover keeps its own tap handler; `ArcadeCard` already distinguishes a tap from a scroll via
  * `tapProps` (10px slop), so swiping the rail never mis-fires a pick. `pt-3` keeps the corner rank

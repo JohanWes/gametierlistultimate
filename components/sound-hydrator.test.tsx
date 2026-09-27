@@ -18,7 +18,9 @@ const soundMock = vi.hoisted(() => {
 
 vi.mock('@/lib/sound', () => soundMock);
 
-import { initAudio, isMuted, setMuted } from '@/lib/sound';
+import { initAudio, setMuted } from '@/lib/sound';
+
+const { isMuted } = soundMock;
 
 describe('SoundHydrator', () => {
   beforeEach(() => {

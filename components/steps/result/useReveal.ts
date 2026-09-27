@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Tier } from '@/lib/ranking';
 
 /** Reveal order: weakest first, S last so the top tier feels earned. */
-export const REVEAL_SEQUENCE: Tier[] = ['F', 'E', 'D', 'C', 'B', 'A', 'S'];
+const REVEAL_SEQUENCE: Tier[] = ['F', 'E', 'D', 'C', 'B', 'A', 'S'];
 
 export interface UseRevealResult {
   /** The set of tiers revealed so far. */

@@ -4,35 +4,15 @@
  * and every play is a no-op while muted or before that first interaction.
  */
 
-export type SoundName = 'click' | 'blip' | 'hover' | 'success' | 'reveal' | 'coin';
-
-type Ctor = new () => AudioContext;
+export type SoundName = 'click' | 'blip' | 'success' | 'reveal' | 'coin';
 
 let ctx: AudioContext | null = null;
 let noiseBuffer: AudioBuffer | null = null;
-let initialized = false;
 let muted = false;
-
-function getCtor(): Ctor | null {
-  const g = globalThis as unknown as {
-    AudioContext?: Ctor;
-    webkitAudioContext?: Ctor;
-  };
-  return g.AudioContext ?? g.webkitAudioContext ?? null;
-}
-
-/** Whether the audio context has been created (i.e. a user has interacted). */
-export function isAudioReady(): boolean {
-  return initialized;
-}
 
 /** Mirror the store's mute state into the sound module. */
 export function setMuted(value: boolean): void {
   muted = value;
-}
-
-export function isMuted(): boolean {
-  return muted;
 }
 
 /**
@@ -40,11 +20,8 @@ export function isMuted(): boolean {
  * without Web Audio (no-op). Call this from the first user gesture only.
  */
 export function initAudio(): void {
-  if (initialized) return;
-  const Ctor = getCtor();
-  if (!Ctor) return;
-  ctx = new Ctor();
-  initialized = true;
+  if (ctx || typeof AudioContext === 'undefined') return;
+  ctx = new AudioContext();
 }
 
 /** A single voice: oscillator → gain envelope → destination. */
@@ -122,9 +99,6 @@ function synth(context: AudioContext, name: SoundName): void {
     case 'click':
       clickSound(context);
       break;
-    case 'hover':
-      tone(context, { type: 'sine', from: 520, duration: 0.05, gain: 0.06 });
-      break;
     case 'blip':
       tone(context, { type: 'triangle', from: 660, to: 880, duration: 0.09, gain: 0.16 });
       break;
@@ -146,8 +120,7 @@ function synth(context: AudioContext, name: SoundName): void {
 
 /** Play an SFX. No-op while muted or before the first user interaction initializes audio. */
 export function playSound(name: SoundName): void {
-  if (muted) return;
-  if (!initialized || !ctx) return;
+  if (muted || !ctx) return;
   if (ctx.state === 'suspended') void ctx.resume();
   synth(ctx, name);
 }
@@ -156,6 +129,5 @@ export function playSound(name: SoundName): void {
 export function __resetAudioForTest(): void {
   ctx = null;
   noiseBuffer = null;
-  initialized = false;
   muted = false;
 }

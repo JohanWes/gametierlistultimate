@@ -13,7 +13,6 @@ vi.mock('@/lib/sound', () => ({
   playSound: vi.fn(),
   initAudio: vi.fn(),
   setMuted: vi.fn(),
-  isMuted: () => false,
 }));
 
 function game(igdbId: number): Game {
@@ -27,7 +26,6 @@ function game(igdbId: number): Game {
     popularity: null,
     rating: null,
     summary: null,
-    hasCover: false,
     category: null,
   };
 }

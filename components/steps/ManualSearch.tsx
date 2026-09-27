@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 
 const DEBOUNCE_MS = 300;
 
-export interface ManualSearchProps {
+interface ManualSearchProps {
   fetchImpl?: typeof fetch;
 }
 

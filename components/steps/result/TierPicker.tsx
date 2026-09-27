@@ -2,25 +2,16 @@
 
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
-import type { Game } from '@/lib/games/types';
+import type { SnapshotGame } from '@/lib/lists-repo';
 import { TIER_ORDER, type Tier } from '@/lib/ranking';
 import { tapProps } from '@/lib/tap';
 import { cn } from '@/lib/utils';
 
-// Static class maps keep Tailwind's scanner happy (no dynamic class strings).
-const TIER_BG: Record<Tier, string> = {
-  S: 'bg-tier-s',
-  A: 'bg-tier-a',
-  B: 'bg-tier-b',
-  C: 'bg-tier-c',
-  D: 'bg-tier-d',
-  E: 'bg-tier-e',
-  F: 'bg-tier-f',
-};
+import { TIER_BG } from '../../ui/Row';
 
-export interface TierPickerProps {
+interface TierPickerProps {
   /** The game being moved, or null when the picker is closed. */
-  game: Game | null;
+  game: SnapshotGame | null;
   /** The game's current tier (marked as "now"). */
   current: Tier | null;
   onPick: (to: Tier) => void;

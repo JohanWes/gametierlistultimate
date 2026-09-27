@@ -89,7 +89,7 @@ describe('getSuggestions', () => {
     expect(ids).not.toContain(6); // excluded
     expect(ids).not.toContain(5); // DLC (category 1)
     expect(ids).not.toContain(4); // no cover
-    expect(games.every((g) => g.hasCover)).toBe(true);
+    expect(games.every((g) => g.coverUrl)).toBe(true);
   });
 
   it('respects the limit', async () => {
@@ -245,7 +245,6 @@ describe('getSuggestions', () => {
       popularity: 900,
       summary: 'Gather your party and venture forth.',
       category: 0,
-      hasCover: true,
     });
   });
 
@@ -363,7 +362,6 @@ describe('upsertGames', () => {
         popularity: 10,
         rating: 80,
         summary: null,
-        hasCover: true,
         category: 0,
       },
       {
@@ -376,7 +374,6 @@ describe('upsertGames', () => {
         popularity: null,
         rating: null,
         summary: null,
-        hasCover: false,
         category: 0,
       },
     ]);
@@ -400,7 +397,6 @@ describe('upsertGames', () => {
         popularity: 5,
         rating: 80,
         summary: 'A cozy magical farm life sim.',
-        hasCover: true,
         category: 0,
       },
     ]);

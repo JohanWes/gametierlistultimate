@@ -35,9 +35,9 @@ import { MINIGAMES } from './minigames';
 import { RemoveGameProvider } from './RemoveGameContext';
 import { tapProps } from './shared';
 
+/** How many past kinds we keep for variety control. */
 const RECENT_MEMORY = 6;
 
-/** How many past kinds we keep for variety control. */
 type RoundView = { kind: MinigameKind; games: Game[]; anchorId?: number; boundary?: Tier };
 
 function poolPriors(pool: PoolEntry[]): GamePrior[] {
@@ -183,7 +183,7 @@ export function ArcadeStep() {
           <PhaseBadge phase={phase} round={ranking.round} />
         </div>
         <div className="w-full sm:max-w-xs">
-          <ConfidenceMeter value={confidence} ready={ready} compact />
+          <ConfidenceMeter value={confidence} ready={ready} />
         </div>
       </div>
 

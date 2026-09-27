@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { type ComparisonResult, fetchComparison } from '@/lib/compare-client';
-import type { Game } from '@/lib/games/types';
+import type { SnapshotGame } from '@/lib/lists-repo';
 import {
   assignTier,
   computeTiers,
@@ -42,7 +42,7 @@ function tierOf(tiers: TierMap, gameId: number): Tier | null {
 /**
  * Step 4 — the payoff. Computes the final tiers, reveals them bottom-up (S last), then hands the
  * same board over for free editing: drag a cover to another row, or tap it to pick a tier. A share
- * action at the bottom publishes a link. Phases 8 + 9 live on this one screen.
+ * action at the bottom publishes a link.
  */
 export function ResultStep() {
   const reduce = useReducedMotion();
@@ -51,7 +51,6 @@ export function ResultStep() {
   const setScores = useStore((s) => s.setScores);
   const removeFromPool = useStore((s) => s.removeFromPool);
   const goBack = useStore((s) => s.goBack);
-  const soundOn = useStore((s) => s.ui.soundOn);
   const step = useStore((s) => s.ui.step);
 
   const gamesById = useMemo(() => new Map(pool.map((e) => [e.game.igdbId, e.game])), [pool]);
@@ -75,8 +74,8 @@ export function ResultStep() {
   // Owned here, not inside ShareBar: the compact (header) and full (below-board) presentations sit
   // on opposite sides of the mobile breakpoint, so state held inside would be lost on rotate.
   const share = useShare({ tiers, gamesById });
-  const [picking, setPicking] = useState<{ game: Game; from: Tier } | null>(null);
-  const [pendingRemoval, setPendingRemoval] = useState<Game | null>(null);
+  const [picking, setPicking] = useState<{ game: SnapshotGame; from: Tier } | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState<SnapshotGame | null>(null);
 
   // Keep-alive: this step stays mounted after the first reveal, so re-seed the board from the
   // live engine state each time the user returns (e.g. "← Keep ranking" + more arcade rounds).
@@ -101,9 +100,9 @@ export function ResultStep() {
       // Keep-alive: ResultStep stays mounted when hidden. Don't play reveal sounds
       // while the user is on another step.
       if (step !== 'reveal') return;
-      if (soundOn) playSound(isLast ? 'success' : 'reveal');
+      playSound(isLast ? 'success' : 'reveal');
     },
-    [soundOn, step],
+    [step],
   );
 
   const { revealed, done, skip } = useReveal({
@@ -114,7 +113,7 @@ export function ResultStep() {
 
   // Reduced motion reveals everything at once — still give it one cue.
   useEffect(() => {
-    if (reduce && soundOn) playSound('reveal');
+    if (reduce) playSound('reveal');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -140,9 +139,9 @@ export function ResultStep() {
         // Persist via the existing autosave (scores change → debounced localStorage write).
         setScores(serializeRankingState(updated) as unknown as Record<string, unknown>);
       }
-      if (soundOn) playSound('blip');
+      playSound('blip');
     },
-    [setScores, soundOn],
+    [setScores],
   );
 
   const handlePick = useCallback(

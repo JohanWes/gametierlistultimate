@@ -175,10 +175,7 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
       {/* Tray of unplaced covers — a rail on phones so it stays one row (see Podium). */}
       <div className="mt-4 w-full max-w-6xl border-t border-border pt-4 sm:mt-6 sm:pt-5">
         {tray.length > 0 ? (
-          <CoverRail
-            gridClassName="flex min-h-[calc(var(--cover-zone)*4/3)] flex-wrap justify-center gap-3"
-            hint="Swipe for more"
-          >
+          <CoverRail gridClassName="flex min-h-[calc(var(--cover-zone)*4/3)] flex-wrap justify-center gap-3">
             {tray.map((g) => (
               <DraggableArcadeCard
                 key={g.igdbId}

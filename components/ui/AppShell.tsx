@@ -1,33 +1,24 @@
 'use client';
 
+import { TIER_ORDER } from '@/lib/ranking';
 import { STEP_ORDER, useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
 import { MuteButton } from './MuteButton';
-import { TIER_ORDER } from './Row';
-
-const TIER_DOT: Record<string, string> = {
-  S: 'bg-tier-s',
-  A: 'bg-tier-a',
-  B: 'bg-tier-b',
-  C: 'bg-tier-c',
-  D: 'bg-tier-d',
-  E: 'bg-tier-e',
-  F: 'bg-tier-f',
-};
+import { TIER_BG } from './Row';
 
 /** The rainbow tier spectrum — the product's signature mark. */
 function TierSpectrum() {
   return (
     <span aria-hidden className="hidden items-center gap-1 min-[420px]:flex">
       {TIER_ORDER.map((t) => (
-        <span key={t} className={cn('h-2.5 w-4 rounded-[2px] shadow-soft', TIER_DOT[t])} />
+        <span key={t} className={cn('h-2.5 w-4 rounded-[2px] shadow-soft', TIER_BG[t])} />
       ))}
     </span>
   );
 }
 
-export interface AppShellProps {
+interface AppShellProps {
   children: React.ReactNode;
   /** Show the step progress rail under the header. */
   showProgress?: boolean;

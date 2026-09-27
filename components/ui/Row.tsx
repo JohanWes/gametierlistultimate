@@ -1,14 +1,10 @@
 'use client';
 
+import type { Tier } from '@/lib/ranking';
 import { cn } from '@/lib/utils';
 
-export type Tier = 'S' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
-
-/** Tiers ordered for vertical stacking: S at the top, F at the bottom. */
-export const TIER_ORDER: Tier[] = ['S', 'A', 'B', 'C', 'D', 'E', 'F'];
-
 // Static class maps so Tailwind's content scanner keeps these utilities (no dynamic strings).
-const LABEL_BG: Record<Tier, string> = {
+export const TIER_BG: Record<Tier, string> = {
   S: 'bg-tier-s',
   A: 'bg-tier-a',
   B: 'bg-tier-b',
@@ -18,7 +14,8 @@ const LABEL_BG: Record<Tier, string> = {
   F: 'bg-tier-f',
 };
 
-const ROW_TINT: Record<Tier, string> = {
+/** Tier-coloured inset stripe down a row's left edge. */
+export const TIER_TINT: Record<Tier, string> = {
   S: 'shadow-[inset_3px_0_0_rgb(var(--tier-s))]',
   A: 'shadow-[inset_3px_0_0_rgb(var(--tier-a))]',
   B: 'shadow-[inset_3px_0_0_rgb(var(--tier-b))]',
@@ -28,7 +25,7 @@ const ROW_TINT: Record<Tier, string> = {
   F: 'shadow-[inset_3px_0_0_rgb(var(--tier-f))]',
 };
 
-export interface RowProps {
+interface RowProps {
   tier: Tier;
   children?: React.ReactNode;
   count?: number;
@@ -44,14 +41,14 @@ export function Row({ tier, children, count, className }: RowProps) {
     <div
       className={cn(
         'flex items-stretch gap-3 overflow-hidden rounded-card border border-border bg-surface shadow-cabinet',
-        ROW_TINT[tier],
+        TIER_TINT[tier],
         className,
       )}
     >
       <div
         className={cn(
           'flex w-14 shrink-0 flex-col items-center justify-center py-4 sm:w-16',
-          LABEL_BG[tier],
+          TIER_BG[tier],
         )}
       >
         <span className="font-display text-2xl font-extrabold text-black/85 sm:text-3xl">{tier}</span>

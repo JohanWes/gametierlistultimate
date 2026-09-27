@@ -7,14 +7,15 @@ import type { ComparisonResult } from '@/lib/compare-client';
 import type { SnapshotGame } from '@/lib/lists-repo';
 import { type Tier } from '@/lib/ranking';
 import { playSound } from '@/lib/sound';
-import { useStore } from '@/lib/store';
 import { tapProps } from '@/lib/tap';
-import { cn } from '@/lib/utils';
+import { cn, interpolateColor, type ColorStop } from '@/lib/utils';
+
+import { TIER_BG } from '../../ui/Row';
 
 /** Minimal cover/title metadata the outlier rows need. */
 type Meta = { title: string; coverUrl: string | null };
 
-export interface CommunityComparisonProps {
+interface CommunityComparisonProps {
   /** Owner, pre-publish: the in-flight comparison of the live tiers (started by the reveal). */
   pending?: Promise<ComparisonResult>;
   /** Server-computed comparison for a published list; ready on mount. */
@@ -28,46 +29,15 @@ export interface CommunityComparisonProps {
   className?: string;
 }
 
-// Static class map keeps Tailwind's scanner happy (no dynamic class strings).
-const TIER_BG: Record<Tier, string> = {
-  S: 'bg-tier-s',
-  A: 'bg-tier-a',
-  B: 'bg-tier-b',
-  C: 'bg-tier-c',
-  D: 'bg-tier-d',
-  E: 'bg-tier-e',
-  F: 'bg-tier-f',
-};
-
 /**
  * Score → color across purple (you diverge) → gold (middle) → teal (you align with the crowd).
  * Grounded in the app's palette: teal is the signature "agreement" hue, purple flags individuality.
  */
-type ColorStop = { at: number; rgb: readonly [number, number, number] };
 const COLOR_STOPS: readonly ColorStop[] = [
   { at: 0, rgb: [168, 142, 246] }, // tier-e purple — lone wolf
   { at: 55, rgb: [241, 178, 58] }, // accent gold — middle
   { at: 100, rgb: [67, 202, 190] }, // teal — crowd-certified
 ];
-
-function tint(percent: number, alpha = 1): string {
-  const s = Math.max(0, Math.min(100, percent));
-  let lo = COLOR_STOPS[0];
-  let hi = COLOR_STOPS[COLOR_STOPS.length - 1];
-  for (let i = 0; i < COLOR_STOPS.length - 1; i += 1) {
-    if (s >= COLOR_STOPS[i].at && s <= COLOR_STOPS[i + 1].at) {
-      lo = COLOR_STOPS[i];
-      hi = COLOR_STOPS[i + 1];
-      break;
-    }
-  }
-  const span = hi.at - lo.at || 1;
-  const t = (s - lo.at) / span;
-  const r = Math.round(lo.rgb[0] + (hi.rgb[0] - lo.rgb[0]) * t);
-  const g = Math.round(lo.rgb[1] + (hi.rgb[1] - lo.rgb[1]) * t);
-  const b = Math.round(lo.rgb[2] + (hi.rgb[2] - lo.rgb[2]) * t);
-  return `rgb(${r} ${g} ${b}${alpha !== 1 ? ` / ${alpha}` : ''})`;
-}
 
 /** One-word verdict keyed off how much the user lines up with the crowd. */
 function verdictFor(percent: number): string {
@@ -138,10 +108,10 @@ function Thumb({ meta }: { meta: Meta | undefined }) {
 type LoadState = { kind: 'loading' } | { kind: 'ready'; result: ComparisonResult };
 
 /**
- * Phase 11 — a low-key "you vs the crowd" plate that auto-loads after the reveal. The signature is
- * a vertical score-tint gauge (an echo of the arcade's vibe meter) beside a count-up percentage and
- * a mono verdict stamp; tapping it opens a compact drawer of "hot takes" — the games where the user
- * most disagrees with the community. Quiet by default, mouse + touch, mute + reduced-motion aware.
+ * A low-key "you vs the crowd" plate that auto-loads after the reveal. The signature is a vertical
+ * score-tint gauge (an echo of the arcade's vibe meter) beside a count-up percentage and a mono
+ * verdict stamp; tapping it opens a compact drawer of "hot takes" — the games where the user most
+ * disagrees with the community. Quiet by default, mouse + touch, reduced-motion aware.
  */
 export function CommunityComparison({
   pending,
@@ -152,7 +122,6 @@ export function CommunityComparison({
   className,
 }: CommunityComparisonProps) {
   const reduce = useReducedMotion();
-  const soundOn = useStore((s) => s.ui.soundOn);
   const [state, setState] = useState<LoadState>(() =>
     initialResult ? { kind: 'ready', result: initialResult } : { kind: 'loading' },
   );
@@ -184,22 +153,22 @@ export function CommunityComparison({
   const percent = hasData ? (ready as ComparisonResult).similarityPercent! : null;
   const displayPercent = useCountUp(hasData ? percent : null, animateCount);
 
-  // One soft cue the first time a real result lands (mute respected).
+  // One soft cue the first time a real result lands.
   useEffect(() => {
     if (hasData && !announced.current) {
       announced.current = true;
-      if (soundOn) playSound('reveal');
+      playSound('reveal');
     }
-  }, [hasData, soundOn]);
+  }, [hasData]);
 
   const outliers = ready?.outliers ?? [];
   const hasOutliers = outliers.length > 0;
 
   const toggle = useCallback(() => {
     if (!hasOutliers) return;
-    if (soundOn) playSound('blip');
+    playSound('blip');
     setExpanded((v) => !v);
-  }, [hasOutliers, soundOn]);
+  }, [hasOutliers]);
 
   if (state.kind === 'loading') {
     return (
@@ -254,7 +223,7 @@ export function CommunityComparison({
         <span
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-card"
-          style={{ boxShadow: `inset 0 0 28px ${tint(p, 0.14)}` }}
+          style={{ boxShadow: `inset 0 0 28px ${interpolateColor(COLOR_STOPS, p, 0.14)}` }}
         />
 
         {/* Signature: a vertical score gauge that fills toward the top as agreement rises. */}
@@ -264,7 +233,7 @@ export function CommunityComparison({
         >
           <motion.span
             className="absolute inset-x-0 bottom-0 rounded-full"
-            style={{ backgroundColor: tint(p, 1) }}
+            style={{ backgroundColor: interpolateColor(COLOR_STOPS, p) }}
             initial={false}
             animate={{ height: `${p}%` }}
             transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 120, damping: 22 }}
@@ -279,7 +248,7 @@ export function CommunityComparison({
             <span className="font-display text-base font-black leading-none text-muted">%</span>
             <span
               className="ml-auto font-mono text-[0.58rem] font-bold uppercase tracking-[0.16em]"
-              style={{ color: tint(p, 1) }}
+              style={{ color: interpolateColor(COLOR_STOPS, p) }}
             >
               {verdict}
             </span>

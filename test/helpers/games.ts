@@ -10,7 +10,6 @@ export function makeGame(overrides: Partial<Game> & { igdbId: number; title: str
     popularity: null,
     rating: 80,
     summary: null,
-    hasCover: false,
     category: 0,
     ...overrides,
   };

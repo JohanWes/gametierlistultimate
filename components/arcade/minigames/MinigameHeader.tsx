@@ -8,7 +8,7 @@ const TONE_CLASS: Record<Tone, string> = {
   coin: 'text-coin',
 };
 
-export interface MinigameHeaderProps {
+interface MinigameHeaderProps {
   /** Small kicker above the title (e.g. "Crown a champion"). Optional for prompt-only boards. */
   eyebrow?: string;
   /** The one-line task title. */

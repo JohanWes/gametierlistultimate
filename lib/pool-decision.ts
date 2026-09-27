@@ -14,7 +14,7 @@ export type PoolDecision = 'include' | 'reject';
  * they played, so a spotlight is never wasted on a passed game. Inject `random` for deterministic
  * tests.
  */
-export const SPOTLIGHT_CHANCE = 1 / 5;
+const SPOTLIGHT_CHANCE = 1 / 5;
 
 export const STATUS_OPTIONS: { status: PlayedStatus; label: string }[] = [
   { status: 'tried', label: 'Tried briefly' },
