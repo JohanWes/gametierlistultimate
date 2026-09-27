@@ -6,7 +6,7 @@ import { prefetchAdaptiveBatch, prefetchStarterBatch } from '@/lib/games/prefetc
 import { loadLocalSession } from '@/lib/session-local';
 import { startAutosave, useStore } from '@/lib/store';
 
-import { VISIBLE_SLOTS } from './steps/PoolStep';
+import { INITIAL_BATCH } from './steps/PoolStep';
 
 // Bound the resume prefetch the same way PoolStep bounds its live API calls, so request cost stays
 // flat regardless of how many games have been rejected across sessions.
@@ -41,7 +41,7 @@ export function StoreHydrator() {
     const resumeStep = ui.step;
     if (resumeStep === 'welcome' || resumeStep === 'pool') {
       if (pool.length === 0) {
-        prefetchStarterBatch(VISIBLE_SLOTS);
+        prefetchStarterBatch(INITIAL_BATCH);
       } else {
         const seedIds = pool.map((e) => e.game.igdbId);
         // Bounded recent slice mirrors PoolStep's API caps (full reject set is enforced locally).
@@ -50,7 +50,7 @@ export function StoreHydrator() {
           seedIds,
           rejectIds,
           exclude: [...seedIds, ...rejectIds].slice(-RESUME_EXCLUDE),
-          limit: VISIBLE_SLOTS,
+          limit: INITIAL_BATCH,
         });
       }
     }

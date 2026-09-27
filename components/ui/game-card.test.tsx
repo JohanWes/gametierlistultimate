@@ -44,7 +44,7 @@ describe('GameCard', () => {
     );
   });
 
-  it('downgrades already-large IGDB covers to t_cover_big for sm cards', () => {
+  it('uses the same t_cover_big_2x cover for sm cards', () => {
     renderWithProviders(
       <GameCard
         size="sm"
@@ -55,17 +55,12 @@ describe('GameCard', () => {
     );
     expect(screen.getByRole('img', { name: 'Hollow Knight' })).toHaveAttribute(
       'src',
-      'https://images.igdb.com/igdb/image/upload/t_cover_big/co1r7f.jpg',
+      'https://images.igdb.com/igdb/image/upload/t_cover_big_2x/co1r7f.jpg',
     );
   });
 
-  it('keeps non-IGDB covers unchanged even for sm cards', () => {
-    renderWithProviders(
-      <GameCard
-        size="sm"
-        game={makeGame({ coverUrl: '/assets/boxart/undertale.jpg' })}
-      />,
-    );
+  it('keeps non-IGDB covers unchanged', () => {
+    renderWithProviders(<GameCard game={makeGame({ coverUrl: '/assets/boxart/undertale.jpg' })} />);
     expect(screen.getByRole('img', { name: 'Hollow Knight' })).toHaveAttribute(
       'src',
       '/assets/boxart/undertale.jpg',

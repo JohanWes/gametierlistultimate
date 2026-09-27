@@ -3,9 +3,9 @@
 import { AnimatePresence, animate, motion, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { fetchComparison, type ComparisonResult } from '@/lib/compare-client';
+import type { ComparisonResult } from '@/lib/compare-client';
 import type { SnapshotGame } from '@/lib/lists-repo';
-import { type Tier, type TierMap } from '@/lib/ranking';
+import { type Tier } from '@/lib/ranking';
 import { playSound } from '@/lib/sound';
 import { useStore } from '@/lib/store';
 import { tapProps } from '@/lib/tap';
@@ -15,16 +15,14 @@ import { cn } from '@/lib/utils';
 type Meta = { title: string; coverUrl: string | null };
 
 export interface CommunityComparisonProps {
-  /** Owner, pre-publish: the live tiers to compare. */
-  tiers?: TierMap;
-  /** Server-computed comparison for a published list; skips the client fetch entirely. */
+  /** Owner, pre-publish: the in-flight comparison of the live tiers (started by the reveal). */
+  pending?: Promise<ComparisonResult>;
+  /** Server-computed comparison for a published list; ready on mount. */
   initialResult?: ComparisonResult;
   /** Cover/title lookup for outliers (owner's live game map). */
   gamesById?: Map<number, Meta>;
   /** Cover/title lookup for outliers (published snapshot games). */
   games?: SnapshotGame[];
-  /** Injectable for tests; defaults to the global fetch. */
-  fetchImpl?: typeof fetch;
   /** Set false in tests to render the final percentage without the count-up tween. */
   animateCount?: boolean;
   className?: string;
@@ -146,11 +144,10 @@ type LoadState = { kind: 'loading' } | { kind: 'ready'; result: ComparisonResult
  * most disagrees with the community. Quiet by default, mouse + touch, mute + reduced-motion aware.
  */
 export function CommunityComparison({
-  tiers,
+  pending,
   initialResult,
   gamesById,
   games,
-  fetchImpl,
   animateCount = true,
   className,
 }: CommunityComparisonProps) {
@@ -169,20 +166,18 @@ export function CommunityComparison({
     return m;
   }, [gamesById, games]);
 
-  // A server-provided result (published share page) is ready on mount; only the owner's
-  // pre-publish panel fetches, once on mount, when the reveal finishes with the final tiers.
+  // A server-provided result (published share page) is ready on mount; the owner's panel keeps its
+  // skeleton until the comparison the reveal already started resolves.
   useEffect(() => {
-    if (initialResult) return;
+    if (!pending) return;
     let alive = true;
-    const run = fetchComparison(tiers ?? ({} as TierMap), fetchImpl);
-    run.then((result) => {
+    pending.then((result) => {
       if (alive) setState({ kind: 'ready', result });
     });
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pending]);
 
   const ready = state.kind === 'ready' ? state.result : null;
   const hasData = ready?.similarityPercent != null;

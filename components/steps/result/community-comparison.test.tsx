@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ComparisonResult } from '@/lib/compare-client';
+import { type ComparisonResult, fetchComparison } from '@/lib/compare-client';
 import { resetStore, useStore } from '@/lib/store';
 import { jsonFetch } from '@/test/helpers/games';
 import { fireEvent, renderWithProviders, screen } from '@/test/helpers/render';
@@ -28,9 +28,8 @@ const result: ComparisonResult = {
 function renderPanel(overrides: Partial<ComparisonResult> = {}) {
   return renderWithProviders(
     <CommunityComparison
-      tiers={tiers as never}
+      pending={fetchComparison(tiers as never, jsonFetch({ ...result, ...overrides }))}
       games={games}
-      fetchImpl={jsonFetch({ ...result, ...overrides })}
       animateCount={false}
     />,
   );
@@ -68,32 +67,23 @@ describe('CommunityComparison', () => {
     );
     renderWithProviders(
       <CommunityComparison
-        tiers={tiers as never}
+        pending={fetchComparison(tiers as never, fetchImpl as unknown as typeof fetch)}
         games={games}
-        fetchImpl={fetchImpl as unknown as typeof fetch}
         animateCount={false}
       />,
     );
     expect(await screen.findByText(/Not enough lists yet to compare/)).toBeInTheDocument();
     expect(screen.queryByText('%')).not.toBeInTheDocument();
-    // Owner mode (no server-provided result) still fetches the live comparison.
     expect(fetchImpl).toHaveBeenCalledWith('/api/compare', expect.objectContaining({ method: 'POST' }));
   });
 
-  it('renders a server-provided initialResult immediately without loading or fetching', async () => {
-    const fetchImpl = vi.fn();
+  it('renders a server-provided initialResult immediately without loading', async () => {
     renderWithProviders(
-      <CommunityComparison
-        initialResult={result}
-        games={games}
-        fetchImpl={fetchImpl as unknown as typeof fetch}
-        animateCount={false}
-      />,
+      <CommunityComparison initialResult={result} games={games} animateCount={false} />,
     );
     expect(await screen.findByText('92')).toBeInTheDocument();
     expect(screen.getByText(/based on 1,204 lists/)).toBeInTheDocument();
     expect(screen.queryByTestId('comparison-loading')).not.toBeInTheDocument();
-    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it('plays one reveal cue when sound is on', async () => {

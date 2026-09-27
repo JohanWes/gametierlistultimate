@@ -57,7 +57,7 @@ const CONTAINED_STEPS = new Set<Step>(['pool', 'arcade']);
  */
 function CrtBoot({ onDone }: { onDone: () => void }) {
   useEffect(() => {
-    const t = setTimeout(onDone, 1000);
+    const t = setTimeout(onDone, 600);
     return () => clearTimeout(t);
   }, [onDone]);
   return (

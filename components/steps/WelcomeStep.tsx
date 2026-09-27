@@ -12,7 +12,7 @@ import { TIER_ORDER, type Tier } from '../ui/Row';
 import { AttractCabinet } from './AttractCabinet';
 
 /** How long the coin-insert beat holds before the flow advances (coin fall + credit flash). */
-const COIN_BEAT_MS = 680;
+const COIN_BEAT_MS = 320;
 
 /**
  * The coin-op CTA. At rest the label hard-blinks INSERT COIN / PRESS START (the classic

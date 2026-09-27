@@ -87,13 +87,25 @@ export function ManualSearch({ fetchImpl }: ManualSearchProps) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search any game by name…"
           aria-label="Search games"
-          className="w-full bg-transparent text-sm text-fg outline-none placeholder:text-muted"
+          // 16px on phones: iOS Safari zooms the page when focusing a smaller input. The native
+          // search ✕ is hidden in favour of our own, which is the same on every browser.
+          className="w-full bg-transparent text-base text-fg outline-none placeholder:text-muted sm:text-sm [&::-webkit-search-cancel-button]:hidden"
         />
         {loading ? (
           <span
             aria-label="Searching"
             className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-teal border-t-transparent"
           />
+        ) : null}
+        {query ? (
+          <button
+            type="button"
+            aria-label="Clear search"
+            {...tapProps(() => setQuery(''))}
+            className="-my-1 -mr-1.5 flex h-7 w-7 shrink-0 select-none items-center justify-center rounded-hardware text-sm leading-none text-muted transition-colors duration-150 hover:bg-surface hover:text-fg focus-visible:outline-none"
+          >
+            <span aria-hidden>✕</span>
+          </button>
         ) : null}
       </label>
 

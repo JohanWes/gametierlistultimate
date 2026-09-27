@@ -31,6 +31,16 @@ const config: Config = {
           f: 'rgb(var(--tier-f) / <alpha-value>)',
         },
       },
+      spacing: {
+        13: '3.25rem',
+      },
+      // Off-scale alpha steps used as color modifiers (e.g. `bg-panel/86`).
+      opacity: {
+        12: '0.12',
+        22: '0.22',
+        72: '0.72',
+        86: '0.86',
+      },
       fontFamily: {
         display: ['var(--font-display)'],
         sans: ['var(--font-sans)'],

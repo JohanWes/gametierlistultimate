@@ -22,7 +22,7 @@ describe('PoolStep progress gating', () => {
   it('keeps Continue disabled and shows the building message below the minimum', async () => {
     await renderWithPool(0);
     expect(screen.getByText(/building your roster — 12 more to start/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /enter the arcade/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /12 more to start/i })).toBeDisabled();
   });
 
   it('enables Continue and shows the playable message at the minimum', async () => {

@@ -39,10 +39,10 @@ export interface ShowdownViewProps {
 }
 
 /** Beat held after a normal pick / the finale so the win animation lands before advancing. */
-const PICK_BEAT_MS = 320;
-const FINALE_BEAT_MS = 900;
+const PICK_BEAT_MS = 160;
+const FINALE_BEAT_MS = 450;
 /** How long the champion screen lingers before the arcade moves on. */
-const CHAMPION_HOLD_MS = 1100;
+const CHAMPION_HOLD_MS = 550;
 
 export function GreatShowdown({ games, onComplete }: MinigameProps) {
   const isMobile = useIsMobile();

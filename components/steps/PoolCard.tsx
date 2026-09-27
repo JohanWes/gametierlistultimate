@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, useIsPresent, useReducedMotion } from 'framer-motion';
 import { useRef } from 'react';
 
 import type { Game } from '@/lib/games/types';
@@ -38,6 +38,9 @@ export function PoolCard({ game, random = Math.random, onDecide, onWatch }: Pool
   });
   const hasCover = game.hasCover && !!game.coverUrl;
   const coverRef = useRef<HTMLDivElement>(null);
+  // The decided card fades out in the same grid cell its replacement fades into; it must not
+  // swallow clicks meant for the new card.
+  const present = useIsPresent();
 
   const onPlayed = () => {
     if (!playedRollHits()) chooseStatus('finished');
@@ -50,22 +53,14 @@ export function PoolCard({ game, random = Math.random, onDecide, onWatch }: Pool
 
   return (
     <motion.div
-      layout
       initial={reduce ? false : { opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
-      transition={
-        reduce
-          ? { duration: 0 }
-          : {
-              duration: 0.18,
-              ease: [0.33, 1, 0.68, 1],
-              layout: { duration: 0.22, ease: [0.16, 1, 0.3, 1] },
-            }
-      }
+      transition={reduce ? { duration: 0 } : { duration: 0.18, ease: [0.33, 1, 0.68, 1] }}
       className={cn(
         'group relative mx-auto w-[var(--cover-pool)] overflow-hidden rounded-card border-2 bg-surface shadow-cabinet',
         'border-border transition-[border-color,box-shadow] duration-200 hover:border-accent/70 hover:shadow-marquee',
+        !present && 'pointer-events-none',
       )}
     >
       <div className="relative" ref={coverRef}>

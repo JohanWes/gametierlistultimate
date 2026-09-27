@@ -1,9 +1,8 @@
 'use client';
 
 import { motion, useReducedMotion } from 'framer-motion';
-import { useState } from 'react';
 
-import { igdbCoverUrlAtSize } from '@/lib/games/normalize';
+import { sharpenIgdbCoverUrl } from '@/lib/games/normalize';
 import type { Game } from '@/lib/games/types';
 import { playSound } from '@/lib/sound';
 import { tapProps } from '@/lib/tap';
@@ -64,10 +63,6 @@ export function GameCard({
   eager = false,
 }: GameCardProps) {
   const reduce = useReducedMotion();
-  // Covers stream in top-to-bottom; revealing the <img> only once it has fully decoded avoids a
-  // half-painted bottom edge flashing during a card's spawn animation. Cached/warmed covers report
-  // `complete` immediately via the ref, so they appear instantly with no flash.
-  const [loaded, setLoaded] = useState(false);
 
   if (loading || !game) {
     return (
@@ -87,12 +82,9 @@ export function GameCard({
 
   const interactive = typeof onSelect === 'function';
   const showCover = game.hasCover && !!game.coverUrl;
-  // Dense sm surfaces (shared shelf, tier rows) render at ~104px wide; 264px `t_cover_big`
-  // is already 2.5× that, so the smaller transform saves bandwidth without visible loss.
-  // Everything larger keeps the crisp 528px `t_cover_big_2x`.
-  const coverUrl = game.coverUrl
-    ? igdbCoverUrlAtSize(game.coverUrl, size === 'sm' ? 't_cover_big' : 't_cover_big_2x')
-    : null;
+  // One cover size everywhere, so a cover already cached by the pool/arcade is reused as-is on
+  // the reveal board instead of being re-downloaded at another size.
+  const coverUrl = game.coverUrl ? sharpenIgdbCoverUrl(game.coverUrl) : null;
 
   const select = () => {
     if (!interactive) return;
@@ -106,24 +98,14 @@ export function GameCard({
         // Covers come from many IGDB hosts; a plain img avoids per-domain next/image config.
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          // Catch covers already decoded before React attached `onLoad` (warm prefetch cache),
-          // and re-arm the gate when the same element is reused for a different cover.
-          ref={(el) => setLoaded(!!el?.complete && el.naturalWidth > 0)}
-          key={coverUrl}
           src={coverUrl ?? undefined}
           alt={game.title}
           draggable={false}
           onDragStart={(e) => e.preventDefault()}
-          onLoad={() => setLoaded(true)}
           loading={eager ? 'eager' : 'lazy'}
           fetchPriority={eager ? 'high' : 'auto'}
           decoding="async"
-          className={cn(
-            'h-full w-full object-cover',
-            !reduce && 'transition-opacity duration-300',
-            loaded ? 'opacity-100' : 'opacity-0',
-            imageClassName,
-          )}
+          className={cn('h-full w-full object-cover', imageClassName)}
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-surface-elevated p-3 text-center">

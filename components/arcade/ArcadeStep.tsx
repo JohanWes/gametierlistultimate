@@ -192,14 +192,16 @@ export function ArcadeStep() {
           cabinet frame instead of dragging the header and action bar off-screen with it. */}
       <div className="relative mt-3 flex min-h-0 flex-1 items-center justify-center overflow-y-auto overflow-x-hidden [container-type:size] sm:mt-5">
         <RemoveGameProvider value={setPendingRemoval}>
-          <AnimatePresence mode="wait">
+          {/* `popLayout` lifts the finished round out of flow while it fades, so the next one
+              mounts immediately instead of waiting for the exit to finish. */}
+          <AnimatePresence mode="popLayout">
             {Minigame && view ? (
               <motion.div
                 key={roundKey}
                 className="w-full"
                 initial={reduce ? false : { opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 1.02 }}
+                exit={{ opacity: 0, transition: { duration: 0.1 } }}
                 transition={{ duration: 0.24, ease: 'easeOut' }}
               >
                 <Minigame
@@ -310,26 +312,22 @@ function RevealCta({
       <span className="hidden font-mono text-[0.7rem] uppercase tracking-[0.16em] text-teal sm:inline">
         Your list is ready
       </span>
-      {/* The payoff gate — give the reveal a pulsing glow so it reads as the moment it is. */}
-      <motion.div
-        className="rounded-control"
-        animate={
-          reduce
-            ? undefined
-            : {
-                boxShadow: [
-                  '0 0 0 rgb(var(--color-accent) / 0)',
-                  '0 0 26px rgb(var(--color-accent) / 0.5)',
-                  '0 0 0 rgb(var(--color-accent) / 0)',
-                ],
-              }
-        }
-        transition={reduce ? undefined : { duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-      >
+      {/* The payoff gate — give the reveal a pulsing glow so it reads as the moment it is. The
+          glow is a static shadow whose opacity pulses (compositor-only, no per-frame repaint). */}
+      <div className="relative rounded-control">
+        {reduce ? null : (
+          <motion.span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-control shadow-[0_0_26px_rgb(var(--color-accent)/0.5)]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
         <Button onClick={onReveal} className="whitespace-nowrap px-4 sm:px-5">
           Reveal<span className="hidden sm:inline"> my tier list</span> →
         </Button>
-      </motion.div>
+      </div>
     </motion.div>
   );
 }

@@ -10,4 +10,15 @@ export function renderWithProviders(ui: ReactElement, options?: RenderOptions) {
   return render(ui, options);
 }
 
+/**
+ * Make `prefers-reduced-motion: reduce` match for the rest of this test file, so minigames resolve
+ * without waiting on their animation beats (see `useComplete`). Call at module scope: Framer
+ * Motion reads the preference once, on first use.
+ */
+export function preferReducedMotion() {
+  const matchMedia = window.matchMedia;
+  window.matchMedia = (query: string) =>
+    ({ ...matchMedia(query), matches: query.includes('prefers-reduced-motion') }) as MediaQueryList;
+}
+
 export * from '@testing-library/react';

@@ -9,7 +9,7 @@ import type { RankingOutcome } from '@/lib/ranking';
 export { tapProps } from '@/lib/tap';
 
 /** The beat we hold after a decision so the win/eliminate animation can land. */
-export const RESOLVE_MS = 560;
+export const RESOLVE_MS = 280;
 
 /**
  * Returns a `complete` callback that forwards outcomes to `onComplete` exactly once, after a

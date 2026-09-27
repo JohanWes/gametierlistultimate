@@ -3,6 +3,7 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { type ComparisonResult, fetchComparison } from '@/lib/compare-client';
 import type { Game } from '@/lib/games/types';
 import {
   assignTier,
@@ -80,16 +81,18 @@ export function ResultStep() {
   // Keep-alive: this step stays mounted after the first reveal, so re-seed the board from the
   // live engine state each time the user returns (e.g. "← Keep ranking" + more arcade rounds).
   // Cross-tier manual moves survive (assignTier wrote them into `scores`); within-tier ordering
-  // reverts to rating order, same as an owner reload. `visit` re-keys the community comparison
-  // so its percentage is fetched against the refreshed board.
+  // reverts to rating order, same as an owner reload. The community comparison is fetched against
+  // the refreshed board right away — the tiers don't change during the reveal animation, so the
+  // result is ready when it ends — and `visit` re-keys the panel so it shows the new result.
   const [visit, setVisit] = useState(0);
+  const [comparison, setComparison] = useState<Promise<ComparisonResult> | null>(null);
   useEffect(() => {
     if (step !== 'reveal') return;
     const parsed = parseRankingState(useStore.getState().scores);
-    if (parsed && Object.keys(parsed.games).length > 0) {
-      rankingRef.current = parsed;
-      setTiers(computeTiers(parsed));
-    }
+    if (parsed && Object.keys(parsed.games).length > 0) rankingRef.current = parsed;
+    const next = computeTiers(rankingRef.current as RankingState);
+    setTiers(next);
+    setComparison(fetchComparison(next));
     setVisit((v) => v + 1);
   }, [step]);
 
@@ -200,7 +203,9 @@ export function ResultStep() {
               </Button>
             ) : null}
           </div>
-          {done ? <CommunityComparison key={visit} tiers={tiers} gamesById={gamesById} /> : null}
+          {done && comparison ? (
+            <CommunityComparison key={visit} pending={comparison} gamesById={gamesById} />
+          ) : null}
           {/* Mobile only: sharing is the payoff of this screen and the full bar below the board is
               a long scroll away on a phone. Rendered here *instead of* below (not as well as), so
               there is only ever one publish state. */}

@@ -29,6 +29,8 @@ const REFILL_AT = 3;
  * floor is 20 regardless (see lib/games/repo.ts).
  */
 const BACKLOG_BATCH = 5;
+/** First batch (prefetched or bootstrapped): fills the slots and seeds the backlog in one trip. */
+export const INITIAL_BATCH = VISIBLE_SLOTS + BACKLOG_BATCH;
 /**
  * Curated starter shelf handoff. The first few batches pull the preset shelf so the user's
  * accepts can branch into the pre-seeded persona co-occurrence clusters. We stop asking for the
@@ -249,7 +251,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
     }
   }, [fetchImpl, buildApiExclude, buildSuggestionContext, filterFreshGames, fillEmptySlots, shouldUsePreset]);
 
-  // Bootstrap: load the first batch straight into the five slots, then top up the backlog.
+  // Bootstrap: load the first batch straight into the slots, the remainder into the backlog.
   useEffect(() => {
     // Re-arm the mounted flag first: under React StrictMode (dev) this effect's cleanup runs
     // between the double-invoked mounts, so without this the in-flight bootstrap from the first
@@ -299,7 +301,7 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
                   exclude: [...decidedRef.current].slice(-MAX_API_EXCLUDE),
                   ...ctx,
                   preset,
-                  limit: VISIBLE_SLOTS,
+                  limit: INITIAL_BATCH,
                 },
                 fetchImpl ?? fetch,
               );
@@ -324,8 +326,15 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
 
         while (entries.length < VISIBLE_SLOTS) entries.push(null);
 
+        // The rest of the batch seeds the backlog, so fast deciders never wait on a refill.
+        const extra = freshGames.slice(VISIBLE_SLOTS);
+        if (games !== prefetched) preloadCovers(extra); // a prefetched batch is already warm
+        const queued = extra.map((g) => ({ game: g }));
+
         slotsRef.current = entries;
+        backlogRef.current = queued;
         setSlots(entries);
+        setBacklog(queued);
         setLoading(false);
         fetchingRef.current = false;
 
@@ -500,12 +509,14 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
             ) : (
               <div className="mx-auto grid w-fit grid-cols-3 gap-6 lg:gap-8">
                 {slots.map((entry, i) => (
+                  // Outgoing and incoming cards share one grid cell, so the replacement fades in
+                  // while the decided card fades out — no serialized exit→enter gap per slot.
                   <div
                     key={i}
-                    className="relative flex w-[var(--cover-pool)] items-start justify-center"
+                    className="relative grid w-[var(--cover-pool)] items-start justify-items-center [&>*]:[grid-area:1/1]"
                     style={{ minHeight: 'calc(var(--cover-pool) * 4 / 3 + 4rem)' }}
                   >
-                    <AnimatePresence mode="wait">
+                    <AnimatePresence>
                       {entry ? (
                         <PoolCard
                           key={entry.game.igdbId}
@@ -554,7 +565,8 @@ export function PoolStep({ fetchImpl, random }: PoolStepProps = {}) {
             goNext();
           }}
         >
-          Enter the arcade →
+          {/* Say why it's disabled: the roster meter's hint is hidden on phones. */}
+          {poolCount < MIN_POOL ? `${MIN_POOL - poolCount} more to start` : 'Enter the arcade →'}
         </Button>
       </div>
     </div>

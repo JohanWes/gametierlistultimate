@@ -184,7 +184,7 @@ describe('PoolStep batches', () => {
       call += 1;
       const games =
         call === 1
-          ? makeGames(5, 1)
+          ? makeGames(3, 1)
           : [
               makeGame({ igdbId: 1, title: 'Game 1' }),
               makeGame({ igdbId: 2, title: 'Game 2' }),
@@ -227,9 +227,10 @@ describe('PoolStep batches', () => {
     fireEvent.click(firstPass);
     fireEvent.click(firstPass);
 
+    // Games 4 and 5 were queued from the first batch; only one replacement may surface.
     await waitFor(() => {
-      expect(screen.getAllByText('Game 6')).toHaveLength(1);
+      expect(screen.getAllByText('Game 4')).toHaveLength(1);
     });
-    expect(screen.queryByText('Game 7')).not.toBeInTheDocument();
+    expect(screen.queryByText('Game 5')).not.toBeInTheDocument();
   });
 });

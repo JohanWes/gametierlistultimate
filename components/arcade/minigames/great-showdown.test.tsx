@@ -1,9 +1,17 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { makeGames } from '@/test/helpers/games';
-import { fireEvent, renderWithProviders, screen, waitFor } from '@/test/helpers/render';
+import {
+  fireEvent,
+  preferReducedMotion,
+  renderWithProviders,
+  screen,
+  waitFor,
+} from '@/test/helpers/render';
 
 import { GreatShowdown } from './GreatShowdown';
+
+preferReducedMotion();
 
 /** Tap the active winner by title, waiting for that bout to become interactive. */
 async function crown(title: RegExp) {

@@ -62,4 +62,24 @@ describe('ManualSearch', () => {
     fireEvent.click(screen.getByRole('button', { name: /obscure gem/i }));
     expect(useStore.getState().pool.map((e) => e.game.igdbId)).toContain(99);
   });
+
+  it('clears the query with the clear button', async () => {
+    const results = [makeResult({ igdbId: 7, title: 'Celeste', source: 'local' })];
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ results }),
+    })) as unknown as typeof fetch;
+    renderWithProviders(<ManualSearch fetchImpl={fetchImpl} />);
+
+    const input = screen.getByRole('searchbox', { name: /search games/i });
+    fireEvent.change(input, { target: { value: 'celeste' } });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(screen.getByRole('button', { name: /celeste/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /clear search/i }));
+    expect(input).toHaveValue('');
+    expect(screen.queryByRole('button', { name: /clear search/i })).toBeNull();
+  });
 });

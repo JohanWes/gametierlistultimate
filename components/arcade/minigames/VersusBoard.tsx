@@ -87,19 +87,20 @@ function Seam({ badge, settled }: { badge?: React.ReactNode; settled: boolean })
         }}
         initial={false}
         animate={
-          settled
-            ? { opacity: 0.4, boxShadow: '0 0 0 rgb(var(--color-accent) / 0)' }
-            : reduce
-              ? { opacity: 0.85 }
-              : {
-                  opacity: [0.7, 1, 0.7],
-                  boxShadow: [
-                    '0 0 10px rgb(var(--color-accent) / 0.3)',
-                    '0 0 22px rgb(var(--color-accent) / 0.65)',
-                    '0 0 10px rgb(var(--color-accent) / 0.3)',
-                  ],
-                }
+          settled ? { opacity: 0.4 } : reduce ? { opacity: 0.85 } : { opacity: [0.7, 1, 0.7] }
         }
+        transition={
+          settled || reduce
+            ? { duration: 0.3 }
+            : { duration: 1.8, repeat: Infinity, ease: 'easeInOut' }
+        }
+      />
+      {/* The seam's glow: a static shadow whose opacity pulses, so the loop never repaints. */}
+      <motion.span
+        aria-hidden
+        className="absolute inset-y-0 left-1/2 w-[3px] -translate-x-1/2 rounded-full shadow-[0_0_22px_rgb(var(--color-accent)/0.65)]"
+        initial={{ opacity: 0 }}
+        animate={settled || reduce ? { opacity: 0 } : { opacity: [0.4, 1, 0.4] }}
         transition={
           settled || reduce
             ? { duration: 0.3 }

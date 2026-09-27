@@ -93,16 +93,20 @@ export function PoolSwipeCard({
   const downRef = useRef(false);
   const draggedRef = useRef(false);
   const startRef = useRef({ x: 0, y: 0 });
+  // Set once a decision starts its fling: a second tap/swipe mid-flight must not restart the
+  // animation and replace the first decision.
+  const committingRef = useRef(false);
 
   const flyAway = (dir: 1 | -1, after?: () => void) => {
+    committingRef.current = true;
     if (reduce) {
       after?.();
       return;
     }
     const width = typeof window === 'undefined' ? 600 : window.innerWidth;
     animate(x, dir * width * 1.3, {
-      duration: 0.3,
-      ease: [0.32, 0, 0.67, 0],
+      duration: 0.18,
+      ease: 'easeOut',
       onComplete: after,
     });
   };
@@ -112,6 +116,7 @@ export function PoolSwipeCard({
   };
 
   const commitPlayed = () => {
+    if (committingRef.current) return;
     // Roll first so a spotlight sheet opens the instant the swipe lands — no wait on the fling.
     if (playedRollHits()) {
       flyAway(1);
@@ -121,6 +126,7 @@ export function PoolSwipeCard({
   };
 
   const commitReject = () => {
+    if (committingRef.current) return;
     flyAway(-1, reject);
   };
 
@@ -135,7 +141,7 @@ export function PoolSwipeCard({
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (reduce || picking || e.button !== 0) return;
+    if (reduce || picking || committingRef.current || e.button !== 0) return;
     downRef.current = true;
     draggedRef.current = false;
     startRef.current = { x: e.clientX, y: e.clientY };
