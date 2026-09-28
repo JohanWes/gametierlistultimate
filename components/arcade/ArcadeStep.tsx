@@ -127,7 +127,7 @@ export function ArcadeStep() {
       const kind = view?.kind;
       const next = applyOutcomes(ranking, outcomes);
       if (kind) recentRef.current = [kind, ...recentRef.current].slice(0, RECENT_MEMORY);
-      if (kind === 'vibe' && view) {
+      if ((kind === 'vibe' || kind === 'tier-rush') && view) {
         for (const g of view.games) vibeSeenRef.current.add(g.igdbId);
       }
 

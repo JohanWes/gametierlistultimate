@@ -100,6 +100,10 @@
      grown covers + padding must still fit a ~360px phone in stacked mode (vw guard) and breathe on
      a 16:9 desktop (vh guard keeps the grown card + chrome within the arcade panel height). */
   --cover-bracket-active: min(36vw, clamp(7rem, 20vh, 10.5rem), var(--fit-cap));
+  /* Tier Check: three columns inside a tier row on phones (stripe + padding eat ~4rem). */
+  --cover-check: min(20vw, clamp(4.5rem, 13vh, 9rem), var(--fit-cap-tall));
+  /* Tier Rush: one hero card; on phones the S–F lane row, fuse and strip sit under/over it. */
+  --cover-rush: min(56vw, clamp(7.5rem, 30vh, 16rem), max(3rem, calc((100cqh - 12rem) * 0.72)));
 
   /* Step 2 pool builder: three large boxart cards. Bounded by width (vw guard, so 3 + gaps stay
      inside the panel with breathing room) and height (clamp `vh`, so the card + chrome fits the
@@ -112,6 +116,8 @@
   :root {
     --cover-row: min(28vw, clamp(6.5rem, 24vh, 14rem), var(--fit-cap));
     --cover-duo: min(40vw, clamp(7rem, 32vh, 18rem), var(--fit-cap));
+    /* Tier Rush moves its lanes to a side rail from sm up, freeing vertical room. */
+    --cover-rush: min(40vw, clamp(8rem, 34vh, 20rem), max(3rem, calc((100cqh - 8rem) * 0.72)));
   }
 }
 
@@ -128,6 +134,7 @@
     /* Showdown active pair, lg: higher room lets the grown pair sit ~224px wide without crowding
        the wide 5-up arcade panel. */
     --cover-bracket-active: min(22vw, clamp(9rem, 22vh, 14rem), var(--fit-cap));
+    --cover-check: min(12vw, clamp(6rem, 17vh, 12rem), var(--fit-cap-tall));
   }
 }
 
@@ -511,5 +518,16 @@ textarea {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Tier Rush fuse: burns a full bar down to nothing (scaleX keeps it on the compositor). It is
+   functional — it shows the time left — so it runs under reduced motion too. */
+@keyframes rush-fuse {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
   }
 }

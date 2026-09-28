@@ -14,6 +14,8 @@ import { Lineup } from './Lineup';
 import { Podium } from './Podium';
 import { ReplayTest } from './ReplayTest';
 import { Sacrifice } from './Sacrifice';
+import { TierCheck } from './TierCheck';
+import { TierRush } from './TierRush';
 import { VibeMeter } from './VibeMeter';
 import type { MinigameProps } from '../types';
 
@@ -34,4 +36,6 @@ export const MINIGAMES: Record<MinigameKind, ComponentType<MinigameProps>> = {
   bracket: Bracket,
   'great-showdown': GreatShowdown,
   podium: Podium,
+  'tier-check': TierCheck,
+  'tier-rush': TierRush,
 };

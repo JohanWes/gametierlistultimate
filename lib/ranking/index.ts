@@ -399,6 +399,11 @@ export function assignTier(state: RankingState, gameId: number, tier: Tier): Ran
   return next;
 }
 
+/** Vibe score (0–100) that lands a game squarely in `tier` — the inverse of `applyVibe`'s mapping. */
+export function tierScore(tier: Tier): number {
+  return Math.round(((TIER_BANDS[tier] - TIER_BANDS.F) / (TIER_BANDS.S - TIER_BANDS.F)) * 100);
+}
+
 /** Public tier lookup for a raw rating (mirrors the internal thresholds). */
 export function tierForRating(rating: number): Tier {
   if (rating >= 1615) return 'S';

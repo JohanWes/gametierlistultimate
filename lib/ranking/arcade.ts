@@ -8,7 +8,9 @@
 
 import {
   computeConfidence,
+  computeTiers,
   nextMatchup,
+  TIER_ORDER,
   type RankingPhase,
   type RankingState,
   type Tier,
@@ -29,7 +31,9 @@ export type MinigameKind =
   | 'bucket'
   | 'bracket'
   | 'great-showdown'
-  | 'podium';
+  | 'podium'
+  | 'tier-check'
+  | 'tier-rush';
 
 export interface ArcadeRound {
   kind: MinigameKind;
@@ -130,15 +134,24 @@ interface Special {
   lateToo?: boolean;
   /** The first game id doubles as the round's anchor. */
   anchored?: boolean;
-  build: (state: RankingState, vibeSeenIds: number[]) => number[] | null;
+  build: (state: RankingState, vibeSeenIds: number[]) => SpecialPick | null;
 }
+
+type SpecialPick = { gameIds: number[]; boundary?: Tier };
+
+const pick = (gameIds: number[] | null): SpecialPick | null => gameIds && { gameIds };
 
 /**
  * Scheduled special rounds, checked in order; the first whose cadence hits (and that would not
- * repeat the previous kind) and can be filled wins. Cadences are staggered (4/5/6/7/8/9/13) so they
+ * repeat the previous kind) and can be filled wins. Cadences are staggered (4/5/6/7/8/9/10/12/13) so they
  * rarely collide; on a collision the earlier entry wins.
  */
 const SPECIALS: Special[] = [
+  // Tier Check: confirm (or nudge) the engine's shakiest tier in one glance — a sneak peek of the
+  // board that banks absolute-placement credit for up to six games at once.
+  { kind: 'tier-check', every: 12, lateToo: true, build: tierCheckRound },
+  // Tier Rush: rapid-fire gut calls — eight fresh covers dealt one at a time onto S–F lanes.
+  { kind: 'tier-rush', every: 10, build: (state, seen) => pick(tierRushIds(state, seen)) },
   // Replay test: a light supporting signal on an under-sampled game.
   {
     kind: 'replay',
@@ -146,22 +159,28 @@ const SPECIALS: Special[] = [
     anchored: true,
     build: (state) => {
       const id = lowestComparisonGame(state);
-      return id === null ? null : [id];
+      return id === null ? null : { gameIds: [id] };
     },
   },
   // Gauntlet: a dramatic climb against progressively stronger opponents.
-  { kind: 'gauntlet', every: 8, anchored: true, build: gauntletIds },
+  { kind: 'gauntlet', every: 8, anchored: true, build: (state) => pick(gauntletIds(state)) },
   // Vibe-meter: rate four under-sampled games at once on a 0–100 slider, never re-rating a cover
   // from an earlier vibe round; skipped when too few fresh games remain.
-  { kind: 'vibe', every: 5, build: (state, seen) => leastSampledIds(state, 4, seen) },
+  { kind: 'vibe', every: 5, build: (state, seen) => pick(leastSampledIds(state, 4, seen)) },
   // Bucket sort: the high-signal coverage workhorse — six games into ordered buckets, emitting
   // every cross-bucket implication at once.
-  { kind: 'bucket', every: 4, build: (state) => leastSampledIds(state, 6) },
+  { kind: 'bucket', every: 4, build: (state) => pick(leastSampledIds(state, 6)) },
   // Podium: pick and order a top three out of six; the rest are losers.
-  { kind: 'podium', every: 7, build: (state) => leastSampledIds(state, 6) },
+  { kind: 'podium', every: 7, build: (state) => pick(leastSampledIds(state, 6)) },
   // Great Showdown: an 8-game knockout plus a redemption round, 9 bouts in one round. Checked
   // before the bracket so it wins a cadence collision.
-  { kind: 'great-showdown', every: 13, lateToo: true, anchored: true, build: showdownIds },
+  {
+    kind: 'great-showdown',
+    every: 13,
+    lateToo: true,
+    anchored: true,
+    build: (state) => pick(showdownIds(state)),
+  },
   // Bracket: a four-game knockout (two semis + a final) — three 1v1s in one round, so it fits the
   // fine-tuning phase too.
   {
@@ -169,7 +188,7 @@ const SPECIALS: Special[] = [
     every: 9,
     lateToo: true,
     anchored: true,
-    build: (state) => leastSampledIds(state, 4),
+    build: (state) => pick(leastSampledIds(state, 4)),
   },
 ];
 
@@ -182,8 +201,10 @@ function injectedRound(
   if (state.round <= 0) return null;
   for (const { kind, every, lateToo, anchored, build } of SPECIALS) {
     if ((phase === 'late' && !lateToo) || state.round % every !== 0 || last === kind) continue;
-    const gameIds = build(state, vibeSeenIds);
-    if (gameIds) return { kind, gameIds, anchorId: anchored ? gameIds[0] : undefined };
+    const picked = build(state, vibeSeenIds);
+    if (picked) {
+      return { kind, ...picked, anchorId: anchored ? picked.gameIds[0] : undefined };
+    }
   }
   return null;
 }
@@ -212,6 +233,41 @@ function alternativeKind(
 }
 
 /* ------------------------------------------------------------------ special builders */
+
+/** Round size for Tier Rush. */
+export const TIER_RUSH_SIZE = 8;
+
+/**
+ * Tier Check: the displayed tier (3+ games, every one already compared at least once) with the
+ * lowest mean confidence, skipping tiers that are already settled. Returns its (up to six)
+ * least-confident games, best-first, with the tier as the round's `boundary`.
+ */
+export function tierCheckRound(state: RankingState): SpecialPick | null {
+  const tiers = computeTiers(state);
+  const { perGame } = computeConfidence(state);
+  const conf = (id: number) => perGame[String(id)] ?? 0;
+
+  let best: { tier: Tier; ids: number[]; mean: number } | null = null;
+  for (const tier of TIER_ORDER) {
+    const ids = tiers[tier];
+    if (ids.length < 3 || ids.some((id) => state.games[String(id)].comparisons < 1)) continue;
+    const mean = ids.reduce((sum, id) => sum + conf(id), 0) / ids.length;
+    if (mean >= 90 || (best && mean >= best.mean)) continue;
+    best = { tier, ids, mean };
+  }
+  if (!best) return null;
+
+  const gameIds = [...best.ids]
+    .sort((a, b) => conf(a) - conf(b) || a - b)
+    .slice(0, 6)
+    .sort((a, b) => state.games[String(b)].rating - state.games[String(a)].rating || a - b);
+  return { gameIds, boundary: best.tier };
+}
+
+/** Tier Rush: the least-sampled games not already rated in a vibe/rush round. */
+export function tierRushIds(state: RankingState, vibeSeenIds: number[] = []): number[] | null {
+  return leastSampledIds(state, TIER_RUSH_SIZE, vibeSeenIds);
+}
 
 /**
  * Gauntlet: the highest-uncertainty game (most to learn) climbs against up to three better-ranked

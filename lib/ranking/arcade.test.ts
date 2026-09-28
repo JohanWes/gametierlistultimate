@@ -7,6 +7,8 @@ import {
   REVEAL_MIN_CONFIDENCE,
   REVEAL_MIN_ROUNDS,
   selectRound,
+  tierCheckRound,
+  tierRushIds,
   type MinigameKind,
 } from './arcade';
 import { applyOutcome, createRankingState, type RankingState } from './index';
@@ -253,6 +255,41 @@ describe('special builders', () => {
     const ratings = opponentIds.map((id) => state.games[String(id)].rating);
     const ascending = [...ratings].sort((a, b) => a - b);
     expect(ratings).toEqual(ascending);
+  });
+});
+
+/** A state whose games have hand-set ratings and comparison counts: `[id, rating, comparisons]`. */
+function stateWith(games: [number, number, number][]): RankingState {
+  const state = createRankingState(games.map(([id]) => id));
+  for (const [id, rating, comparisons] of games) {
+    Object.assign(state.games[String(id)], { rating, comparisons });
+  }
+  return state;
+}
+
+describe('confidence specials', () => {
+  it('tier check needs every game in the tier to have been compared', () => {
+    expect(tierCheckRound(createRankingState([1, 2, 3, 4, 5, 6]))).toBeNull();
+  });
+
+  it('tier check picks the shaky tier and shows its games best-first', () => {
+    const state = stateWith([
+      [1, 1540, 2],
+      [2, 1530, 2],
+      [3, 1520, 2],
+      [4, 1250, 30],
+      [5, 1240, 30],
+      [6, 1230, 30],
+    ]);
+    expect(tierCheckRound(state)).toEqual({ gameIds: [1, 2, 3], boundary: 'B' });
+  });
+
+  it('tier rush deals eight games it has not already rated', () => {
+    const state = createRankingState(Array.from({ length: 10 }, (_, i) => i + 1));
+    const ids = tierRushIds(state, [1, 2])!;
+    expect(ids).toHaveLength(8);
+    expect(ids).not.toContain(1);
+    expect(ids).not.toContain(2);
   });
 });
 
