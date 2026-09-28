@@ -50,11 +50,11 @@ export function Gauntlet({ games, onComplete }: MinigameProps) {
 
   return (
     <div className="flex flex-col items-center">
-      <MinigameHeader tone="accent" eyebrow="The gauntlet" title="How far does it climb?" />
+      <MinigameHeader title="How far does it climb?" />
 
       <div className="flex items-center gap-4 sm:gap-7">
         <div className="flex flex-col items-center gap-2">
-          <span className="rounded-hardware border border-accent/60 bg-accent/10 px-2.5 py-0.5 font-mono text-[0.6rem] font-bold uppercase tracking-[0.18em] text-accent">
+          <span className="label rounded-hardware border border-accent/60 bg-accent/10 px-2.5 py-0.5 text-accent">
             Challenger
           </span>
           <ArcadeCard game={challenger} size="duo" state={stopped ? 'idle' : 'win'} />
@@ -63,7 +63,7 @@ export function Gauntlet({ games, onComplete }: MinigameProps) {
         <span className="font-display text-2xl font-black text-muted">vs</span>
 
         <div className="flex flex-col items-center gap-2">
-          <span className="font-mono text-[0.6rem] uppercase tracking-[0.18em] text-muted">
+          <span className="label text-muted">
             Round {step + 1} / {opponents.length}
           </span>
           <AnimatePresence mode="wait">

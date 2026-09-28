@@ -10,6 +10,8 @@ import { useStore } from '@/lib/store';
 import { tapProps } from '@/lib/tap';
 import { cn } from '@/lib/utils';
 
+import { CheckIcon, SearchIcon, XIcon } from '../ui/icons';
+
 const DEBOUNCE_MS = 300;
 
 const SOURCE_LABEL: Record<GameResult['source'], string> = {
@@ -72,9 +74,7 @@ export function ManualSearch() {
     // pushed came straight out of the swipe card (which collapsed to ~4px with results open).
     <div className="relative">
       <label className="flex items-center gap-2.5 rounded-tile border border-border bg-bg px-3 py-2 shadow-soft focus-within:border-teal/70">
-        <span aria-hidden className="font-mono text-sm text-muted">
-          ⌕
-        </span>
+        <SearchIcon className="text-muted" />
         <input
           type="search"
           inputMode="search"
@@ -84,7 +84,7 @@ export function ManualSearch() {
           placeholder="Search any game by name…"
           aria-label="Search games"
           // 16px on phones: iOS Safari zooms the page when focusing a smaller input. The native
-          // search ✕ is hidden in favour of our own, which is the same on every browser.
+          // search X is hidden in favour of our own, which is the same on every browser.
           className="w-full bg-transparent text-base text-fg outline-none placeholder:text-muted sm:text-sm [&::-webkit-search-cancel-button]:hidden"
         />
         {loading ? (
@@ -100,7 +100,7 @@ export function ManualSearch() {
             {...tapProps(() => setQuery(''))}
             className="-my-1 -mr-1.5 flex h-7 w-7 shrink-0 select-none items-center justify-center rounded-hardware text-sm leading-none text-muted transition-colors duration-150 hover:bg-surface hover:text-fg focus-visible:outline-none"
           >
-            <span aria-hidden>✕</span>
+            <XIcon className="h-3.5 w-3.5" />
           </button>
         ) : null}
       </label>
@@ -142,7 +142,7 @@ export function ManualSearch() {
                           <span className="block truncate text-sm font-semibold text-fg">
                             {game.title}
                           </span>
-                          <span className="mt-0.5 flex items-center gap-2 font-mono text-[0.6rem] uppercase tracking-[0.14em] text-muted">
+                          <span className="label mt-0.5 flex items-center gap-2 text-muted">
                             {game.releaseYear ? <span>{game.releaseYear}</span> : null}
                             <span className={game.source === 'igdb' ? 'text-accent' : 'text-teal'}>
                               {SOURCE_LABEL[game.source]}
@@ -151,11 +151,17 @@ export function ManualSearch() {
                         </span>
                         <span
                           className={cn(
-                            'shrink-0 font-display text-sm font-bold uppercase tracking-[0.06em]',
+                            'flex shrink-0 items-center gap-1 font-display text-sm font-bold uppercase tracking-[0.06em]',
                             isAdded ? 'text-teal' : 'text-fg',
                           )}
                         >
-                          {isAdded ? 'Added ✓' : '+ Add'}
+                          {isAdded ? (
+                            <>
+                              <CheckIcon className="h-3.5 w-3.5" /> Added
+                            </>
+                          ) : (
+                            '+ Add'
+                          )}
                         </span>
                       </button>
                     </li>

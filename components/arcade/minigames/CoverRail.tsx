@@ -25,7 +25,12 @@ interface CoverRailProps {
  * `tapProps` (10px slop), so swiping the rail never mis-fires a pick. `pt-3` keeps the corner rank
  * badges from being clipped by the scroll container's vertical overflow.
  */
-export function CoverRail({ gridClassName, itemClassName, hint = 'Swipe for more', children }: CoverRailProps) {
+export function CoverRail({
+  gridClassName,
+  itemClassName,
+  hint = 'Swipe for more',
+  children,
+}: CoverRailProps) {
   const isMobile = useIsMobile();
 
   if (!isMobile) {
@@ -39,9 +44,7 @@ export function CoverRail({ gridClassName, itemClassName, hint = 'Swipe for more
           <div className={cn('shrink-0 snap-center', itemClassName)}>{child}</div>
         ))}
       </div>
-      <p className="mt-1.5 text-center font-mono text-[0.65rem] uppercase tracking-[0.18em] text-muted">
-        ‹ {hint} ›
-      </p>
+      <p className="label mt-1.5 text-center text-muted">‹ {hint} ›</p>
     </div>
   );
 }

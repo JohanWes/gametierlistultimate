@@ -52,13 +52,11 @@ export function RosterMeter({ count }: { count: number }) {
           >
             {count}
           </span>
-          <span className="font-mono text-[0.58rem] uppercase tracking-[0.16em] text-muted">
-            in roster
-          </span>
+          <span className="label text-muted">in roster</span>
         </div>
         <span
           className={cn(
-            'shrink-0 rounded-hardware border px-2 py-0.5 font-mono text-[0.58rem] font-bold uppercase tracking-[0.16em]',
+            'label shrink-0 rounded-hardware border px-2 py-0.5',
             unlocked
               ? 'border-teal/60 bg-teal/12 text-teal'
               : 'border-border bg-surface text-muted',
@@ -97,7 +95,7 @@ export function RosterMeter({ count }: { count: number }) {
       {/* The coaching line is two wrapped lines on a phone (~30px) and largely restates the
           count + band chip above it, so on the pool step — where every pixel is cover art —
           it only shows once there's room. */}
-      <p className="hidden text-[0.62rem] leading-snug text-muted sm:block">{line}</p>
+      <p className="hidden text-xs leading-snug text-muted sm:block">{line}</p>
     </div>
   );
 }

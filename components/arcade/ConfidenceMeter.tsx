@@ -35,9 +35,7 @@ export function ConfidenceMeter({ value, ready = false }: ConfidenceMeterProps) 
   return (
     <div className="w-full">
       <div className="mb-1 flex items-end justify-between">
-        <span className="font-mono text-[0.62rem] uppercase tracking-[0.2em] text-muted">
-          Tier confidence
-        </span>
+        <span className="label text-muted">Tier confidence</span>
         <div className="flex items-baseline gap-2">
           <AnimatePresence>
             {delta !== null && delta > 0 ? (
@@ -74,26 +72,12 @@ export function ConfidenceMeter({ value, ready = false }: ConfidenceMeterProps) 
           animate={{ width: `${pct}%` }}
           transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 120, damping: 22 }}
         />
-        {ready ? (
-          <motion.span
+        {ready ? null : (
+          // The unlock target — gives the climb a destination.
+          <span
             aria-hidden
-            className="absolute inset-0 rounded-tile"
-            style={{ boxShadow: 'inset 0 0 14px rgb(var(--color-teal) / 0.6)' }}
-            animate={reduce ? undefined : { opacity: [0.4, 0.9, 0.4] }}
-            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-          />
-        ) : (
-          // The unlock target — gives the climb a destination. Pulses brighter as the fill nears it.
-          <motion.span
-            aria-hidden
-            className="absolute inset-y-0 w-[1.5px] bg-teal shadow-[0_0_6px_rgb(var(--color-teal)/0.85)]"
+            className="absolute inset-y-0 w-0.5 bg-teal"
             style={{ left: `${REVEAL_MIN_CONFIDENCE}%` }}
-            animate={
-              reduce || pct < REVEAL_MIN_CONFIDENCE - 15
-                ? { opacity: 0.55 }
-                : { opacity: [0.55, 1, 0.55] }
-            }
-            transition={reduce ? { duration: 0 } : { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
           />
         )}
       </div>

@@ -13,9 +13,21 @@ import { MinigameHeader } from './MinigameHeader';
 type Answer = 'immediately' | 'maybe' | 'probably-not' | 'never';
 
 const ANSWERS: { answer: Answer; label: string; tone: string }[] = [
-  { answer: 'immediately', label: 'Yes', tone: 'border-teal bg-teal/15 text-teal hover:bg-teal/25' },
-  { answer: 'maybe', label: 'Maybe', tone: 'border-accent/60 bg-accent/12 text-accent hover:bg-accent/20' },
-  { answer: 'probably-not', label: 'Probably not', tone: 'border-border bg-surface-elevated text-fg hover:border-coin/50' },
+  {
+    answer: 'immediately',
+    label: 'Yes',
+    tone: 'border-teal bg-teal/15 text-teal hover:bg-teal/25',
+  },
+  {
+    answer: 'maybe',
+    label: 'Maybe',
+    tone: 'border-accent/60 bg-accent/12 text-accent hover:bg-accent/20',
+  },
+  {
+    answer: 'probably-not',
+    label: 'Probably not',
+    tone: 'border-border bg-surface-elevated text-fg hover:border-coin/50',
+  },
   { answer: 'never', label: 'Never', tone: 'border-coin/60 bg-coin/12 text-coin hover:bg-coin/22' },
 ];
 
@@ -35,7 +47,7 @@ export function ReplayTest({ games, onComplete }: MinigameProps) {
 
   return (
     <div className="flex flex-col items-center">
-      <MinigameHeader tone="teal" eyebrow="Replay test" title="Would you replay this?" />
+      <MinigameHeader title="Would you replay this?" />
 
       <ArcadeCard game={game} size="solo" state={chosen === 'immediately' ? 'win' : 'idle'} />
 

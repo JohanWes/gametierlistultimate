@@ -71,11 +71,31 @@
      cover size came down to the `24vw` and fit-cap terms alone and stayed too large. Lowering it to
      4.5rem lets the `vh` term keep tracking the screen on small viewports. (The floor never blocked
      the fit cap itself — these are all arguments to one `min()`, so the smallest always wins.) */
-  --cover-zone: min(24vw, clamp(4.5rem, 11.5vh, 8.75rem), var(--fit-cap-tall)); /* bucket/higher-lower/podium/bracket/vibe — kept lean: these stack dense zones */
-  --cover-lineup: min(24vw, clamp(4.5rem, 12.5vh, 9rem), var(--fit-cap-tall)); /* lineup: two rows of exactly five covers, so it can breathe more than dense zones */
-  --cover-row: min(44vw, clamp(6rem, 18vh, 13rem), var(--fit-cap)); /* champion/keep-two/sacrifice — on phones these render as a swipe rail (CoverRail), so the wider vw shows ~2 covers + a peek; sm/lg below revert to grid widths */
-  --cover-duo: min(34vw, clamp(7rem, 24vh, 14rem), var(--fit-cap)); /* two-up versus: duel/rivalry/promotion, gauntlet */
-  --cover-solo: min(60vw, clamp(7.5rem, 26vh, 14rem), var(--fit-cap)); /* single hero card: replay test */
+  --cover-zone: min(
+    24vw,
+    clamp(4.5rem, 11.5vh, 8.75rem),
+    var(--fit-cap-tall)
+  ); /* bucket/higher-lower/podium/bracket/vibe — kept lean: these stack dense zones */
+  --cover-lineup: min(
+    24vw,
+    clamp(4.5rem, 12.5vh, 9rem),
+    var(--fit-cap-tall)
+  ); /* lineup: two rows of exactly five covers, so it can breathe more than dense zones */
+  --cover-row: min(
+    44vw,
+    clamp(6rem, 18vh, 13rem),
+    var(--fit-cap)
+  ); /* champion/keep-two/sacrifice — on phones these render as a swipe rail (CoverRail), so the wider vw shows ~2 covers + a peek; sm/lg below revert to grid widths */
+  --cover-duo: min(
+    34vw,
+    clamp(7rem, 24vh, 14rem),
+    var(--fit-cap)
+  ); /* two-up versus: duel/rivalry/promotion, gauntlet */
+  --cover-solo: min(
+    60vw,
+    clamp(7.5rem, 26vh, 14rem),
+    var(--fit-cap)
+  ); /* single hero card: replay test */
   /* Regular Showdown: the live bout's pair, enlarged slightly over the resting --cover-zone. Two
      grown covers + padding must still fit a ~360px phone in stacked mode (vw guard) and breathe on
      a 16:9 desktop (vh guard keeps the grown card + chrome within the arcade panel height). */
@@ -138,16 +158,37 @@ button {
   touch-action: manipulation;
 }
 
+/* Faint CRT scanlines over the whole cabinet. */
 body::before {
-  background:
-    linear-gradient(rgb(var(--color-fg) / 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(var(--color-fg) / 0.018) 1px, transparent 1px);
-  background-size: 100% 4px, 6px 100%;
+  background: linear-gradient(rgb(var(--color-fg) / 0.025) 1px, transparent 1px);
+  background-size: 100% 4px;
   content: '';
   inset: 0;
   pointer-events: none;
   position: fixed;
   z-index: 0;
+}
+
+::selection {
+  background: rgb(var(--color-accent));
+  color: rgb(var(--color-bg));
+}
+
+input,
+textarea {
+  caret-color: rgb(var(--color-accent));
+}
+
+/* The one micro-label style (meter captions, statuses, secondary actions). */
+@layer components {
+  .label {
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
 }
 
 /* Always-visible, tactile focus ring for any keyboard or programmatic focus. */
@@ -204,8 +245,7 @@ body::before {
   }
   17% {
     transform: scaleY(1) translateX(2px);
-    filter: brightness(1.9) saturate(1.2)
-      drop-shadow(2px 0 0 rgb(var(--color-teal) / 0.55))
+    filter: brightness(1.9) saturate(1.2) drop-shadow(2px 0 0 rgb(var(--color-teal) / 0.55))
       drop-shadow(-2px 0 0 rgb(var(--color-coin) / 0.55));
   }
   26% {
@@ -382,99 +422,7 @@ body::before {
   }
 }
 
-/*
- * ── Welcome payoff: cold-boot power-on + coin-op start button ────────────────
- * The first paint of the product is the machine turning on: a bright horizontal beam snaps
- * across a black screen, the black "shutters" open vertically like a CRT tube warming, and a
- * phosphor bloom flares over the revealing UI. Rendered once per page load by <CrtBoot> in
- * components/Flow.tsx (skipped entirely for reduced-motion and for users resuming mid-flow).
- */
-.boot-shutter {
-  position: absolute;
-  left: 0;
-  width: 100%;
-  /* +1px so the two halves overlap — no hairline seam at 50% on fractional viewports. */
-  height: calc(50% + 1px);
-  background: rgb(0 0 0);
-  animation: boot-shutter 300ms cubic-bezier(0.22, 1, 0.36, 1) 150ms both;
-}
-.boot-shutter-top {
-  top: 0;
-  transform-origin: top;
-}
-.boot-shutter-bottom {
-  bottom: 0;
-  transform-origin: bottom;
-}
-@keyframes boot-shutter {
-  from {
-    transform: scaleY(1);
-  }
-  to {
-    transform: scaleY(0);
-  }
-}
-
-/* The electron-beam line: flashes on horizontally at center, holds, fades as the tube opens. */
-.boot-beam {
-  position: absolute;
-  top: 50%;
-  left: 6%;
-  right: 6%;
-  height: 2px;
-  border-radius: 9999px;
-  background: rgb(var(--color-fg));
-  box-shadow:
-    0 0 14px 3px rgb(var(--color-teal) / 0.9),
-    0 0 70px 18px rgb(var(--color-teal) / 0.35);
-  animation: boot-beam 540ms ease-out both;
-}
-@keyframes boot-beam {
-  0% {
-    transform: translateY(-50%) scaleX(0);
-    opacity: 0;
-  }
-  8% {
-    opacity: 1;
-  }
-  30% {
-    transform: translateY(-50%) scaleX(1);
-    opacity: 1;
-  }
-  70% {
-    transform: translateY(-50%) scaleX(1);
-    opacity: 0.7;
-  }
-  100% {
-    transform: translateY(-50%) scaleX(1);
-    opacity: 0;
-  }
-}
-
-/* Phosphor bloom washing over the UI as the shutters open, then settling. */
-.boot-bloom {
-  position: absolute;
-  inset: 0;
-  mix-blend-mode: screen;
-  background: radial-gradient(
-    120% 90% at 50% 50%,
-    rgb(var(--color-fg) / 0.5),
-    rgb(var(--color-teal) / 0.18) 45%,
-    transparent 72%
-  );
-  animation: boot-bloom 430ms ease-out 150ms both;
-}
-@keyframes boot-bloom {
-  0% {
-    opacity: 0;
-  }
-  22% {
-    opacity: 0.95;
-  }
-  100% {
-    opacity: 0;
-  }
-}
+/* ── Welcome: coin-op start button ─────────────────────────────────────────── */
 
 /* Hard on/off arcade blink — no fade; the authentic idiom. Two stacked labels run the same
    animation half a period apart, so the CTA alternates INSERT COIN / PRESS START. */

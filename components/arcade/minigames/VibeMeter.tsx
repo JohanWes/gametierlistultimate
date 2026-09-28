@@ -193,8 +193,6 @@ export function VibeMeter({ games, onComplete }: MinigameProps) {
   return (
     <div className="flex flex-col items-center">
       <MinigameHeader
-        tone="accent"
-        eyebrow="Vibe-meter"
         title="Where do these land?"
         hint="Drag each meter — top is 100, bottom is 0"
       />
@@ -216,7 +214,7 @@ export function VibeMeter({ games, onComplete }: MinigameProps) {
       </CoverRail>
 
       <div className="mt-6 flex flex-col items-center gap-2">
-        <span className="font-mono text-xs uppercase tracking-[0.2em] text-muted">
+        <span className="label text-muted">
           {ratedCount} / {games.length} rated
         </span>
         <Button onClick={lockIn} disabled={!allRated}>

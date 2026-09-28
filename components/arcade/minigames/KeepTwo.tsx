@@ -49,8 +49,6 @@ export function KeepTwo({ games, onComplete }: MinigameProps) {
   return (
     <div className="flex flex-col items-center">
       <MinigameHeader
-        tone="teal"
-        eyebrow="Keep 2, kill 3"
         title="Only two survive."
         hint={done ? 'Locked in' : `Choose ${remaining} more`}
       />

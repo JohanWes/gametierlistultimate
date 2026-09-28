@@ -66,8 +66,6 @@ export function Lineup({ games, onComplete }: MinigameProps) {
   return (
     <div className="flex min-h-full flex-col items-center justify-center">
       <MinigameHeader
-        tone="teal"
-        eyebrow="Five-card lineup"
         title="Favorite to least."
         hint={full ? 'Drag to adjust, then lock it in' : 'Tap in order — best first'}
       />
@@ -102,7 +100,7 @@ export function Lineup({ games, onComplete }: MinigameProps) {
                 onClick={() => unplace(game)}
                 className="rounded-tile focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                <ArcadeCard game={game} size="lineup" badge={i + 1} />
+                <ArcadeCard game={game} size="lineup" badge={i + 1} removable={false} />
               </motion.button>
             </Reorder.Item>
           ))}

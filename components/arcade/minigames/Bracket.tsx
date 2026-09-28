@@ -8,6 +8,7 @@ import { playSound } from '@/lib/sound';
 import type { RankingOutcome } from '@/lib/ranking';
 import { cn } from '@/lib/utils';
 
+import { CrownIcon } from '../../ui/icons';
 import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard, type CardState } from './ArcadeCard';
@@ -116,7 +117,8 @@ export function Bracket({ games, onComplete }: MinigameProps) {
 
   const stateFor = (game: Game): CardState => {
     if (champion !== null) return champion === game.igdbId ? 'win' : 'dim';
-    if (active && (active[0].igdbId === game.igdbId || active[1].igdbId === game.igdbId)) return 'idle';
+    if (active && (active[0].igdbId === game.igdbId || active[1].igdbId === game.igdbId))
+      return 'idle';
     return 'dim';
   };
 
@@ -129,7 +131,9 @@ export function Bracket({ games, onComplete }: MinigameProps) {
           game={game}
           size="zone"
           state={champion === game.igdbId ? 'win' : decided ? 'dim' : stateFor(game)}
-          badge={champion === game.igdbId ? '♛' : undefined}
+          badge={
+            champion === game.igdbId ? <CrownIcon className="h-3.5 w-3.5 text-accent" /> : undefined
+          }
           onSelect={
             live
               ? () => {
@@ -146,8 +150,6 @@ export function Bracket({ games, onComplete }: MinigameProps) {
   return (
     <div className="flex flex-col items-center">
       <MinigameHeader
-        tone="accent"
-        eyebrow="Showdown"
         title={stage === 'done' ? 'We have a winner.' : 'Tap the winner.'}
         hint={STAGE_LABEL[stage]}
       />
@@ -169,11 +171,18 @@ export function Bracket({ games, onComplete }: MinigameProps) {
                 layout={!reduce}
                 data-showdown-bout={st}
                 data-active={isActive ? 'true' : 'false'}
-                transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 30 }}
+                transition={
+                  reduce ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 30 }
+                }
                 className={cn(
                   'relative flex gap-2 rounded-tile border p-1.5 sm:p-2',
                   'transition-[opacity,border-color,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]',
-                  isActive ? heroClasses : cn(dimClasses, isDecided ? 'border-border' : 'border-dashed border-border/60'),
+                  isActive
+                    ? heroClasses
+                    : cn(
+                        dimClasses,
+                        isDecided ? 'border-border' : 'border-dashed border-border/60',
+                      ),
                 )}
               >
                 {isActive ? glowFor() : null}
@@ -219,9 +228,9 @@ export function Bracket({ games, onComplete }: MinigameProps) {
         <motion.p
           initial={reduce ? false : { opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mt-6 font-display text-lg font-black uppercase tracking-[0.06em] text-teal"
+          className="mt-6 flex items-center gap-2 font-display text-lg font-black uppercase tracking-[0.06em] text-teal"
         >
-          ♛ {games.find((g) => g.igdbId === champion)?.title}
+          <CrownIcon className="h-4 w-4" /> {games.find((g) => g.igdbId === champion)?.title}
         </motion.p>
       ) : null}
     </div>

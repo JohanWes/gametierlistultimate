@@ -81,9 +81,7 @@ export function PoolSwipeDeck({
   return (
     <div className="flex h-full min-h-0 w-full flex-col items-center gap-2">
       {/* Teaches the swipe affordance only — the ✓/✕ buttons below are self-labelling. */}
-      <p className="shrink-0 whitespace-nowrap font-mono text-[0.62rem] uppercase tracking-[0.18em] text-muted">
-        ‹ Swipe or tap below ›
-      </p>
+      <p className="label shrink-0 whitespace-nowrap text-muted">‹ Swipe or tap below ›</p>
       {/* The card owns this whole slot and lays out card-over-actions itself, so the peek card is
           handed to it rather than absolutely positioned here — that keeps the stacked-deck effect
           aligned to the cover alone instead of overlapping the ✓/✕ row. */}

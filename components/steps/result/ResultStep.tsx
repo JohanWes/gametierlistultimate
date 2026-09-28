@@ -68,7 +68,9 @@ export function ResultStep() {
       );
   }
 
-  const [tiers, setTiers] = useState<TierMap>(() => computeTiers(rankingRef.current as RankingState));
+  const [tiers, setTiers] = useState<TierMap>(() =>
+    computeTiers(rankingRef.current as RankingState),
+  );
   // Owned here, not inside ShareBar: the compact (header) and full (below-board) presentations sit
   // on opposite sides of the mobile breakpoint, so state held inside would be lost on rotate.
   const share = useShare({ tiers, gamesById });
@@ -165,9 +167,6 @@ export function ResultStep() {
     <div className="flex flex-1 flex-col">
       <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="mb-3 font-mono text-xs uppercase tracking-[0.22em] text-teal">
-            Step 4 · Your tier list
-          </p>
           <h1 className="font-display text-4xl font-black uppercase leading-[0.95] tracking-[0.02em] text-fg sm:text-5xl">
             <AnimatePresence mode="wait" initial={false}>
               <motion.span
@@ -206,9 +205,7 @@ export function ResultStep() {
           {/* Mobile only: sharing is the payoff of this screen and the full bar below the board is
               a long scroll away on a phone. Rendered here *instead of* below (not as well as), so
               there is only ever one publish state. */}
-          {done && isMobile ? (
-            <ShareBar compact share={share} />
-          ) : null}
+          {done && isMobile ? <ShareBar compact share={share} /> : null}
         </div>
       </div>
 
@@ -234,9 +231,7 @@ export function ResultStep() {
       {/* The full bar keeps the "Start over" action, so it still renders on mobile — just without
           a second publish control (the header's compact one owns that on phones). Both share the
           one lifted controller, so a published link survives crossing the breakpoint. */}
-      {done ? (
-        <ShareBar share={share} hidePublish={isMobile} />
-      ) : null}
+      {done ? <ShareBar share={share} hidePublish={isMobile} /> : null}
 
       <TierPicker
         game={picking?.game ?? null}

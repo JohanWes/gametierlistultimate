@@ -10,6 +10,7 @@ import { playSound } from '@/lib/sound';
 import { tapProps } from '@/lib/tap';
 import { cn, interpolateColor, type ColorStop } from '@/lib/utils';
 
+import { ArrowDownIcon, ArrowUpIcon, ChevronDownIcon } from '../../ui/icons';
 import { TIER_BG } from '../../ui/Row';
 
 /** Minimal cover/title metadata the outlier rows need. */
@@ -106,9 +107,8 @@ function Thumb({ meta }: { meta: Meta | undefined }) {
 type LoadState = { kind: 'loading' } | { kind: 'ready'; result: ComparisonResult };
 
 /**
- * A low-key "you vs the crowd" plate that auto-loads after the reveal. The signature is a vertical
- * score-tint gauge (an echo of the arcade's vibe meter) beside a count-up percentage and a mono
- * verdict stamp; tapping it opens a compact drawer of "hot takes" — the games where the user most
+ * A low-key "you vs the crowd" plate that auto-loads after the reveal: a count-up percentage and
+ * a score-tinted verdict; tapping it opens a compact drawer of "hot takes" — the games where the user most
  * disagrees with the community. Quiet by default, mouse + touch, reduced-motion aware.
  */
 export function CommunityComparison({
@@ -189,7 +189,7 @@ export function CommunityComparison({
           className,
         )}
       >
-        <p className="font-mono text-[0.6rem] uppercase tracking-[0.2em] text-teal">Community</p>
+        <p className="label text-teal">Community</p>
         <p className="mt-1 text-xs leading-snug text-muted">
           Not enough lists yet to compare. Check back soon.
         </p>
@@ -211,60 +211,31 @@ export function CommunityComparison({
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: 'spring', stiffness: 460, damping: 30 }}
         className={cn(
-          'group relative flex w-full items-stretch gap-3 overflow-hidden rounded-card border-2 border-border bg-panel p-3.5 text-left shadow-cabinet transition-colors',
+          'flex w-full items-center gap-3.5 rounded-card border-2 border-border bg-panel p-3.5 text-left shadow-cabinet transition-colors',
           hasOutliers ? 'cursor-pointer hover:border-teal/60' : 'cursor-default',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         )}
       >
-        {/* Score-tinted inner glow — barely there. */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-card"
-          style={{ boxShadow: `inset 0 0 28px ${interpolateColor(COLOR_STOPS, p, 0.14)}` }}
-        />
-
-        {/* Signature: a vertical score gauge that fills toward the top as agreement rises. */}
-        <span
-          aria-hidden
-          className="relative w-1.5 shrink-0 self-stretch overflow-hidden rounded-full bg-bg/70"
-        >
-          <motion.span
-            className="absolute inset-x-0 bottom-0 rounded-full"
-            style={{ backgroundColor: interpolateColor(COLOR_STOPS, p) }}
-            initial={false}
-            animate={{ height: `${p}%` }}
-            transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 120, damping: 22 }}
-          />
+        <span className="font-display text-4xl font-black leading-none tabular-nums text-fg">
+          {displayPercent}
+          <span className="text-xl text-muted">%</span>
         </span>
 
-        <span className="relative min-w-0 flex-1">
-          <span className="flex items-baseline gap-1">
-            <span className="font-display text-3xl font-black leading-none tabular-nums text-fg">
-              {displayPercent}
-            </span>
-            <span className="font-display text-base font-black leading-none text-muted">%</span>
-            <span
-              className="ml-auto font-mono text-[0.58rem] font-bold uppercase tracking-[0.16em]"
-              style={{ color: interpolateColor(COLOR_STOPS, p) }}
-            >
-              {verdict}
-            </span>
+        <span className="min-w-0 flex-1">
+          <span className="label block" style={{ color: interpolateColor(COLOR_STOPS, p) }}>
+            {verdict}
           </span>
-
-          <span className="mt-1.5 block font-mono text-[0.58rem] uppercase tracking-[0.16em] text-muted">
-            similar to the crowd
+          <span className="mt-1 block text-xs leading-snug text-muted">
+            Similar to the crowd, based on {ready!.sampleSize.toLocaleString()} lists
           </span>
-
-          <span className="mt-1 flex items-center justify-between gap-2">
-            <span className="font-mono text-[0.56rem] text-muted/70">
-              based on {ready!.sampleSize.toLocaleString()} lists
+          {hasOutliers ? (
+            <span className="label mt-1.5 flex items-center gap-1 text-teal">
+              Hot takes
+              <ChevronDownIcon
+                className={cn('h-3.5 w-3.5 transition-transform', expanded && 'rotate-180')}
+              />
             </span>
-            {hasOutliers ? (
-              <span className="shrink-0 font-mono text-[0.56rem] font-bold uppercase tracking-[0.16em] text-teal">
-                {expanded ? 'hide ▴' : 'hot takes ▾'}
-              </span>
-            ) : null}
-          </span>
+          ) : null}
         </span>
       </motion.button>
 
@@ -277,9 +248,7 @@ export function CommunityComparison({
             transition={{ type: 'spring', stiffness: 380, damping: 32 }}
             className="z-30 mt-2 w-full rounded-card border-2 border-border bg-panel p-3 shadow-cabinet sm:absolute sm:right-0 sm:top-full sm:w-[18rem]"
           >
-            <p className="mb-2 font-mono text-[0.58rem] uppercase tracking-[0.2em] text-accent">
-              Your hot takes
-            </p>
+            <p className="label mb-2 text-accent">Your hot takes</p>
             <ul className="flex flex-col gap-2">
               {outliers.map((o) => {
                 const meta = metaById.get(o.gameId);
@@ -292,21 +261,15 @@ export function CommunityComparison({
                         {meta?.title ?? `Game #${o.gameId}`}
                       </p>
                       <div className="mt-1 flex items-center gap-1.5">
-                        <span className="font-mono text-[0.52rem] uppercase tracking-wider text-muted">
-                          You
-                        </span>
+                        <span className="label text-muted">You</span>
                         <TierChip tier={o.userTier} />
-                        <span
-                          aria-hidden
-                          className="text-[0.7rem] font-black leading-none"
-                          style={{ color: up ? 'rgb(67 202 190)' : 'rgb(210 58 49)' }}
-                        >
-                          {up ? '▲' : '▼'}
-                        </span>
+                        {up ? (
+                          <ArrowUpIcon className="h-3.5 w-3.5 text-teal" />
+                        ) : (
+                          <ArrowDownIcon className="h-3.5 w-3.5 text-coin" />
+                        )}
                         <TierChip tier={o.communityTier} />
-                        <span className="font-mono text-[0.52rem] uppercase tracking-wider text-muted">
-                          Crowd
-                        </span>
+                        <span className="label text-muted">Crowd</span>
                         <span className="sr-only">
                           You ranked it {up ? 'higher' : 'lower'} than the crowd.
                         </span>

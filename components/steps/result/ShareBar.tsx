@@ -123,15 +123,11 @@ export function ShareBar({ share, compact = false, hidePublish = false }: ShareB
               {state.url}
             </code>
             <Button variant="secondary" size="sm" onClick={copy}>
-              {copied ? 'Copied ✓' : 'Copy'}
+              {copied ? 'Copied' : 'Copy'}
             </Button>
           </div>
         ) : (
-          <Button
-            onClick={publish}
-            loading={state.kind === 'publishing'}
-            className="w-full"
-          >
+          <Button onClick={publish} loading={state.kind === 'publishing'} className="w-full">
             {state.kind === 'error' ? 'Retry share' : 'Share my list →'}
           </Button>
         )}
@@ -164,7 +160,7 @@ export function ShareBar({ share, compact = false, hidePublish = false }: ShareB
             {state.url}
           </code>
           <Button variant="secondary" onClick={copy}>
-            {copied ? 'Copied ✓' : 'Copy link'}
+            {copied ? 'Copied' : 'Copy link'}
           </Button>
         </div>
       ) : null}
@@ -181,7 +177,7 @@ export function ShareBar({ share, compact = false, hidePublish = false }: ShareB
       <button
         type="button"
         onClick={() => setConfirmReset(true)}
-        className="self-start font-mono text-xs uppercase tracking-[0.16em] text-muted transition-colors hover:text-fg focus-visible:outline-none"
+        className="label self-start text-muted transition-colors hover:text-fg focus-visible:outline-none"
       >
         Start over
       </button>

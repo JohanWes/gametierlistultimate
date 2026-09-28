@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'framer-
 import type { Game } from '@/lib/games/types';
 import { cn } from '@/lib/utils';
 
+import { CrownIcon } from '../../../ui/icons';
 import type { ShowdownViewProps } from '../GreatShowdown';
 import { ArcadeCard, type CardState } from '../ArcadeCard';
 import { MinigameHeader } from '../MinigameHeader';
@@ -49,10 +50,10 @@ export function DesktopBracket({
     // active bout overrides it locally to grow.
     <div className="flex flex-col items-center [--cover-zone:clamp(3.5rem,4.6vw,5rem)]">
       <MinigameHeader
-        tone="accent"
-        eyebrow="The Great Showdown"
         title={champion !== null ? 'We have a champion.' : title}
-        hint={champion !== null ? '9 bouts · settled' : position ? `${position} · 9 bouts` : '9 bouts'}
+        hint={
+          champion !== null ? '9 bouts · settled' : position ? `${position} · 9 bouts` : '9 bouts'
+        }
       />
 
       <div className="relative flex w-full justify-center pb-2">
@@ -63,7 +64,9 @@ export function DesktopBracket({
             {box('QF2', 'Quarter 2')}
           </div>
           <Connector lit={!!getBout(state, 'SF1')} reduce={reduce} />
-          <div className="flex flex-col items-center justify-center">{box('SF1', 'Semifinal 1')}</div>
+          <div className="flex flex-col items-center justify-center">
+            {box('SF1', 'Semifinal 1')}
+          </div>
           <Connector lit={!!getBout(state, 'F')} reduce={reduce} />
 
           {/* Finale. */}
@@ -71,7 +74,9 @@ export function DesktopBracket({
 
           {/* Right half mirrors the left. */}
           <Connector lit={!!getBout(state, 'F')} reduce={reduce} />
-          <div className="flex flex-col items-center justify-center">{box('SF2', 'Semifinal 2')}</div>
+          <div className="flex flex-col items-center justify-center">
+            {box('SF2', 'Semifinal 2')}
+          </div>
           <Connector lit={!!getBout(state, 'SF2')} reduce={reduce} />
           <div className="flex flex-col items-center justify-center gap-4">
             {box('QF3', 'Quarter 3')}
@@ -144,10 +149,10 @@ function RedemptionOverlay({
         transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 26 }}
       >
         <div className="flex flex-col items-center gap-0.5 text-center">
-          <span className="font-mono text-[0.62rem] uppercase tracking-[0.22em] text-coin">
-            Redemption
+          <span className="label text-coin">Redemption</span>
+          <span className="text-xs text-muted">
+            Second chance — the first-round losers duel again.
           </span>
-          <span className="text-xs text-muted">Second chance — the first-round losers duel again.</span>
         </div>
         <div className="flex gap-6">
           {(['R1', 'R2'] as const).map((id) => (
@@ -239,12 +244,7 @@ function BoutBox({
         />
       ) : null}
       {label ? (
-        <span
-          className={cn(
-            'text-center font-mono text-[0.5rem] uppercase tracking-[0.16em]',
-            isActive ? 'text-accent' : 'text-muted/60',
-          )}
-        >
+        <span className={cn('label text-center', isActive ? 'text-accent' : 'text-muted/60')}>
           {label}
         </span>
       ) : null}
@@ -259,7 +259,9 @@ function BoutBox({
                   game={game}
                   size="zone"
                   state={stateFor(id)}
-                  badge={champion === id ? '♛' : undefined}
+                  badge={
+                    champion === id ? <CrownIcon className="h-3.5 w-3.5 text-accent" /> : undefined
+                  }
                   onSelect={isActive ? () => onPick(id) : undefined}
                 />
               );

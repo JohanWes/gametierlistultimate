@@ -11,11 +11,7 @@ import { TIER_ORDER } from '@/lib/ranking';
  * Public, read-only view of a shared tier list. Fetches the immutable snapshot by shareId and
  * renders the same board the owner sees — clean enough to screenshot, no sign-in required.
  */
-export default async function SharedListPage({
-  params,
-}: {
-  params: Promise<{ shareId: string }>;
-}) {
+export default async function SharedListPage({ params }: { params: Promise<{ shareId: string }> }) {
   const { shareId } = await params;
   const list = await getList(shareId);
 
@@ -23,7 +19,6 @@ export default async function SharedListPage({
     return (
       <AppShell>
         <div className="mx-auto flex max-w-xl flex-1 flex-col items-center justify-center gap-4 text-center">
-          <span className="font-mono text-xs uppercase tracking-[0.22em] text-teal">Shared list</span>
           <h1 className="font-display text-4xl font-black uppercase leading-none tracking-[0.02em] text-fg">
             This list isn’t here.
           </h1>
@@ -57,12 +52,12 @@ export default async function SharedListPage({
       <div className="flex flex-1 flex-col">
         <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="mb-3 font-mono text-xs uppercase tracking-[0.22em] text-teal">
-              A shared tier list
-            </p>
             <h1 className="font-display text-4xl font-black uppercase leading-[0.95] tracking-[0.02em] text-fg sm:text-5xl">
               The best games they’ve played.
             </h1>
+            <p className="mt-3 text-sm leading-6 text-muted sm:text-base">
+              Someone shared their tier list with you.
+            </p>
           </div>
           <div className="flex shrink-0 flex-col items-stretch gap-3 sm:items-end">
             <Link

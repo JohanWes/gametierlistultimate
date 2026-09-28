@@ -19,6 +19,7 @@ import { tapProps } from '@/lib/tap';
 import { cn } from '@/lib/utils';
 
 import { GameCard } from '../ui/GameCard';
+import { CheckIcon, StarIcon, XIcon } from '../ui/icons';
 
 /** Fraction of the card width a swipe must clear to commit a decision. */
 const COMMIT_RATIO = 0.28;
@@ -248,28 +249,28 @@ export function PoolSwipeCard({ game, peek, onDecide, onWatch }: PoolSwipeCardPr
           picking && 'pointer-events-none invisible',
         )}
       >
-          <div className="flex flex-col items-center gap-1.5">
-            <button
-              type="button"
-              aria-label="Pass"
-              {...tapProps(commitReject)}
-              className="flex h-16 w-16 select-none items-center justify-center rounded-hardware border-2 border-coin/70 bg-surface text-3xl leading-none text-coin shadow-cabinet transition-colors duration-150 hover:bg-coin/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coin"
-            >
-              <span aria-hidden>✕</span>
-            </button>
-            <span className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-muted">Pass</span>
-          </div>
-          <div className="flex flex-col items-center gap-1.5">
-            <button
-              type="button"
-              aria-label="Played it"
-              {...tapProps(commitPlayed)}
-              className="flex h-16 w-16 select-none items-center justify-center rounded-hardware border-2 border-teal/70 bg-surface text-3xl leading-none text-tier-c shadow-cabinet transition-colors duration-150 hover:bg-teal/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal"
-            >
-              <span aria-hidden>✓</span>
-            </button>
-            <span className="font-mono text-[0.62rem] uppercase tracking-[0.18em] text-muted">Played it</span>
-          </div>
+        <div className="flex flex-col items-center gap-1.5">
+          <button
+            type="button"
+            aria-label="Pass"
+            {...tapProps(commitReject)}
+            className="flex h-16 w-16 select-none items-center justify-center rounded-hardware border-2 border-coin/70 bg-surface text-coin shadow-cabinet transition-colors duration-150 hover:bg-coin/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coin"
+          >
+            <XIcon className="h-7 w-7" />
+          </button>
+          <span className="label text-muted">Pass</span>
+        </div>
+        <div className="flex flex-col items-center gap-1.5">
+          <button
+            type="button"
+            aria-label="Played it"
+            {...tapProps(commitPlayed)}
+            className="flex h-16 w-16 select-none items-center justify-center rounded-hardware border-2 border-teal/70 bg-surface text-teal shadow-cabinet transition-colors duration-150 hover:bg-teal/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal"
+          >
+            <CheckIcon className="h-7 w-7" />
+          </button>
+          <span className="label text-muted">Played it</span>
+        </div>
       </div>
 
       {typeof document !== 'undefined' &&
@@ -289,15 +290,15 @@ export function PoolSwipeCard({ game, peek, onDecide, onWatch }: PoolSwipeCardPr
                   initial={reduce ? false : { y: '100%' }}
                   animate={{ y: 0 }}
                   exit={reduce ? { opacity: 0 } : { y: '100%' }}
-                  transition={reduce ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 34 }}
-                  className="fixed inset-x-0 bottom-0 z-50 flex flex-col gap-2.5 rounded-t-card border-t-2 border-accent/50 bg-panel px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 shadow-[0_-18px_40px_-24px_rgb(0_0_0/0.9)]"
+                  transition={
+                    reduce ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 34 }
+                  }
+                  className="fixed inset-x-0 bottom-0 z-50 flex flex-col gap-2.5 rounded-t-card border-t border-border bg-panel px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5 shadow-[0_-18px_40px_-24px_rgb(0_0_0/0.9)]"
                 >
-                  <span className="self-center rounded-hardware border border-accent/70 bg-black/70 px-3 py-0.5 font-mono text-[0.62rem] font-bold uppercase tracking-[0.18em] text-accent shadow-soft">
-                    ★ Spotlight
+                  <span className="label inline-flex items-center gap-1 self-center rounded-hardware border border-accent/70 bg-black/70 px-3 py-0.5 text-accent shadow-soft">
+                    <StarIcon className="h-3 w-3" /> Spotlight
                   </span>
-                  <p className="text-center font-mono text-[0.7rem] uppercase tracking-[0.18em] text-teal">
-                    How much did you play it?
-                  </p>
+                  <p className="label text-center text-teal">How much did you play it?</p>
                   {STATUS_OPTIONS.map((opt) => (
                     <button
                       key={opt.status}

@@ -61,10 +61,7 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
     setPicked(null);
     setPulsed(bucket);
     window.clearTimeout(pulseTimer.current);
-    pulseTimer.current = window.setTimeout(
-      () => setPulsed((b) => (b === bucket ? null : b)),
-      360,
-    );
+    pulseTimer.current = window.setTimeout(() => setPulsed((b) => (b === bucket ? null : b)), 360);
   };
 
   const unplace = (gameId: number) => {
@@ -111,8 +108,6 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
   return (
     <div className="flex flex-col items-center">
       <MinigameHeader
-        tone="accent"
-        eyebrow="Tier drop"
         title="Sort them into buckets."
         hint={picked !== null ? 'Now tap a bucket' : 'Drag a cover — or tap it, then a bucket'}
       />
@@ -149,12 +144,15 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
               )}
             >
               <div className="mb-2 text-center">
-                <span className={cn('font-display text-lg font-black uppercase', ACCENT_TEXT[bucket.accent])}>
+                <span
+                  className={cn(
+                    'font-display text-lg font-black uppercase',
+                    ACCENT_TEXT[bucket.accent],
+                  )}
+                >
                   {bucket.label}
                 </span>
-                <span className="block font-mono text-[0.6rem] uppercase tracking-[0.18em] text-muted">
-                  {bucket.sub}
-                </span>
+                <span className="label block text-muted">{bucket.sub}</span>
               </div>
               <div className="flex flex-1 flex-wrap content-start justify-center gap-2">
                 {contents.map((g) => (
@@ -169,7 +167,7 @@ export function BucketSort({ games, onComplete }: MinigameProps) {
                     }}
                     className="rounded-tile focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
-                    <ArcadeCard game={g} size="zone" />
+                    <ArcadeCard game={g} size="zone" removable={false} />
                   </motion.button>
                 ))}
               </div>

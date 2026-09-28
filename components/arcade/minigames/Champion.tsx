@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { playSound } from '@/lib/sound';
 
+import { CrownIcon } from '../../ui/icons';
 import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard, type CardState } from './ArcadeCard';
@@ -29,7 +30,7 @@ export function Champion({ games, onComplete }: MinigameProps) {
 
   return (
     <div className="flex flex-col items-center">
-      <MinigameHeader tone="accent" eyebrow="Crown a champion" title="Pick the best one." />
+      <MinigameHeader title="Pick the best one." />
 
       <CoverRail gridClassName="grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {games.map((game) => (
@@ -38,7 +39,11 @@ export function Champion({ games, onComplete }: MinigameProps) {
               game={game}
               size="row"
               state={stateFor(game.igdbId)}
-              badge={winnerId === game.igdbId ? '♛' : undefined}
+              badge={
+                winnerId === game.igdbId ? (
+                  <CrownIcon className="h-3.5 w-3.5 text-accent" />
+                ) : undefined
+              }
               onSelect={() => crown(game.igdbId)}
             />
           </motion.div>

@@ -82,7 +82,7 @@ describe('manual correction (tap-to-move)', () => {
       useStore.getState().setStep('arcade');
     });
     renderWithProviders(<Flow />);
-    await screen.findByText(/Step 3 · Ranking arcade/i);
+    await screen.findByTestId('arcade-round');
 
     act(() => useStore.getState().setStep('reveal'));
     fireEvent.click(await screen.findByRole('button', { name: /reveal all/i }));

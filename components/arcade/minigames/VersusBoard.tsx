@@ -14,8 +14,6 @@ interface VersusBoardProps {
   left: Game;
   right: Game;
   prompt: string;
-  /** Small kicker above the prompt, e.g. "Settle the rivalry". */
-  eyebrow?: string;
   onPick: (winner: Game, loser: Game) => void;
 }
 
@@ -25,7 +23,7 @@ interface VersusBoardProps {
  * loser. Used by Duel (and so Rivalry/promotion rounds). Manages only the local win/lose visual;
  * the wrapper decides what outcome the pick means.
  */
-export function VersusBoard({ left, right, prompt, eyebrow, onPick }: VersusBoardProps) {
+export function VersusBoard({ left, right, prompt, onPick }: VersusBoardProps) {
   const reduce = useReducedMotion();
   const [winnerId, setWinnerId] = useState<number | null>(null);
 
@@ -41,7 +39,7 @@ export function VersusBoard({ left, right, prompt, eyebrow, onPick }: VersusBoar
 
   return (
     <div className="flex flex-col items-center">
-      <MinigameHeader tone="teal" eyebrow={eyebrow} title={prompt} />
+      <MinigameHeader title={prompt} />
 
       <div className="grid w-full max-w-2xl grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-5">
         <motion.div
@@ -50,7 +48,12 @@ export function VersusBoard({ left, right, prompt, eyebrow, onPick }: VersusBoar
           animate={{ x: 0, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 280, damping: 26 }}
         >
-          <ArcadeCard game={left} size="duo" state={stateFor(left)} onSelect={() => pick(left, right)} />
+          <ArcadeCard
+            game={left}
+            size="duo"
+            state={stateFor(left)}
+            onSelect={() => pick(left, right)}
+          />
         </motion.div>
 
         <Seam settled={winnerId !== null} />
@@ -61,13 +64,16 @@ export function VersusBoard({ left, right, prompt, eyebrow, onPick }: VersusBoar
           animate={{ x: 0, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 280, damping: 26 }}
         >
-          <ArcadeCard game={right} size="duo" state={stateFor(right)} onSelect={() => pick(right, left)} />
+          <ArcadeCard
+            game={right}
+            size="duo"
+            state={stateFor(right)}
+            onSelect={() => pick(right, left)}
+          />
         </motion.div>
       </div>
 
-      <p className="mt-5 font-mono text-[0.78rem] font-bold uppercase tracking-[0.2em] text-teal">
-        Tap the winner
-      </p>
+      <p className="label mt-5 text-teal">Tap the winner</p>
     </div>
   );
 }

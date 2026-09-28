@@ -101,7 +101,8 @@ export function PoolStep() {
 
   /** True while the curated starter shelf should still be requested. */
   const shouldUsePreset = useCallback(
-    () => presetBatchesRef.current < PRESET_BATCH_LIMIT && acceptsRef.current < PRESET_ACCEPT_HANDOFF,
+    () =>
+      presetBatchesRef.current < PRESET_BATCH_LIMIT && acceptsRef.current < PRESET_ACCEPT_HANDOFF,
     [],
   );
 
@@ -407,16 +408,9 @@ export function PoolStep() {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex w-full shrink-0 flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-border/70 pb-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            {/* The step eyebrow duplicates the header's progress rail; on a phone this is a
-                playfield step, so the row it costs is worth more as cover art. */}
-            <p className="hidden font-mono text-[0.7rem] uppercase tracking-[0.22em] text-teal sm:block">
-              Step 2 · Your games
-            </p>
-            <h1 className="font-display text-lg font-black uppercase leading-none tracking-[0.02em] text-fg sm:text-3xl">
-              Add the games you&rsquo;ve played.
-            </h1>
-          </div>
+          <h1 className="font-display text-lg font-black uppercase leading-none tracking-[0.02em] text-fg sm:text-3xl">
+            Add the games you&rsquo;ve played.
+          </h1>
           <p className="mt-1.5 hidden max-w-2xl text-sm leading-snug text-muted sm:block">
             Wave through suggestions or search for anything — aim for 20+ games you&rsquo;ve
             actually played.
@@ -467,8 +461,8 @@ export function PoolStep() {
                   Couldn&rsquo;t load suggestions
                 </p>
                 <p className="max-w-sm text-sm text-muted">
-                  The game library didn&rsquo;t respond — this can happen on the first load. Retrying
-                  automatically…
+                  The game library didn&rsquo;t respond — this can happen on the first load.
+                  Retrying automatically…
                 </p>
                 <Button variant="secondary" onClick={() => void ensureBacklog()}>
                   Retry now
@@ -513,7 +507,9 @@ export function PoolStep() {
                           {loading ? (
                             <GameCard loading size="pool" className="w-full" />
                           ) : (
-                            <p className="py-8 text-center text-xs text-muted">No more suggestions</p>
+                            <p className="py-8 text-center text-xs text-muted">
+                              No more suggestions
+                            </p>
                           )}
                         </motion.div>
                       )}

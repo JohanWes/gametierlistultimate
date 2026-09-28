@@ -27,6 +27,11 @@ export interface ArcadeCardProps {
    * the player's 0-100 rating.
    */
   glowColor?: string;
+  /**
+   * Show the delete X. Off for cards already wrapped in a button (placed covers the player taps to
+   * unplace), since a button can't nest inside another button.
+   */
+  removable?: boolean;
 }
 
 /**
@@ -42,11 +47,12 @@ export function ArcadeCard({
   onSelect,
   className,
   glowColor,
+  removable = true,
 }: ArcadeCardProps) {
   const reduce = useReducedMotion();
   const interactive = typeof onSelect === 'function';
-  // A card awaiting this player's tap. Gets a breathing teal invitation so the *choice* is the
-  // loudest thing on screen — distinct from the amber `win` glow (teal = selectable, amber = chosen).
+  // A card awaiting this player's tap gets a teal outline that lifts on hover — distinct from the
+  // amber `win` glow (teal = selectable, amber = chosen).
   const live = interactive && state === 'idle';
   const onRemove = useRemoveGame();
 
@@ -61,16 +67,13 @@ export function ArcadeCard({
       <GameCard game={game} size={size} />
 
       {live ? (
-        <motion.span
+        <span
           aria-hidden
           className={cn(
             'pointer-events-none absolute inset-0 rounded-tile transition-[box-shadow] duration-200',
-            'shadow-[0_0_18px_rgb(var(--color-teal)/0.18),inset_0_0_0_1px_rgb(var(--color-teal)/0.45)]',
-            'group-hover:shadow-[0_0_30px_rgb(var(--color-teal)/0.45),inset_0_0_0_2px_rgb(var(--color-teal)/0.9)]',
+            'shadow-[inset_0_0_0_1px_rgb(var(--color-teal)/0.45)]',
+            'group-hover:shadow-[0_8px_24px_-8px_rgb(var(--color-teal)/0.5),inset_0_0_0_2px_rgb(var(--color-teal)/0.9)]',
           )}
-          initial={reduce ? false : { opacity: 0.55 }}
-          animate={reduce ? { opacity: 1 } : { opacity: [0.55, 1, 0.55] }}
-          transition={reduce ? { duration: 0 } : { duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
         />
       ) : null}
 
@@ -112,13 +115,14 @@ export function ArcadeCard({
     </span>
   );
 
-  const removeX = onRemove ? (
-    <RemoveButton onClick={() => onRemove(game)} title={game.title} />
-  ) : null;
+  const removeX =
+    onRemove && removable ? (
+      <RemoveButton onClick={() => onRemove(game)} title={game.title} />
+    ) : null;
 
   if (!interactive) {
     return (
-      <div className={cn('relative inline-flex', className)}>
+      <div className={cn('group/card relative inline-flex', className)}>
         {frame}
         {removeX}
       </div>
@@ -126,10 +130,11 @@ export function ArcadeCard({
   }
 
   return (
-    <div className={cn('relative inline-flex', className)}>
+    <div className={cn('group/card relative inline-flex', className)}>
       <motion.button
         type="button"
         title={game.title}
+        aria-label={game.title}
         {...tapProps(onSelect)}
         whileHover={reduce ? undefined : { y: -6, scale: 1.03 }}
         whileTap={reduce ? undefined : { scale: 0.94 }}

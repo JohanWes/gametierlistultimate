@@ -9,6 +9,7 @@ import { tapProps } from '@/lib/tap';
 import { cn } from '@/lib/utils';
 
 import { GameCard } from '../ui/GameCard';
+import { CheckIcon, PlayIcon, StarIcon, XIcon } from '../ui/icons';
 
 export type { PoolDecision } from '@/lib/pool-decision';
 
@@ -83,10 +84,10 @@ export function PoolCard({ game, onDecide, onWatch }: PoolCardProps) {
             className="group/play absolute inset-0 z-20 flex items-center justify-center focus-visible:outline-none disabled:pointer-events-none"
           >
             <span className="flex flex-col items-center gap-1.5 opacity-0 transition-opacity duration-200 group-hover/play:opacity-100 group-focus-visible/play:opacity-100">
-              <span className="flex h-12 w-12 items-center justify-center rounded-hardware border border-accent/70 bg-black/55 text-xl leading-none text-accent shadow-soft backdrop-blur-sm">
-                ▶
+              <span className="flex h-12 w-12 items-center justify-center rounded-hardware border border-accent/70 bg-black/55 text-accent shadow-soft">
+                <PlayIcon className="ml-0.5 h-5 w-5" />
               </span>
-              <span className="rounded-hardware border border-accent/50 bg-black/55 px-2 py-0.5 font-mono text-[0.56rem] font-bold uppercase tracking-[0.16em] text-accent shadow-soft">
+              <span className="label rounded-hardware border border-accent/50 bg-black/55 px-2 py-0.5 text-accent shadow-soft">
                 Watch gameplay
               </span>
             </span>
@@ -119,10 +120,10 @@ export function PoolCard({ game, onDecide, onWatch }: PoolCardProps) {
               transition={reduce ? { duration: 0 } : { duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
               className="flex flex-col gap-1.5 px-3 py-3"
             >
-              <span className="self-center rounded-hardware border border-accent/70 bg-black/55 px-2 py-0.5 font-mono text-[0.58rem] font-bold uppercase tracking-[0.18em] text-accent shadow-soft">
-                ★ Spotlight
+              <span className="label inline-flex items-center gap-1 self-center rounded-hardware border border-accent/70 bg-black/55 px-2 py-0.5 text-accent shadow-soft">
+                <StarIcon className="h-3 w-3" /> Spotlight
               </span>
-              <p className="text-center font-mono text-[0.62rem] font-bold uppercase tracking-[0.18em] text-teal drop-shadow-[0_2px_4px_rgb(0_0_0/0.95)] [text-shadow:0_1px_0_rgb(0_0_0/0.95),0_0_8px_rgb(0_0_0/0.9)]">
+              <p className="label text-center text-teal drop-shadow-[0_2px_4px_rgb(0_0_0/0.95)] [text-shadow:0_1px_0_rgb(0_0_0/0.95),0_0_8px_rgb(0_0_0/0.9)]">
                 How much did you play it?
               </p>
               {STATUS_OPTIONS.map((opt) => (
@@ -143,7 +144,6 @@ export function PoolCard({ game, onDecide, onWatch }: PoolCardProps) {
             </motion.div>
           </motion.div>
         ) : null}
-
       </div>
 
       <div className="border-t-2 border-black/50 bg-panel px-3 py-3 shadow-[inset_0_1px_0_rgb(var(--color-fg)/0.05)]">
@@ -151,27 +151,17 @@ export function PoolCard({ game, onDecide, onWatch }: PoolCardProps) {
           <button
             type="button"
             {...tapProps(reject)}
-            className="group/btn flex select-none items-center justify-center gap-2 rounded-control border-2 border-border bg-surface-elevated px-3 py-2.5 font-display text-sm font-black uppercase tracking-[0.1em] text-muted shadow-soft transition-colors duration-150 hover:border-coin/70 hover:bg-coin/15 hover:text-fg focus-visible:outline-none active:translate-y-px"
+            className="flex select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-control border-2 border-border bg-surface-elevated px-2 py-2.5 font-display text-sm font-black uppercase tracking-[0.06em] text-muted shadow-soft transition-colors duration-150 hover:border-coin/70 hover:bg-coin/15 hover:text-fg focus-visible:outline-none active:translate-y-px"
           >
-            <span
-              aria-hidden
-              className="flex h-6 w-6 items-center justify-center rounded-hardware border border-coin/60 bg-coin/15 text-base leading-none text-coin transition-colors duration-150 group-hover/btn:bg-coin/25"
-            >
-              ✕
-            </span>
+            <XIcon className="h-4 w-4 text-coin" />
             <span>Pass</span>
           </button>
           <button
             type="button"
             {...tapProps(onPlayed)}
-            className="group/btn flex select-none items-center justify-center gap-2 rounded-control border-2 border-teal/65 bg-teal/12 px-3 py-2.5 font-display text-sm font-black uppercase tracking-[0.1em] text-fg shadow-soft transition-colors duration-150 hover:border-teal hover:bg-teal/22 focus-visible:outline-none active:translate-y-px"
+            className="flex select-none items-center justify-center gap-1.5 whitespace-nowrap rounded-control border-2 border-teal/65 bg-teal/12 px-2 py-2.5 font-display text-sm font-black uppercase tracking-[0.06em] text-fg shadow-soft transition-colors duration-150 hover:border-teal hover:bg-teal/22 focus-visible:outline-none active:translate-y-px"
           >
-            <span
-              aria-hidden
-              className="flex h-6 w-6 items-center justify-center rounded-hardware border border-teal/60 bg-teal/15 text-base leading-none text-tier-c transition-colors duration-150 group-hover/btn:bg-teal/25"
-            >
-              ✓
-            </span>
+            <CheckIcon className="h-4 w-4 text-teal" />
             <span>Played it</span>
           </button>
         </div>

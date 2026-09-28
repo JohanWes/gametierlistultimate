@@ -5,15 +5,11 @@ import { useEffect, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 
+import { CrownIcon } from '../../../ui/icons';
 import type { ShowdownViewProps } from '../GreatShowdown';
 import { tapProps } from '../../shared';
 import { ArcadeCard, type CardState } from '../ArcadeCard';
-import {
-  boutsForRound,
-  ROUND_PLAN,
-  roundHeading,
-  type ShowdownRound,
-} from './tournament';
+import { boutsForRound, ROUND_PLAN, roundHeading, type ShowdownRound } from './tournament';
 
 /** Auto-dismiss timing for the orientation preview and the chapter title cards. */
 const PREVIEW_MS = 1600;
@@ -42,7 +38,9 @@ export function MobileTournament({
   }, [showPreview]);
 
   if (showPreview) {
-    return <Preview seedIds={state.seededIds} gameById={gameById} onSkip={() => setShowPreview(false)} />;
+    return (
+      <Preview seedIds={state.seededIds} gameById={gameById} onSkip={() => setShowPreview(false)} />
+    );
   }
 
   if (champion !== null && !active) {
@@ -79,7 +77,12 @@ export function MobileTournament({
           animate={{ x: 0, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 300, damping: 26 }}
         >
-          <ArcadeCard game={a} size="duo" state={stateFor(a.igdbId)} onSelect={() => onPick(a.igdbId)} />
+          <ArcadeCard
+            game={a}
+            size="duo"
+            state={stateFor(a.igdbId)}
+            onSelect={() => onPick(a.igdbId)}
+          />
         </motion.div>
 
         <Vs ignite={active.round === 'finale'} settled={pendingWinnerId !== null} />
@@ -91,13 +94,16 @@ export function MobileTournament({
           animate={{ x: 0, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 300, damping: 26 }}
         >
-          <ArcadeCard game={b} size="duo" state={stateFor(b.igdbId)} onSelect={() => onPick(b.igdbId)} />
+          <ArcadeCard
+            game={b}
+            size="duo"
+            state={stateFor(b.igdbId)}
+            onSelect={() => onPick(b.igdbId)}
+          />
         </motion.div>
       </div>
 
-      <p className="mt-4 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted">
-        Tap the winner
-      </p>
+      <p className="label mt-4 text-muted">Tap the winner</p>
     </div>
   );
 }
@@ -119,9 +125,6 @@ function Preview({
       className="flex w-full flex-col items-center gap-4 rounded-card focus-visible:outline-none"
     >
       <header className="text-center">
-        <p className="mb-1 font-mono text-[0.68rem] uppercase tracking-[0.24em] text-accent">
-          The Great Showdown
-        </p>
         <h2 className="font-display text-2xl font-black uppercase tracking-[0.02em] text-fg">
           Eight enter. One is crowned.
         </h2>
@@ -136,7 +139,12 @@ function Preview({
               key={id}
               initial={reduce ? false : { opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: reduce ? 0 : i * 0.06, type: 'spring', stiffness: 360, damping: 24 }}
+              transition={{
+                delay: reduce ? 0 : i * 0.06,
+                type: 'spring',
+                stiffness: 360,
+                damping: 24,
+              }}
             >
               <ArcadeCard game={game} size="zone" />
             </motion.div>
@@ -144,9 +152,7 @@ function Preview({
         })}
       </div>
 
-      <span className="font-mono text-[0.65rem] uppercase tracking-[0.2em] text-muted/80">
-        Tap to begin
-      </span>
+      <span className="label text-muted/80">Tap to begin</span>
     </button>
   );
 }
@@ -159,13 +165,12 @@ function PipRail({ state }: { state: ShowdownViewProps['state'] }) {
         const resolved = boutsForRound(state, round).filter((b) => b.winnerId !== null).length;
         return (
           <div key={round} className="flex items-center gap-2.5">
-            {idx > 0 ? <span aria-hidden className="text-muted/40">·</span> : null}
-            <span
-              className={cn(
-                'font-mono text-[0.55rem] uppercase tracking-[0.14em]',
-                round === activeRound ? 'text-teal' : 'text-muted/60',
-              )}
-            >
+            {idx > 0 ? (
+              <span aria-hidden className="text-muted/40">
+                ·
+              </span>
+            ) : null}
+            <span className={cn('label', round === activeRound ? 'text-teal' : 'text-muted/60')}>
               {short}
             </span>
             <span className="flex gap-1">
@@ -266,13 +271,18 @@ function ChampionScreen({
   if (!game) return null;
   return (
     <div className="flex flex-col items-center gap-4">
-      <p className="font-mono text-[0.68rem] uppercase tracking-[0.24em] text-coin">Champion</p>
+      <p className="label text-coin">Champion</p>
       <motion.div
         initial={reduce ? false : { scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 320, damping: 22 }}
       >
-        <ArcadeCard game={game} size="solo" state="win" badge="♛" />
+        <ArcadeCard
+          game={game}
+          size="solo"
+          state="win"
+          badge={<CrownIcon className="h-3.5 w-3.5 text-accent" />}
+        />
       </motion.div>
       <p className="font-display text-xl font-black uppercase tracking-[0.04em] text-teal">
         {game.title}
@@ -281,10 +291,7 @@ function ChampionScreen({
         {state.seededIds.map((id) => (
           <span
             key={id}
-            className={cn(
-              'h-1.5 w-4 rounded-full',
-              id === champion ? 'bg-coin' : 'bg-border',
-            )}
+            className={cn('h-1.5 w-4 rounded-full', id === champion ? 'bg-coin' : 'bg-border')}
           />
         ))}
       </div>

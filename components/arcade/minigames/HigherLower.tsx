@@ -143,7 +143,12 @@ export function HigherLower({ games, anchorId, onComplete }: MinigameProps) {
   const readout = readoutFor(pair, bands);
   const liveState = (g: Game): CardState => {
     if (!allPlaced) return 'idle';
-    const outcome = outcomeForBands(anchor, challenger, bands[anchor.igdbId], bands[challenger.igdbId]);
+    const outcome = outcomeForBands(
+      anchor,
+      challenger,
+      bands[anchor.igdbId],
+      bands[challenger.igdbId],
+    );
     if (outcome.type === 'about-equal') return 'equal';
     if (outcome.type === 'pairwise') return outcome.winnerId === g.igdbId ? 'win' : 'lose';
     return 'idle';
@@ -152,8 +157,6 @@ export function HigherLower({ games, anchorId, onComplete }: MinigameProps) {
   return (
     <div className="flex flex-col items-center">
       <MinigameHeader
-        tone="teal"
-        eyebrow="The scale"
         title="Where do these land?"
         // The "left is bad, right is great" half wrapped to a second line on phones and only
         // restated the Bad / Mid / Great labels printed directly under the bands.
@@ -212,7 +215,7 @@ export function HigherLower({ games, anchorId, onComplete }: MinigameProps) {
                       }}
                       className="rounded-tile focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     >
-                      <ArcadeCard game={g} size="zone" state={liveState(g)} />
+                      <ArcadeCard game={g} size="zone" state={liveState(g)} removable={false} />
                     </motion.button>
                   ))}
                 </div>
@@ -226,7 +229,10 @@ export function HigherLower({ games, anchorId, onComplete }: MinigameProps) {
           {BANDS.map((band) => (
             <div key={band.key} className="flex flex-col items-center">
               <div className="flex w-full items-center">
-                <span aria-hidden className={cn('h-1.5 flex-1 rounded-full', ACCENT_BAR[band.accent])} />
+                <span
+                  aria-hidden
+                  className={cn('h-1.5 flex-1 rounded-full', ACCENT_BAR[band.accent])}
+                />
               </div>
               <span
                 className={cn(
@@ -267,9 +273,7 @@ export function HigherLower({ games, anchorId, onComplete }: MinigameProps) {
             />
           ))
         ) : (
-          <span className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-muted">
-            Both placed — lock it in or tap a cover to redo
-          </span>
+          <span className="label text-muted">Both placed — lock it in or tap a cover to redo</span>
         )}
       </div>
 

@@ -73,7 +73,7 @@ export function AppShell({
             wide && WIDE_MAX,
           )}
         >
-          <div className="flex items-center gap-2.5 rounded-tile border border-border bg-bg/80 px-3 py-2 shadow-soft">
+          <div className="flex items-center gap-3">
             <TierSpectrum />
             <span className="whitespace-nowrap font-display text-base font-black uppercase tracking-[0.16em] text-accent sm:text-lg">
               Game Tier List Ultimate

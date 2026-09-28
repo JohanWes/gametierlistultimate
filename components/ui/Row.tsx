@@ -14,17 +14,6 @@ export const TIER_BG: Record<Tier, string> = {
   F: 'bg-tier-f',
 };
 
-/** Tier-coloured inset stripe down a row's left edge. */
-export const TIER_TINT: Record<Tier, string> = {
-  S: 'shadow-[inset_3px_0_0_rgb(var(--tier-s))]',
-  A: 'shadow-[inset_3px_0_0_rgb(var(--tier-a))]',
-  B: 'shadow-[inset_3px_0_0_rgb(var(--tier-b))]',
-  C: 'shadow-[inset_3px_0_0_rgb(var(--tier-c))]',
-  D: 'shadow-[inset_3px_0_0_rgb(var(--tier-d))]',
-  E: 'shadow-[inset_3px_0_0_rgb(var(--tier-e))]',
-  F: 'shadow-[inset_3px_0_0_rgb(var(--tier-f))]',
-};
-
 interface RowProps {
   tier: Tier;
   children?: React.ReactNode;
@@ -41,7 +30,6 @@ export function Row({ tier, children, count, className }: RowProps) {
     <div
       className={cn(
         'flex items-stretch gap-3 overflow-hidden rounded-card border border-border bg-surface shadow-cabinet',
-        TIER_TINT[tier],
         className,
       )}
     >
@@ -51,9 +39,11 @@ export function Row({ tier, children, count, className }: RowProps) {
           TIER_BG[tier],
         )}
       >
-        <span className="font-display text-2xl font-extrabold text-black/85 sm:text-3xl">{tier}</span>
+        <span className="font-display text-2xl font-extrabold text-black/85 sm:text-3xl">
+          {tier}
+        </span>
         {typeof count === 'number' ? (
-          <span className="font-mono text-[0.65rem] text-black/60">{count}</span>
+          <span className="text-xs font-bold tabular-nums text-black/60">{count}</span>
         ) : null}
       </div>
       {/* `min-w-0` so this `flex-1` strip can shrink below its content and scroll internally

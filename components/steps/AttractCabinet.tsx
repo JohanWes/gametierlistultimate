@@ -120,27 +120,12 @@ export function AttractCabinet({ active = true }: AttractCabinetProps) {
 
   return (
     <div className="relative mx-auto w-fit max-w-full overflow-hidden rounded-card border-2 border-border bg-bg shadow-cabinet">
-      {/* ambient tier-spectrum glow behind the screen */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -inset-px opacity-60 blur-2xl"
-        style={{
-          background:
-            'radial-gradient(120% 90% at 50% 0%, rgb(var(--tier-s) / 0.18), transparent 60%), radial-gradient(120% 90% at 50% 100%, rgb(var(--tier-d) / 0.16), transparent 60%)',
-        }}
-      />
-
       <div className="relative flex flex-col gap-2 p-3 sm:p-4">
         {/* marquee header */}
-        <div className="flex items-center justify-between border-b border-border/80 pb-2 font-mono text-[0.62rem] uppercase tracking-[0.2em] text-muted">
+        <div className="label flex items-center justify-between border-b border-border/80 pb-2 text-muted">
           <span className="text-fg/80">Rankings</span>
           <span className="flex items-center gap-1.5 text-teal">
-            <motion.span
-              aria-hidden
-              className="inline-block h-1.5 w-1.5 rounded-hardware bg-teal"
-              animate={reduce ? undefined : { opacity: [1, 0.2, 1] }}
-              transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-            />
+            <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-hardware bg-teal" />
             Demo
           </span>
         </div>

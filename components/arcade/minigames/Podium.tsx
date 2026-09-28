@@ -21,9 +21,9 @@ import { MinigameHeader } from './MinigameHeader';
 /* The pedestal heights are decoration — they only have to *read* as a podium. On phones they use
    about half the height so the space goes to the covers instead. */
 const STEPS = [
-  { rank: 1, label: '1st', height: 'h-11 sm:h-20', medal: '🥇', accent: 'text-coin', order: 'order-2' },
-  { rank: 2, label: '2nd', height: 'h-8 sm:h-14', medal: '🥈', accent: 'text-muted', order: 'order-1' },
-  { rank: 3, label: '3rd', height: 'h-6 sm:h-10', medal: '🥉', accent: 'text-accent', order: 'order-3' },
+  { rank: 1, label: '1st', height: 'h-11 sm:h-20', accent: 'text-coin', order: 'order-2' },
+  { rank: 2, label: '2nd', height: 'h-8 sm:h-14', accent: 'text-muted', order: 'order-1' },
+  { rank: 3, label: '3rd', height: 'h-6 sm:h-10', accent: 'text-accent', order: 'order-3' },
 ] as const;
 
 /**
@@ -98,8 +98,6 @@ export function Podium({ games, onComplete }: MinigameProps) {
   return (
     <div className="flex flex-col items-center">
       <MinigameHeader
-        tone="coin"
-        eyebrow="Podium"
         title="Crown your top three."
         hint={full ? 'Tap a card to redo — or lock it in' : 'Tap in order — gold first'}
       />
@@ -129,11 +127,17 @@ export function Podium({ games, onComplete }: MinigameProps) {
                     onClick={() => demote(game)}
                     className="rounded-tile focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                   >
-                    <ArcadeCard game={game} size="zone" state="win" badge={step.medal} />
+                    <ArcadeCard
+                      game={game}
+                      size="zone"
+                      state="win"
+                      badge={step.rank}
+                      removable={false}
+                    />
                   </motion.button>
                 ) : (
-                  <div className="flex aspect-[3/4] w-[var(--cover-zone)] items-center justify-center rounded-tile border border-dashed border-border/70 bg-surface/20 text-2xl">
-                    {step.medal}
+                  <div className="flex aspect-[3/4] w-[var(--cover-zone)] items-center justify-center rounded-tile border border-dashed border-border/70 bg-surface/20 font-display text-2xl font-black text-muted/40">
+                    {step.rank}
                   </div>
                 )}
               </div>

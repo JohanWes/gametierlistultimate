@@ -72,10 +72,7 @@ export function ArcadeStep() {
   const goNext = useStore((s) => s.goNext);
   const goBack = useStore((s) => s.goBack);
 
-  const gameMap = useMemo(
-    () => new Map(pool.map((e) => [e.game.igdbId, e.game])),
-    [pool],
-  );
+  const gameMap = useMemo(() => new Map(pool.map((e) => [e.game.igdbId, e.game])), [pool]);
 
   const [ranking, setRanking] = useState<RankingState>(() =>
     initRanking(pool, useStore.getState().scores),
@@ -97,9 +94,7 @@ export function ArcadeStep() {
       vibeSeenIds: [...vibeSeenRef.current],
     });
     if (!round) return null;
-    const games = round.gameIds
-      .map((id) => gameMap.get(id))
-      .filter((g): g is Game => Boolean(g));
+    const games = round.gameIds.map((id) => gameMap.get(id)).filter((g): g is Game => Boolean(g));
     if (games.length < round.gameIds.length) return null;
     return { kind: round.kind, games, anchorId: round.anchorId, boundary: round.boundary };
     // roundKey is the advance signal; recentRef is a ref (read fresh each advance).
@@ -167,13 +162,7 @@ export function ArcadeStep() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 flex-col gap-2 border-b border-border/70 pb-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:pb-3">
-        <div className="flex items-center gap-3">
-          <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-teal">
-            <span className="sm:hidden">Arcade</span>
-            <span className="hidden sm:inline">Step 3 · Ranking arcade</span>
-          </p>
-          <PhaseBadge phase={phase} round={ranking.round} />
-        </div>
+        <RoundLabel phase={phase} round={ranking.round} />
         <div className="w-full sm:max-w-xs">
           <ConfidenceMeter value={confidence} ready={ready} />
         </div>
@@ -218,8 +207,10 @@ export function ArcadeStep() {
         {view ? (
           <button
             type="button"
-            {...tapProps(() => advance([{ type: 'skip', gameIds: view.games.map((g) => g.igdbId) }]))}
-            className="select-none whitespace-nowrap rounded-tile px-2 py-1.5 font-mono text-xs uppercase tracking-[0.16em] text-muted transition-colors hover:text-fg focus-visible:outline-none sm:px-3"
+            {...tapProps(() =>
+              advance([{ type: 'skip', gameIds: view.games.map((g) => g.igdbId) }]),
+            )}
+            className="label select-none whitespace-nowrap rounded-tile px-2 py-1.5 text-muted transition-colors hover:text-fg focus-visible:outline-none sm:px-3"
           >
             Skip
             <span className="hidden sm:inline"> round</span>
@@ -248,21 +239,20 @@ export function ArcadeStep() {
   );
 }
 
-function PhaseBadge({ phase, round }: { phase: string; round: number }) {
-  const label = phase === 'early' ? 'Building tiers' : 'Fine-tuning';
+/** `round` counts completed rounds, so the one being played is `round + 1`. */
+function RoundLabel({ phase, round }: { phase: string; round: number }) {
   return (
-    <div className="flex shrink-0 items-center gap-2 rounded-tile border border-border bg-surface/60 px-2.5 py-1 shadow-soft">
-      <span className="font-mono text-[0.58rem] uppercase tracking-[0.16em] text-muted">Round</span>
-      <span
-        data-testid="arcade-round"
-        className="font-display text-base font-black tabular-nums text-fg"
-      >
-        {round}
+    <p className="flex items-baseline gap-3">
+      <span className="font-display text-lg font-black uppercase leading-none text-fg sm:text-xl">
+        Round{' '}
+        <span data-testid="arcade-round" className="tabular-nums">
+          {round + 1}
+        </span>
       </span>
-      <span className="hidden font-mono text-[0.58rem] uppercase tracking-[0.14em] text-teal sm:inline">
-        {label}
+      <span className="label text-muted">
+        {phase === 'early' ? 'Building tiers' : 'Fine-tuning'}
       </span>
-    </div>
+    </p>
   );
 }
 
@@ -278,21 +268,14 @@ function RevealCta({
   const reduce = useReducedMotion();
   if (!ready) {
     return (
-      <motion.span
-        className={cn(
-          'text-right font-mono text-[0.7rem] uppercase tracking-[0.16em]',
-          near ? 'text-teal' : 'text-muted/70',
-        )}
-        animate={near && !reduce ? { opacity: [0.6, 1, 0.6] } : { opacity: 1 }}
-        transition={near && !reduce ? { duration: 1.6, repeat: Infinity, ease: 'easeInOut' } : undefined}
-      >
+      <span className={cn('label text-right', near ? 'text-teal' : 'text-muted')}>
         {/* Short form on phones — the full sentence wraps to two lines next to Back + Skip at
             375px, which visibly grows the action bar. */}
         <span className="sm:hidden">{near ? 'Almost there' : 'Keep playing'}</span>
         <span className="hidden sm:inline">
           {near ? 'Almost there — keep playing' : 'Keep playing to unlock'}
         </span>
-      </motion.span>
+      </span>
     );
   }
   return (
@@ -301,9 +284,7 @@ function RevealCta({
       animate={{ opacity: 1, y: 0 }}
       className="flex items-center gap-3"
     >
-      <span className="hidden font-mono text-[0.7rem] uppercase tracking-[0.16em] text-teal sm:inline">
-        Your list is ready
-      </span>
+      <span className="label hidden text-teal sm:inline">Your list is ready</span>
       {/* The payoff gate — give the reveal a pulsing glow so it reads as the moment it is. The
           glow is a static shadow whose opacity pulses (compositor-only, no per-frame repaint). */}
       <div className="relative rounded-control">
@@ -330,9 +311,7 @@ function EmptyState({ onBack }: { onBack: () => void }) {
       <p className="font-display text-lg font-bold uppercase tracking-[0.04em] text-fg">
         Need a couple more games
       </p>
-      <p className="max-w-sm text-sm text-muted">
-        Add at least two games to start ranking.
-      </p>
+      <p className="max-w-sm text-sm text-muted">Add at least two games to start ranking.</p>
       <Button variant="secondary" onClick={onBack}>
         ← Back to games
       </Button>

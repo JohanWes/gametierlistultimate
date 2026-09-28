@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { playSound } from '@/lib/sound';
 
+import { XIcon } from '../../ui/icons';
 import { useComplete } from '../shared';
 import type { MinigameProps } from '../types';
 import { ArcadeCard, type CardState } from './ArcadeCard';
@@ -29,7 +30,7 @@ export function Sacrifice({ games, onComplete }: MinigameProps) {
 
   return (
     <div className="flex flex-col items-center">
-      <MinigameHeader tone="coin" eyebrow="Sacrifice one" title="One has to go." />
+      <MinigameHeader title="One has to go." />
 
       <CoverRail gridClassName="grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {games.map((game) => (
@@ -42,7 +43,9 @@ export function Sacrifice({ games, onComplete }: MinigameProps) {
               game={game}
               size="row"
               state={stateFor(game.igdbId)}
-              badge={loserId === game.igdbId ? '✕' : undefined}
+              badge={
+                loserId === game.igdbId ? <XIcon className="h-3.5 w-3.5 text-coin" /> : undefined
+              }
               onSelect={() => sacrifice(game.igdbId)}
             />
           </motion.div>

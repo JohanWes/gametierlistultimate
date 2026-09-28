@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 
 import { GameCard } from '../../ui/GameCard';
 import { RemoveButton } from '../../ui/RemoveButton';
-import { Row, TIER_BG, TIER_TINT } from '../../ui/Row';
+import { Row, TIER_BG } from '../../ui/Row';
 import { insertionIndex, pageRectOf, zoneIndexAtPagePoint, type DropTarget } from './dnd';
 
 interface TierBoardProps {
@@ -60,10 +60,7 @@ export function TierBoard({
   // Which tier row + insertion index the cursor (in page coordinates) lands on. The dragged
   // `gameId` is excluded so the index is computed against the row's other cards. Returns null
   // when the cursor is outside every row.
-  const resolveDrop = (
-    point: { x: number; y: number },
-    excludeId: number,
-  ): DropTarget | null => {
+  const resolveDrop = (point: { x: number; y: number }, excludeId: number): DropTarget | null => {
     const idx = zoneIndexAtPagePoint(
       point,
       TIER_ORDER.map((t) => rowRefs.current[t] ?? null),
@@ -104,10 +101,7 @@ export function TierBoard({
                   ref={(el) => {
                     rowRefs.current[tier] = el;
                   }}
-                  className={cn(
-                    'relative isolate flex items-stretch gap-3 rounded-card border border-border bg-surface shadow-cabinet',
-                    TIER_TINT[tier],
-                  )}
+                  className="relative isolate flex items-stretch gap-3 rounded-card border border-border bg-surface shadow-cabinet"
                 >
                   {coronate && tier === 'S' ? <SCoronation /> : null}
                   <div
@@ -119,7 +113,9 @@ export function TierBoard({
                     <span className="font-display text-2xl font-extrabold text-black/85 sm:text-3xl">
                       {tier}
                     </span>
-                    <span className="font-mono text-[0.65rem] text-black/60">{ids.length}</span>
+                    <span className="text-xs font-bold tabular-nums text-black/60">
+                      {ids.length}
+                    </span>
                   </div>
                   {/* On phones a row is a fixed-height horizontal strip (matching the read-only
                       `Row`): a 16-game tier wrapped to eight rows of two, which is most of why the
@@ -128,7 +124,13 @@ export function TierBoard({
                   {/* `min-w-0` is required: a `flex-1` item defaults to `min-width: auto`, so
                       without it the strip refuses to shrink below its content and pushes the whole
                       document sideways instead of scrolling inside itself. */}
-                  <div className="flex min-h-[132px] min-w-0 flex-1 items-center gap-2.5 overflow-x-auto py-3 pr-3 [scrollbar-width:none] sm:min-h-[140px] sm:flex-wrap sm:content-center sm:overflow-x-visible [&::-webkit-scrollbar]:hidden">
+                  <div
+                    className={cn(
+                      'flex min-w-0 flex-1 items-center gap-2.5 overflow-x-auto py-3 pr-3 [scrollbar-width:none] sm:flex-wrap sm:content-center sm:overflow-x-visible [&::-webkit-scrollbar]:hidden',
+                      // An empty tier collapses to a slim (still droppable) band.
+                      ids.length > 0 ? 'min-h-[132px] sm:min-h-[140px]' : 'min-h-[72px]',
+                    )}
+                  >
                     {ids.map((id, idx) => {
                       const game = gamesById.get(id);
                       if (!game) return null;
@@ -305,7 +307,7 @@ function MovableCard({
           // tier picker by accident.
           tapProps(open))}
       className={cn(
-        'relative rounded-tile focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'group/card relative rounded-tile focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         dragEnabled ? 'cursor-grab touch-none active:cursor-grabbing' : 'touch-pan-x',
       )}
     >
@@ -315,7 +317,12 @@ function MovableCard({
   );
 }
 
-const BURST_COLORS = ['var(--tier-s)', 'var(--color-accent)', 'var(--color-teal)', 'var(--color-coin)'];
+const BURST_COLORS = [
+  'var(--tier-s)',
+  'var(--color-accent)',
+  'var(--color-teal)',
+  'var(--color-coin)',
+];
 
 /**
  * One-shot crescendo over the S row: a glow ring, a bloom, a traveling marquee light, and a coin
@@ -328,7 +335,7 @@ function SCoronation() {
     () =>
       Array.from({ length: 22 }, (_, i) => {
         // Fan upward and out: angles biased to the top hemisphere so coins arc over the covers.
-        const angle = -Math.PI / 2 + (((i / 22) * 2 - 1) * Math.PI * 0.82);
+        const angle = -Math.PI / 2 + ((i / 22) * 2 - 1) * Math.PI * 0.82;
         const dist = 96 + ((i * 53) % 78);
         return {
           id: i,
@@ -363,7 +370,12 @@ function SCoronation() {
             }}
             initial={{ x: 0, y: 0, opacity: 0, scale: 0.4 }}
             animate={{ x: p.dx, y: p.dy, opacity: [0, 1, 1, 0], scale: 1, rotate: p.rot }}
-            transition={{ duration: 0.78, ease: [0.22, 1, 0.36, 1], delay: p.delay, times: [0, 0.12, 0.7, 1] }}
+            transition={{
+              duration: 0.78,
+              ease: [0.22, 1, 0.36, 1],
+              delay: p.delay,
+              times: [0, 0.12, 0.7, 1],
+            }}
           />
         ))}
       </div>

@@ -7,6 +7,8 @@ import { fetchGameplayVideo } from '@/lib/games/client';
 import type { Game } from '@/lib/games/types';
 import { gameplayQuery } from '@/lib/youtube';
 
+import { XIcon } from '../ui/icons';
+
 /** The clicked cover and its on-screen rect — the rect drives the origin-aware expand. */
 export interface VideoTarget {
   game: Game;
@@ -114,61 +116,42 @@ export function GameplayVideoModal({ video, onClose }: GameplayVideoModalProps) 
             initial={reduce ? { opacity: 0 } : expandFrom(video.rect)}
             animate={reduce ? { opacity: 1 } : { x: 0, y: 0, scale: 1, opacity: 1 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
-            transition={reduce ? { duration: 0.18 } : { type: 'spring', stiffness: 380, damping: 32 }}
+            transition={
+              reduce ? { duration: 0.18 } : { type: 'spring', stiffness: 380, damping: 32 }
+            }
             className="relative z-10 w-full max-w-3xl rounded-card border-2 border-border bg-panel p-4 shadow-cabinet sm:p-5"
           >
-            <div className="mb-3 flex items-end justify-between gap-3">
-              <div className="min-w-0">
-                <p className="mb-0.5 font-mono text-[0.62rem] font-bold uppercase tracking-[0.2em] text-accent">
-                  ▶ Now playing
-                </p>
-                <h2 className="truncate font-display text-xl font-black uppercase tracking-[0.02em] text-fg sm:text-2xl">
-                  {game.title}
-                </h2>
-              </div>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="min-w-0 truncate font-display text-xl font-black uppercase tracking-[0.02em] text-fg sm:text-2xl">
+                {game.title}
+              </h2>
               <button
                 type="button"
                 aria-label="Close"
                 onClick={onClose}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-hardware border border-border bg-surface text-lg leading-none text-muted shadow-soft transition-colors duration-150 hover:border-coin/70 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-hardware border border-border bg-surface text-muted shadow-soft transition-colors duration-150 hover:border-coin/70 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                ✕
+                <XIcon />
               </button>
             </div>
 
-            <div className="mb-3 h-px w-full bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
-
             <div className="relative aspect-video w-full overflow-hidden rounded-tile border-2 border-border bg-black shadow-cabinet">
               {state.status === 'ready' ? (
-                <>
-                  <iframe
-                    key={state.videoId}
-                    className="absolute inset-0 h-full w-full"
-                    src={`https://www.youtube-nocookie.com/embed/${state.videoId}?autoplay=1&rel=0&modestbranding=1`}
-                    title={`${game.title} gameplay`}
-                    allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    allowFullScreen
-                  />
-                  {reduce ? null : (
-                    // Brief CRT "power-on" sweep across the screen once the embed mounts.
-                    <motion.div
-                      aria-hidden
-                      initial={{ opacity: 0.85, x: '-100%' }}
-                      animate={{ opacity: 0, x: '100%' }}
-                      transition={{ duration: 0.45, ease: 'easeOut' }}
-                      className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent"
-                    />
-                  )}
-                </>
+                <iframe
+                  key={state.videoId}
+                  className="absolute inset-0 h-full w-full"
+                  src={`https://www.youtube-nocookie.com/embed/${state.videoId}?autoplay=1&rel=0&modestbranding=1`}
+                  title={`${game.title} gameplay`}
+                  allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                />
               ) : state.status === 'loading' ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                   <div className="relative h-1.5 w-2/5 overflow-hidden rounded-hardware bg-surface-elevated">
                     <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-accent/70 to-transparent" />
                   </div>
-                  <p className="font-mono text-[0.62rem] uppercase tracking-[0.2em] text-muted">
-                    Loading footage…
-                  </p>
+                  <p className="label text-muted">Loading footage…</p>
                 </div>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
@@ -191,14 +174,12 @@ export function GameplayVideoModal({ video, onClose }: GameplayVideoModalProps) 
             </div>
 
             <div className="mt-3 flex items-center justify-between gap-3">
-              <p className="truncate font-mono text-[0.62rem] uppercase tracking-[0.16em] text-muted">
-                Tap outside or press Esc to close
-              </p>
+              <p className="label truncate text-muted">Tap outside or press Esc to close</p>
               <a
                 href={searchUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="shrink-0 font-mono text-[0.62rem] uppercase tracking-[0.16em] text-teal transition-colors duration-150 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="label shrink-0 text-teal transition-colors duration-150 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Open on YouTube ↗
               </a>

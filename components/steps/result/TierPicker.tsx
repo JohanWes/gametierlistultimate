@@ -52,9 +52,7 @@ export function TierPicker({ game, current, onPick, onClose }: TierPickerProps) 
             transition={{ type: 'spring', stiffness: 380, damping: 32 }}
             className="relative z-10 w-full max-w-lg rounded-t-card border-2 border-border bg-panel p-5 shadow-cabinet sm:rounded-card"
           >
-            <p className="mb-1 font-mono text-[0.7rem] uppercase tracking-[0.2em] text-teal">
-              Move to tier
-            </p>
+            <p className="label mb-1 text-teal">Move to tier</p>
             <h2 className="mb-4 truncate font-display text-2xl font-black uppercase tracking-[0.02em] text-fg">
               {game.title}
             </h2>
@@ -81,7 +79,7 @@ export function TierPicker({ game, current, onPick, onClose }: TierPickerProps) 
               })}
             </div>
 
-            <p className="mt-4 text-center font-mono text-[0.7rem] uppercase tracking-[0.16em] text-muted">
+            <p className="label mt-4 text-center text-muted">
               {current ? `Currently in ${current}` : 'Pick a new tier'} · tap outside to cancel
             </p>
           </motion.div>
